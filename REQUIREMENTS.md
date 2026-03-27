@@ -1,8 +1,8 @@
-# EDU-PI - Educational Raspberry Pi Platform
+# Tinko - Educational Raspberry Pi Platform
 
 ## Project Overview
 
-EDU-PI is an educational platform running on Raspberry Pi, designed for interactive classroom activities. The system combines physical GPIO-based interactions with a web-based dashboard for teachers and students.
+Tinko is an educational platform running on Raspberry Pi, designed for interactive classroom activities. The system combines physical GPIO-based interactions with a web-based dashboard for teachers and students.
 
 ## Core Features
 
@@ -422,6 +422,64 @@ The following features have been implemented:
 - Environment variables for sensitive settings
 - JSON/YAML config files for profiles
 - Database migrations for schema changes
+
+## Deployment
+
+### Production Deployment on Raspberry Pi
+
+For deploying Edu-Pi as the primary application that starts automatically on boot:
+
+#### Systemd Service (Recommended)
+
+Create a systemd service that manages the Django application:
+
+1. **Service file location**: `/etc/systemd/system/edu-pi.service`
+
+2. **Configuration**:
+   ```ini
+   [Unit]
+   Description=Edu-Pi Django Application
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=pi
+   WorkingDirectory=/home/pi/edu-pi
+   Environment="PATH=/home/pi/.local/bin"
+   Environment="PYTHONPATH=/home/pi/edu-pi"
+   Environment="DJANGO_SETTINGS_MODULE=config.settings"
+   Environment="EDUPI_DEBUG=False"
+   ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py migrate --noinput
+   ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py collectstatic --noinput
+   ExecStart=/home/pi/.cargo/bin/uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
+   Restart=always
+   RestartSec=3
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. **Setup steps**:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable edu-pi
+   sudo systemctl start edu-pi
+   ```
+
+4. **Features**:
+   - Auto-starts on boot
+   - Auto-restarts on crash
+   - Runs migrations and collectstatic before starting
+   - Uses Daphne ASGI server for WebSocket support
+   - Logs to systemd journal
+
+5. **Management commands**:
+   ```bash
+   sudo systemctl status edu-pi      # Check status
+   sudo systemctl restart edu-pi     # Restart
+   sudo systemctl stop edu-pi        # Stop
+   sudo journalctl -u edu-pi -f      # View logs
+   ```
 
 ---
 

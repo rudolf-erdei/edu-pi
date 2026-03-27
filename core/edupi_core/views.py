@@ -1,5 +1,5 @@
 """
-Views for the EDU-PI core application.
+Views for the Tinko core application.
 """
 
 from django.shortcuts import render
@@ -39,7 +39,7 @@ def home_view(request: HttpRequest):
         )
 
     context = {
-        "title": "EDU-PI Dashboard",
+        "title": "Tinko Dashboard",
         "plugins": plugins_with_urls,
         "plugin_count": len(plugins_with_urls),
         "runtime_count": len(runtime_plugins),

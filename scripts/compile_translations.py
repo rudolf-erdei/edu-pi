@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Translation compiler for EDU-PI plugins.
+Translation compiler for Tinko plugins.
 
 This script compiles .po translation files to .mo binary format.
 It can compile translations for all plugins or a specific plugin.
@@ -136,7 +136,7 @@ def print_results(plugin_name: str, results: dict):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Compile translations for EDU-PI plugins"
+        description="Compile translations for Tinko plugins"
     )
     parser.add_argument(
         "--plugin",

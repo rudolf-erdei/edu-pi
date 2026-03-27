@@ -1,8 +1,8 @@
 """
-EDU-PI Plugin Development Documentation
+Tinko Plugin Development Documentation
 =========================================
 
-This document describes how to develop plugins for the EDU-PI platform.
+This document describes how to develop plugins for the Tinko platform.
 The plugin system is inspired by OctoberCMS, adapted for Django and Raspberry Pi GPIO integration.
 
 Quick Start

@@ -19,7 +19,7 @@ class Plugin(PluginBase):
         "Play musical notes by touching conductive materials connected to GPIO pins. "
         "Supports bananas, foil, copper tape, and other conductive items."
     )
-    author = "EDU-PI Team"
+    author = "Tinko Team"
     version = "1.0.0"
     icon = "music"
 

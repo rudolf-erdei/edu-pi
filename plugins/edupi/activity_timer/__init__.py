@@ -1,4 +1,4 @@
-"""Activity Timer Plugin for EDU-PI.
+"""Activity Timer Plugin for Tinko.
 
 A classroom activity timer with visual progress on RGB LED.
 """

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class PluginBase:
     """
-    Base class for all EDU-PI plugins.
+    Base class for all Tinko plugins.
 
     Inspired by OctoberCMS plugin architecture.
     Each plugin must have a Plugin class inheriting from PluginBase.

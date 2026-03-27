@@ -1,5 +1,5 @@
 # Activity Timer Plugin - English Translation
-# Copyright (C) 2025 EDU-PI Team
+# Copyright (C) 2025 Tinko Team
 # This file is distributed under the same license as the edu-pi package.
 #
 msgid ""
@@ -8,7 +8,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-03-27 10:00+0200\n"
 "PO-Revision-Date: 2025-03-27 10:00+0200\n"
-"Last-Translator: EDU-PI Team\n"
+"Last-Translator: Tinko Team\n"
 "Language-Team: English\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"

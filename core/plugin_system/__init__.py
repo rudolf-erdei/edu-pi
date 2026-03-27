@@ -1,4 +1,4 @@
-"""Plugin system for EDU-PI."""
+"""Plugin system for Tinko."""
 
 from .apps import PluginSystemConfig
 

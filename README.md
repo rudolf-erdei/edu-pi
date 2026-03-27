@@ -1,4 +1,4 @@
-# EDU-PI - Educational Raspberry Pi Platform
+# Tinko - Educational Raspberry Pi Platform
 
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
 [![Django Version](https://img.shields.io/badge/django-4.2-green)](https://www.djangoproject.com/)
@@ -10,7 +10,7 @@ An educational platform running on Raspberry Pi, designed for interactive classr
 
 ## 🎯 Overview
 
-EDU-PI enables teachers to create engaging, hands-on learning experiences by combining Raspberry Pi hardware with an intuitive web interface. Students can interact with physical sensors, LEDs, and conductive materials while teachers monitor and control activities through a modern dashboard.
+Tinko enables teachers to create engaging, hands-on learning experiences by combining Raspberry Pi hardware with an intuitive web interface. Students can interact with physical sensors, LEDs, and conductive materials while teachers monitor and control activities through a modern dashboard.
 
 ### Key Highlights
 
@@ -116,9 +116,84 @@ EDU-PI enables teachers to create engaging, hands-on learning experiences by com
    ```
 
 7. **Access the application**
-   - Dashboard: http://localhost:8000/
-   - Admin Panel: http://localhost:8000/admin/
-   - Plugin Management: http://localhost:8000/admin/plugins/
+    - Dashboard: http://localhost:8000/
+    - Admin Panel: http://localhost:8000/admin/
+    - Plugin Management: http://localhost:8000/admin/plugins/
+
+## 🚀 Production Deployment (Raspberry Pi)
+
+For production deployment where the Raspberry Pi boots directly into the application, use systemd to manage the service.
+
+### Systemd Service Setup
+
+1. **Create the systemd service file**
+
+   ```bash
+   sudo nano /etc/systemd/system/edu-pi.service
+   ```
+
+2. **Add the following configuration**
+
+   ```ini
+   [Unit]
+   Description=Edu-Pi Django Application
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=pi
+   WorkingDirectory=/home/pi/edu-pi
+   Environment="PATH=/home/pi/.local/bin"
+   Environment="PYTHONPATH=/home/pi/edu-pi"
+   Environment="DJANGO_SETTINGS_MODULE=config.settings"
+   Environment="EDUPI_DEBUG=False"
+   ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py migrate --noinput
+   ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py collectstatic --noinput
+   ExecStart=/home/pi/.cargo/bin/uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
+   Restart=always
+   RestartSec=3
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. **Enable and start the service**
+
+   ```bash
+   # Reload systemd configuration
+   sudo systemctl daemon-reload
+
+   # Enable service to start on boot
+   sudo systemctl enable edu-pi
+
+   # Start the service
+   sudo systemctl start edu-pi
+
+   # Check service status
+   sudo systemctl status edu-pi
+   ```
+
+4. **Service management commands**
+
+   ```bash
+   # View logs
+   sudo journalctl -u edu-pi -f
+
+   # Restart service
+   sudo systemctl restart edu-pi
+
+   # Stop service
+   sudo systemctl stop edu-pi
+
+   # Disable auto-start on boot
+   sudo systemctl disable edu-pi
+   ```
+
+5. **Access the application**
+
+   Once running, access via:
+   - From the Pi itself: http://localhost:8000/
+   - From other devices on the network: http://<raspberry-pi-ip>:8000/
 
 ### Default Credentials
 
@@ -161,7 +236,7 @@ edu-pi/
 
 ## 🔌 Plugin Development
 
-EDU-PI uses an OctoberCMS-inspired plugin system. Plugins are self-contained packages that can extend the platform's functionality.
+Tinko uses an OctoberCMS-inspired plugin system. Plugins are self-contained packages that can extend the platform's functionality.
 
 ### Creating a Plugin
 

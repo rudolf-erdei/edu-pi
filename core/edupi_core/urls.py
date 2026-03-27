@@ -1,5 +1,5 @@
 """
-URL configuration for the EDU-PI core application.
+URL configuration for the Tinko core application.
 """
 
 from django.urls import path

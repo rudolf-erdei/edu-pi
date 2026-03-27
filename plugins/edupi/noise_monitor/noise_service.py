@@ -1,4 +1,4 @@
-"""Noise Monitor Service for EDU-PI.
+"""Noise Monitor Service for Tinko.
 
 Manages microphone input and dual RGB LED control for noise monitoring.
 Provides instant and session rolling averages.

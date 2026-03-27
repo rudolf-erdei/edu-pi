@@ -17,7 +17,7 @@ class Plugin(PluginBase):
 
     name = "Noise Monitor"
     description = "Visual noise level monitor for classroom with dual RGB LED feedback"
-    author = "EDU-PI Team"
+    author = "Tinko Team"
     version = "1.0.0"
     icon = "volume-2"
 

@@ -92,8 +92,8 @@ msgstr "Aplicații instalate"
 msgid "Installed Apps"
 msgstr "Aplicații instalate"
 
-msgid "EDU-PI Plugin Administration"
-msgstr "Administrare EDU-PI"
+msgid "Tinko Plugin Administration"
+msgstr "Administrare Tinko"
 
 msgid "Dashboard"
 msgstr "Panou de bord"
@@ -115,5 +115,5 @@ msgid "There are currently no active apps available. Please check the admin pane
 msgstr "Momentan nu există aplicații active disponibile. Verificați panoul de administrare sau instalați aplicații."
 
 # Footer
-msgid "EDU-PI Educational Platform"
-msgstr "Platformă Educațională EDU-PI"
+msgid "Tinko Educational Platform"
+msgstr "Platformă Educațională Tinko"

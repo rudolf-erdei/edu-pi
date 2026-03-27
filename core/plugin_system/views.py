@@ -36,8 +36,8 @@ def plugin_dashboard_view(request):
         "total_plugins": db_plugins.count(),
         "enabled_plugins": db_plugins.filter(is_enabled=True).count(),
         "has_permission": True,
-        "site_title": "EDU-PI Admin",
-        "site_header": "EDU-PI Plugin Administration",
+        "site_title": "Tinko Admin",
+        "site_header": "Tinko Plugin Administration",
     }
 
     return TemplateResponse(request, "admin/plugin_dashboard.html", context)

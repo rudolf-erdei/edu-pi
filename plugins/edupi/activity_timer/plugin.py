@@ -19,7 +19,7 @@ class Plugin(PluginBase):
     description = (
         "Visual countdown timer for classroom activities with RGB LED feedback"
     )
-    author = "EDU-PI Team"
+    author = "Tinko Team"
     version = "1.0.0"
     icon = "clock"
 

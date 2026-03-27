@@ -1,6 +1,6 @@
 # Activity Timer Plugin
 
-A classroom activity timer with visual feedback via RGB LED and optional buzzer for EDU-PI platform.
+A classroom activity timer with visual feedback via RGB LED and optional buzzer for Tinko platform.
 
 ## Features
 
@@ -33,7 +33,7 @@ Default GPIO pin assignments (BCM numbering):
 
 ## Installation
 
-The plugin is automatically discovered by the EDU-PI plugin system. Simply ensure the plugin directory exists at:
+The plugin is automatically discovered by the Tinko plugin system. Simply ensure the plugin directory exists at:
 
 ```
 plugins/edupi/activity_timer/
@@ -199,4 +199,4 @@ uv run django-admin compilemessages
 
 ## License
 
-Part of EDU-PI Educational Platform
+Part of Tinko Educational Platform

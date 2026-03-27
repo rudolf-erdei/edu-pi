@@ -1,1 +1,1 @@
-# EDU-PI Core Package
+# Tinko Core Package

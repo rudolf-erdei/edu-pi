@@ -21,8 +21,8 @@ from .models import (
 class PluginAdminSite(admin.AdminSite):
     """Custom admin site with plugin dashboard."""
 
-    site_header = "EDU-PI Plugin Administration"
-    site_title = "EDU-PI Admin"
+    site_header = "Tinko Plugin Administration"
+    site_title = "Tinko Admin"
     index_title = "Dashboard"
 
     def get_urls(self):

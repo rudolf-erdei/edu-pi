@@ -1,4 +1,4 @@
-"""Touch Piano Plugin for EDU-PI.
+"""Touch Piano Plugin for Tinko.
 
 Allows students to play musical notes by touching conductive materials
 like bananas, foil, or copper tape connected to GPIO pins.
