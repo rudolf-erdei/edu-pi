@@ -51,17 +51,11 @@ msgid "Admin"
 msgstr "Administrare"
 
 # Dashboard
-msgid "EDU-PI Dashboard"
-msgstr "Panou EDU-PI"
+msgid "Hello, I'm Tinko!"
+msgstr "Salut, sunt Tinko!"
 
-msgid "Welcome to the classroom management system."
-msgstr "Bun venit în sistemul de management al clasei."
-
-msgid "Manage your classroom activities and monitor student engagement with our plugin system."
-msgstr "Gestionați activitățile din clasă și monitorizați implicarea elevilor cu sistemul nostru de aplicații."
-
-msgid "Manage your classroom activities and monitor student engagement with our app system."
-msgstr "Gestionați activitățile din clasă și monitorizați implicarea elevilor cu sistemul nostru de aplicații."
+msgid "I used to live inside a very quiet, very serious pocket calculator. All day long, I just added boring numbers together. But I had a secret dream: I wanted to make music, flash bright colors, and build amazing gadgets!"
+msgstr "Înainte, locuiam înăuntrul unui calculator de buzunar foarte tăcut și foarte serios. Toată ziua doar adunam și scădeam numere plictisitoare. Dar eu aveam un vis secret: voiam să compun muzică, să aprind lumini colorate și să construiesc invenții uimitoare!"
 
 # Quick Actions
 msgid "Quick Actions"
@@ -110,6 +104,9 @@ msgstr "Activ"
 
 msgid "Disabled"
 msgstr "Dezactivat"
+
+msgid "Version"
+msgstr "Versine"
 
 msgid "There are currently no active plugins available. Please check the admin panel or install some plugins."
 msgstr "Momentan nu există aplicații active disponibile. Verificați panoul de administrare sau instalați aplicații."

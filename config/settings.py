@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "core.plugin_system",
     "plugins.edupi.activity_timer",
     "plugins.edupi.touch_piano",
+    "plugins.edupi.noise_monitor",
 ]
 
 MIDDLEWARE = [

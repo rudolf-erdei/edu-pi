@@ -53,11 +53,19 @@ EDU-PI is an educational platform running on Raspberry Pi, designed for interact
 
 **Acceptance Criteria**:
 
-- [ ] Connect 5-6 GPIO input pins to conductive materials (bananas, foil, etc.)
-- [ ] Detect touch via capacitive sensing or resistive method
-- [ ] Play corresponding piano note on speaker/headphones
-- [ ] Support conductive materials: bananas, aluminum foil, copper tape, etc.
-- [ ] Visual feedback on web interface showing which "key" is pressed
+- [x] Connect 6 GPIO input pins to conductive materials (bananas, foil, etc.)
+- [x] Detect touch via capacitive sensing with pull-up resistors
+- [x] Play corresponding piano note via pygame audio synthesis
+- [x] Support conductive materials: bananas, aluminum foil, copper tape, etc.
+- [x] Visual feedback on web interface showing which "key" is pressed
+- [x] Real-time key press detection with web interface sync
+- [x] Piano session tracking with key press history
+- [x] Configurable piano configurations (volume, sensitivity, key mapping)
+- [x] Web-based piano playing (click keys with mouse)
+- [x] Keyboard shortcuts (A, S, D, F, G, H keys)
+- [x] Instructions page with circuit diagram and learning objectives
+- [x] Auto-cleanup of stuck notes (5-second timeout)
+- [x] Translations support (English, Romanian)
 
 **Technical Notes**:
 

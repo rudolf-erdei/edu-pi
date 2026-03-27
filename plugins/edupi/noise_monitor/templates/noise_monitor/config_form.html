@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Noise Monitor Configuration" %} - EDU-PI{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-primary">
+            <i class="fas fa-cog mr-3"></i>{% trans "Noise Monitor Configuration" %}
+        </h1>
+        <a href="{% url 'noise_monitor:dashboard' %}" class="btn btn-outline">
+            <i class="fas fa-arrow-left mr-2"></i>{% trans "Back to Monitor" %}
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Profile Selection Card -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-2xl mb-4">
+                    <i class="fas fa-list mr-2"></i>{% trans "Select Profile" %}
+                </h2>
+                
+                <form method="post" action="{% url 'noise_monitor:config' %}">
+                    {% csrf_token %}
+                    
+                    <div class="space-y-4">
+                        <!-- Profile Dropdown -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ form.profile.label }}</span>
+                            </label>
+                            {{ form.profile }}
+                            {% if form.profile.help_text %}
+                                <label class="label">
+                                    <span class="label-text-alt">{{ form.profile.help_text }}</span>
+                                </label>
+                            {% endif %}
+                            {% if form.profile.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ form.profile.errors }}</span>
+                                </label>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Instant Window -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ form.instant_window_seconds.label }}</span>
+                            </label>
+                            {{ form.instant_window_seconds }}
+                            {% if form.instant_window_seconds.help_text %}
+                                <label class="label">
+                                    <span class="label-text-alt">{{ form.instant_window_seconds.help_text }}</span>
+                                </label>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Session Window -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ form.session_window_minutes.label }}</span>
+                            </label>
+                            {{ form.session_window_minutes }}
+                            {% if form.session_window_minutes.help_text %}
+                                <label class="label">
+                                    <span class="label-text-alt">{{ form.session_window_minutes.help_text }}</span>
+                                </label>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- LED Brightness -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ form.led_brightness.label }}</span>
+                            </label>
+                            {{ form.led_brightness }}
+                            {% if form.led_brightness.help_text %}
+                                <label class="label">
+                                    <span class="label-text-alt">{{ form.led_brightness.help_text }}</span>
+                                </label>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <button type="submit" class="btn btn-primary btn-block btn-lg">
+                            <i class="fas fa-save mr-2"></i>{% trans "Apply Profile" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Custom Configuration Card -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-2xl mb-4">
+                    <i class="fas fa-sliders-h mr-2"></i>{% trans "Custom Thresholds" %}
+                </h2>
+                
+                <form method="post" action="{% url 'noise_monitor:custom_config' %}">
+                    {% csrf_token %}
+                    
+                    <div class="space-y-4">
+                        <!-- Config Name -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ custom_form.name.label }}</span>
+                            </label>
+                            {{ custom_form.name }}
+                        </div>
+                        
+                        <!-- Yellow Threshold -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ custom_form.yellow_threshold.label }}</span>
+                            </label>
+                            {{ custom_form.yellow_threshold }}
+                            {% if custom_form.yellow_threshold.help_text %}
+                                <label class="label">
+                                    <span class="label-text-alt">{{ custom_form.yellow_threshold.help_text }}</span>
+                                </label>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Red Threshold -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ custom_form.red_threshold.label }}</span>
+                            </label>
+                            {{ custom_form.red_threshold }}
+                            {% if custom_form.red_threshold.help_text %}
+                                <label class="label">
+                                    <span class="label-text-alt">{{ custom_form.red_threshold.help_text }}</span>
+                                </label>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Instant Window -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ custom_form.instant_window_seconds.label }}</span>
+                            </label>
+                            {{ custom_form.instant_window_seconds }}
+                        </div>
+                        
+                        <!-- Session Window -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ custom_form.session_window_minutes.label }}</span>
+                            </label>
+                            {{ custom_form.session_window_minutes }}
+                        </div>
+                        
+                        <!-- LED Brightness -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ custom_form.led_brightness.label }}</span>
+                            </label>
+                            {{ custom_form.led_brightness }}
+                        </div>
+                    </div>
+                    
+                    {% if custom_form.non_field_errors %}
+                        <div class="alert alert-error mt-4">
+                            {{ custom_form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mt-6">
+                        <button type="submit" class="btn btn-secondary btn-block btn-lg">
+                            <i class="fas fa-magic mr-2"></i>{% trans "Create Custom Configuration" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Profiles Info -->
+    <div class="card bg-base-100 shadow-xl mt-6">
+        <div class="card-body">
+            <h2 class="card-title text-xl mb-4">{% trans "Available Profiles" %}</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {% for profile in profiles %}
+                    <div class="bg-base-200 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg">{{ profile.name }}</h3>
+                        <p class="text-sm text-gray-500 mb-2">{{ profile.get_profile_type_display }}</p>
+                        <div class="space-y-1 text-sm">
+                            <div class="flex justify-between">
+                                <span>{% trans "Yellow:" %}</span>
+                                <span class="font-mono">{{ profile.yellow_threshold }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>{% trans "Red:" %}</span>
+                                <span class="font-mono">{{ profile.red_threshold }}</span>
+                            </div>
+                        </div>
+                        {% if profile.description %}
+                            <p class="text-xs text-gray-500 mt-2">{{ profile.description }}</p>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <p class="text-gray-500 col-span-full text-center">
+                        {% trans "No profiles available. Default profiles will be created automatically." %}
+                    </p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Style the form inputs -->
+<style>
+input[type="number"], select {
+    @apply input input-bordered w-full;
+}
+</style>
+{% endblock %}

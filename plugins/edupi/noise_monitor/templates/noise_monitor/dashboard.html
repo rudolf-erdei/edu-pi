@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Noise Monitor" %} - EDU-PI{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-primary">
+            <i class="fas fa-volume-up mr-3"></i>{% trans "Noise Monitor" %}
+        </h1>
+        <a href="{% url 'home' %}" class="btn btn-outline">
+            {% trans "Back to Dashboard" %}
+        </a>
+    </div>
+
+    <!-- Monitoring Status Banner -->
+    <div id="status-banner" class="alert {% if is_monitoring %}alert-success{% else %}alert-info{% endif %} mb-6">
+        <i class="fas {% if is_monitoring %}fa-check-circle{% else %}fa-info-circle{% endif %}"></i>
+        <span id="status-text">
+            {% if is_monitoring %}
+                {% trans "Monitoring is active" %}
+            {% else %}
+                {% trans "Monitoring is currently stopped" %}
+            {% endif %}
+        </span>
+    </div>
+
+    <!-- Main Display Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Instant Noise Card -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body text-center">
+                <h2 class="card-title text-2xl mb-4 justify-center">
+                    <i class="fas fa-bolt mr-2"></i>{% trans "Instant Noise" %}
+                </h2>
+                <p class="text-sm text-gray-500 mb-4">
+                    {% trans "10-second rolling average" %}
+                </p>
+                
+                <!-- Instant LED Display -->
+                <div id="instant-led" class="w-32 h-32 mx-auto rounded-full mb-4 transition-colors duration-500"
+                     style="background-color: {{ instant_color|default:'#00FF00' }}; box-shadow: 0 0 30px {{ instant_color|default:'#00FF00' }};">
+                </div>
+                
+                <!-- Instant Level -->
+                <div class="text-5xl font-bold mb-2" id="instant-level">
+                    {{ instant_average|default:0 }}
+                </div>
+                <div class="text-sm text-gray-500">{% trans "Noise Level (0-100)" %}</div>
+                
+                <!-- Progress Bar -->
+                <div class="w-full bg-gray-200 rounded-full h-4 mt-4">
+                    <div id="instant-progress" 
+                         class="h-4 rounded-full transition-all duration-500"
+                         style="width: {{ instant_average|default:0 }}%; background-color: {{ instant_color|default:'#00FF00' }};">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session Average Card -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body text-center">
+                <h2 class="card-title text-2xl mb-4 justify-center">
+                    <i class="fas fa-chart-line mr-2"></i>{% trans "Session Average" %}
+                </h2>
+                <p class="text-sm text-gray-500 mb-4">
+                    {{ config.session_window_minutes|default:5 }}-{% trans "minute rolling average" %}
+                </p>
+                
+                <!-- Session LED Display -->
+                <div id="session-led" class="w-32 h-32 mx-auto rounded-full mb-4 transition-colors duration-500"
+                     style="background-color: {{ session_color|default:'#00FF00' }}; box-shadow: 0 0 30px {{ session_color|default:'#00FF00' }};">
+                </div>
+                
+                <!-- Session Level -->
+                <div class="text-5xl font-bold mb-2" id="session-level">
+                    {{ session_average|default:0 }}
+                </div>
+                <div class="text-sm text-gray-500">{% trans "Session Average (0-100)" %}</div>
+                
+                <!-- Progress Bar -->
+                <div class="w-full bg-gray-200 rounded-full h-4 mt-4">
+                    <div id="session-progress" 
+                         class="h-4 rounded-full transition-all duration-500"
+                         style="width: {{ session_average|default:0 }}%; background-color: {{ session_color|default:'#00FF00' }};">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control and Config Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Controls Card -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-xl mb-4">
+                    <i class="fas fa-sliders-h mr-2"></i>{% trans "Controls" %}
+                </h2>
+                
+                <div class="space-y-3">
+                    <form method="post" action="{% url 'noise_monitor:control' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="was_monitoring" value="{{ is_monitoring|yesno:'true,false' }}">
+                        
+                        {% if is_monitoring %}
+                            <button type="submit" name="action" value="stop" 
+                                    class="btn btn-error btn-block btn-lg">
+                                <i class="fas fa-stop mr-2"></i>{% trans "Stop Monitoring" %}
+                            </button>
+                        {% else %}
+                            <button type="submit" name="action" value="start" 
+                                    class="btn btn-success btn-block btn-lg">
+                                <i class="fas fa-play mr-2"></i>{% trans "Start Monitoring" %}
+                            </button>
+                        {% endif %}
+                    </form>
+                    
+                    <form method="post" action="{% url 'noise_monitor:control' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reset">
+                        <input type="hidden" name="was_monitoring" value="{{ is_monitoring|yesno:'true,false' }}">
+                        <button type="submit" class="btn btn-warning btn-block">
+                            <i class="fas fa-redo mr-2"></i>{% trans "Reset Session" %}
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <a href="{% url 'noise_monitor:config' %}" class="btn btn-primary btn-block">
+                    <i class="fas fa-cog mr-2"></i>{% trans "Configure" %}
+                </a>
+            </div>
+        </div>
+
+        <!-- Current Configuration Card -->
+        <div class="card bg-base-100 shadow-xl lg:col-span-2">
+            <div class="card-body">
+                <h2 class="card-title text-xl mb-4">
+                    <i class="fas fa-info-circle mr-2"></i>{% trans "Current Configuration" %}
+                </h2>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-base-200 p-3 rounded-lg">
+                        <p class="text-sm font-semibold">{% trans "Profile" %}</p>
+                        <p class="text-lg">{{ profile.name|default:"N/A" }}</p>
+                    </div>
+                    
+                    <div class="bg-base-200 p-3 rounded-lg">
+                        <p class="text-sm font-semibold">{% trans "Yellow Threshold" %}</p>
+                        <p class="text-lg">{{ profile.yellow_threshold|default:40 }}</p>
+                    </div>
+                    
+                    <div class="bg-base-200 p-3 rounded-lg">
+                        <p class="text-sm font-semibold">{% trans "Red Threshold" %}</p>
+                        <p class="text-lg">{{ profile.red_threshold|default:70 }}</p>
+                    </div>
+                    
+                    <div class="bg-base-200 p-3 rounded-lg">
+                        <p class="text-sm font-semibold">{% trans "LED Brightness" %}</p>
+                        <p class="text-lg">{{ config.led_brightness|default:100 }}%</p>
+                    </div>
+                </div>
+                
+                {% if profile.description %}
+                    <div class="mt-4 p-3 bg-base-200 rounded-lg">
+                        <p class="text-sm font-semibold">{% trans "Description" %}</p>
+                        <p class="text-sm">{{ profile.description }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="card bg-base-100 shadow-xl mb-8">
+        <div class="card-body">
+            <h2 class="card-title text-xl mb-4">{% trans "LED Color Guide" %}</h2>
+            <div class="flex flex-wrap gap-4">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full mr-2" style="background-color: #00FF00;"></div>
+                    <span>{% trans "Green: Low noise (quiet work)" %}</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full mr-2" style="background-color: #FFFF00;"></div>
+                    <span>{% trans "Yellow: Medium noise (discussion allowed)" %}</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full mr-2" style="background-color: #FF0000;"></div>
+                    <span>{% trans "Red: High noise (too loud)" %}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Readings -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">{% trans "Recent Readings" %}</h2>
+            <div class="overflow-x-auto">
+                <table class="table table-compact">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Time" %}</th>
+                            <th>{% trans "Instant Avg" %}</th>
+                            <th>{% trans "Session Avg" %}</th>
+                            <th>{% trans "Instant Color" %}</th>
+                            <th>{% trans "Session Color" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="readings-table">
+                        {% for reading in recent_readings %}
+                            <tr>
+                                <td>{{ reading.timestamp|date:"H:i:s" }}</td>
+                                <td>{{ reading.instant_average }}</td>
+                                <td>{{ reading.session_average }}</td>
+                                <td>
+                                    <span class="badge" style="background-color: {{ reading.get_instant_color_display }};">
+                                        {{ reading.instant_color }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge" style="background-color: {{ reading.get_session_color_display }};">
+                                        {{ reading.session_color }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-gray-500">
+                                    {% trans "No readings yet. Start monitoring to see data." %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-refresh script -->
+<script>
+let refreshInterval;
+
+function updateDisplay(data) {
+    // Update instant display
+    document.getElementById('instant-level').textContent = data.instant_average;
+    document.getElementById('instant-progress').style.width = data.instant_average + '%';
+    document.getElementById('instant-progress').style.backgroundColor = data.instant_color === 'green' ? '#00FF00' : 
+                                                                      data.instant_color === 'yellow' ? '#FFFF00' : '#FF0000';
+    document.getElementById('instant-led').style.backgroundColor = data.instant_color === 'green' ? '#00FF00' : 
+                                                                  data.instant_color === 'yellow' ? '#FFFF00' : '#FF0000';
+    document.getElementById('instant-led').style.boxShadow = `0 0 30px ${data.instant_color === 'green' ? '#00FF00' : 
+                                                                        data.instant_color === 'yellow' ? '#FFFF00' : '#FF0000'}`;
+    
+    // Update session display
+    document.getElementById('session-level').textContent = data.session_average;
+    document.getElementById('session-progress').style.width = data.session_average + '%';
+    document.getElementById('session-progress').style.backgroundColor = data.session_color === 'green' ? '#00FF00' : 
+                                                                       data.session_color === 'yellow' ? '#FFFF00' : '#FF0000';
+    document.getElementById('session-led').style.backgroundColor = data.session_color === 'green' ? '#00FF00' : 
+                                                                    data.session_color === 'yellow' ? '#FFFF00' : '#FF0000';
+    document.getElementById('session-led').style.boxShadow = `0 0 30px ${data.session_color === 'green' ? '#00FF00' : 
+                                                                          data.session_color === 'yellow' ? '#FFFF00' : '#FF0000'}`;
+    
+    // Update status banner
+    const statusBanner = document.getElementById('status-banner');
+    const statusText = document.getElementById('status-text');
+    if (data.is_monitoring) {
+        statusBanner.className = 'alert alert-success mb-6';
+        statusText.textContent = '{% trans "Monitoring is active" %}';
+    } else {
+        statusBanner.className = 'alert alert-info mb-6';
+        statusText.textContent = '{% trans "Monitoring is currently stopped" %}';
+    }
+}
+
+function fetchNoiseData() {
+    fetch('{% url "noise_monitor:api_level" %}')
+        .then(response => response.json())
+        .then(data => {
+            updateDisplay(data);
+        })
+        .catch(error => console.error('Error fetching noise data:', error));
+}
+
+{% if is_monitoring %}
+// Auto-refresh every second when monitoring
+refreshInterval = setInterval(fetchNoiseData, 1000);
+
+// Clean up on page unload
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

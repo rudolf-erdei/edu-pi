@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Custom Noise Threshold Configuration" %} - EDU-PI{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-primary">
+            <i class="fas fa-sliders-h mr-3"></i>{% trans "Custom Threshold Configuration" %}
+        </h1>
+        <a href="{% url 'noise_monitor:config' %}" class="btn btn-outline">
+            <i class="fas fa-arrow-left mr-2"></i>{% trans "Back to Configuration" %}
+        </a>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl max-w-2xl mx-auto">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-6">
+                {% trans "Create Custom Thresholds" %}
+            </h2>
+            
+            <p class="text-gray-500 mb-6">
+                {% trans "Define your own noise thresholds. Yellow threshold should be lower than red threshold." %}
+            </p>
+
+            <form method="post" action="{% url 'noise_monitor:custom_config' %}">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-error mb-4">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+
+                <div class="space-y-6">
+                    <!-- Config Name -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">{{ form.name.label }} *</span>
+                        </label>
+                        <input type="text" name="{{ form.name.name }}" 
+                               value="{{ form.name.value|default:'' }}" 
+                               class="input input-bordered w-full {% if form.name.errors %}input-error{% endif %}"
+                               required>
+                        {% if form.name.help_text %}
+                            <label class="label">
+                                <span class="label-text-alt">{{ form.name.help_text }}</span>
+                            </label>
+                        {% endif %}
+                        {% if form.name.errors %}
+                            <label class="label">
+                                <span class="label-text-alt text-error">{{ form.name.errors }}</span>
+                            </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Yellow Threshold -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">{{ form.yellow_threshold.label }} *</span>
+                        </label>
+                        <input type="number" name="{{ form.yellow_threshold.name }}" 
+                               value="{{ form.yellow_threshold.value|default:40 }}" 
+                               min="0" max="100"
+                               class="input input-bordered w-full {% if form.yellow_threshold.errors %}input-error{% endif %}"
+                               required>
+                        {% if form.yellow_threshold.help_text %}
+                            <label class="label">
+                                <span class="label-text-alt">{{ form.yellow_threshold.help_text }}</span>
+                            </label>
+                        {% endif %}
+                        {% if form.yellow_threshold.errors %}
+                            <label class="label">
+                                <span class="label-text-alt text-error">{{ form.yellow_threshold.errors }}</span>
+                            </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Red Threshold -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">{{ form.red_threshold.label }} *</span>
+                        </label>
+                        <input type="number" name="{{ form.red_threshold.name }}" 
+                               value="{{ form.red_threshold.value|default:70 }}" 
+                               min="0" max="100"
+                               class="input input-bordered w-full {% if form.red_threshold.errors %}input-error{% endif %}"
+                               required>
+                        {% if form.red_threshold.help_text %}
+                            <label class="label">
+                                <span class="label-text-alt">{{ form.red_threshold.help_text }}</span>
+                            </label>
+                        {% endif %}
+                        {% if form.red_threshold.errors %}
+                            <label class="label">
+                                <span class="label-text-alt text-error">{{ form.red_threshold.errors }}</span>
+                            </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Time Windows -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ form.instant_window_seconds.label }}</span>
+                            </label>
+                            <input type="number" name="{{ form.instant_window_seconds.name }}" 
+                                   value="{{ form.instant_window_seconds.value|default:10 }}" 
+                                   min="5" max="60"
+                                   class="input input-bordered w-full"
+                                   required>
+                            <label class="label">
+                                <span class="label-text-alt">{% trans "Seconds" %}</span>
+                            </label>
+                        </div>
+
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{{ form.session_window_minutes.label }}</span>
+                            </label>
+                            <input type="number" name="{{ form.session_window_minutes.name }}" 
+                                   value="{{ form.session_window_minutes.value|default:5 }}" 
+                                   min="1" max="30"
+                                   class="input input-bordered w-full"
+                                   required>
+                            <label class="label">
+                                <span class="label-text-alt">{% trans "Minutes" %}</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- LED Brightness -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">{{ form.led_brightness.label }}</span>
+                        </label>
+                        <input type="range" name="{{ form.led_brightness.name }}" 
+                               value="{{ form.led_brightness.value|default:100 }}" 
+                               min="10" max="100"
+                               class="range range-primary w-full"
+                               oninput="document.getElementById('brightness-value').textContent = this.value + '%'"
+                               required>
+                        <div class="text-center mt-2">
+                            <span id="brightness-value" class="text-lg font-mono">{{ form.led_brightness.value|default:100 }}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex gap-4">
+                    <button type="submit" class="btn btn-primary btn-lg flex-1">
+                        <i class="fas fa-save mr-2"></i>{% trans "Save Custom Configuration" %}
+                    </button>
+                    
+                    <a href="{% url 'noise_monitor:config' %}" class="btn btn-ghost btn-lg">
+                        {% trans "Cancel" %}
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="card bg-base-100 shadow-xl mt-6 max-w-2xl mx-auto">
+        <div class="card-body">
+            <h3 class="card-title text-lg mb-4">
+                <i class="fas fa-question-circle mr-2"></i>{% trans "Threshold Guide" %}
+            </h3>
+            
+            <div class="space-y-2 text-sm">
+                <p>
+                    <strong>{% trans "Green (Low Noise):" %}</strong> 
+                    {% trans "Noise level is below the yellow threshold. Suitable for quiet work, individual study, or test conditions." %}
+                </p>
+                <p>
+                    <strong>{% trans "Yellow (Medium Noise):" %}</strong> 
+                    {% trans "Noise level is between yellow and red thresholds. Suitable for discussions, group work, or normal classroom activities." %}
+                </p>
+                <p>
+                    <strong>{% trans "Red (High Noise):" %}</strong> 
+                    {% trans "Noise level is above the red threshold. Indicates the classroom is too loud and students should lower their voices." %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
