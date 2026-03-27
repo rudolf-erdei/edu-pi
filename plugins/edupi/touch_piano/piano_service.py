@@ -11,12 +11,17 @@ import math
 import struct
 import os
 import tempfile
+import atexit
+import warnings
 from typing import Optional, Callable, Dict, List
 from datetime import datetime
 
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+# Suppress gpiozero pin factory fallback warnings on non-Pi systems
+warnings.filterwarnings("ignore", category=UserWarning, message=".*Falling back.*")
 
 # Try to import GPIO libraries
 try:
@@ -165,7 +170,7 @@ class PianoService:
         self._gpio_devices: Dict[int, DigitalInputDevice] = {}
         self._key_states: Dict[int, bool] = {}
         self._key_timestamps: Dict[int, float] = {}
-        self._sounds: Dict[str, any] = {}
+        self._sounds: Dict[int, any] = {}
         self._audio_initialized = False
         self._volume = 0.8
         self._sensitivity = 5
@@ -175,8 +180,13 @@ class PianoService:
         self._stop_event = threading.Event()
         self._current_session_id: Optional[int] = None
         self._temp_dir = tempfile.mkdtemp(prefix="piano_sounds_")
+        self._active_notes: Dict[int, float] = {}  # Track active notes with timestamps
+        self._max_note_duration = 5.0  # Maximum note duration in seconds
 
         logger.info("PianoService initialized")
+
+        # Register cleanup on exit
+        atexit.register(self.cleanup)
 
     def initialize_audio(self, volume: int = 80, audio_device: str = "default") -> bool:
         """
@@ -393,9 +403,13 @@ class PianoService:
 
         try:
             if key_num in self._sounds:
+                # Stop any existing note first
+                self._sounds[key_num].stop()
                 sound = self._sounds[key_num]
                 sound.set_volume(self._volume)
-                sound.play(loops=-1)  # Loop until stopped
+                # Play once (loops=0), not indefinitely
+                sound.play(loops=0)
+                self._active_notes[key_num] = time.time()
                 logger.debug(f"Playing note for key {key_num}")
         except Exception as e:
             logger.error(f"Failed to play note for key {key_num}: {e}")
@@ -413,9 +427,30 @@ class PianoService:
         try:
             if key_num in self._sounds:
                 self._sounds[key_num].stop()
+                # Remove from active notes tracking
+                self._active_notes.pop(key_num, None)
                 logger.debug(f"Stopped note for key {key_num}")
         except Exception as e:
             logger.error(f"Failed to stop note for key {key_num}: {e}")
+
+    def _check_stuck_notes(self) -> None:
+        """Check for and stop any notes that have been playing too long."""
+        if not PYGAME_AVAILABLE or not self._audio_initialized:
+            return
+
+        current_time = time.time()
+        stuck_keys = [
+            key_num
+            for key_num, start_time in self._active_notes.items()
+            if (current_time - start_time) > self._max_note_duration
+        ]
+
+        for key_num in stuck_keys:
+            logger.warning(f"Auto-stopping stuck note for key {key_num}")
+            self._stop_note(key_num)
+            # Also reset key state if it was stuck
+            if key_num in self._key_states:
+                self._key_states[key_num] = False
 
     def start_monitoring(self) -> None:
         """Start the GPIO monitoring thread."""
@@ -432,14 +467,14 @@ class PianoService:
     def _monitoring_loop(self) -> None:
         """Main monitoring loop for GPIO state."""
         while not self._stop_event.is_set():
+            # Check for stuck notes (auto-stop after max duration)
+            self._check_stuck_notes()
+
             if GPIO_AVAILABLE:
                 # gpiozero handles events automatically
                 time.sleep(0.1)
             else:
                 # Mock mode - simulate reading
-                for key_num, device in self._gpio_devices.items():
-                    # In mock mode, we just sleep
-                    pass
                 time.sleep(0.1)
 
     def stop_monitoring(self) -> None:

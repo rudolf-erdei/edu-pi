@@ -378,5 +378,28 @@ document.addEventListener('keyup', (e) => {
 {% if current_session %}
 startStatusCheck();
 {% endif %}
+
+// Page unload handler - release any held keys
+window.addEventListener('beforeunload', function() {
+    // Release all pressed keys
+    pressedKeys.forEach(function(keyNumber) {
+        fetch('{% url "touch_piano:web_key_press" %}', {
+            method: 'POST',
+            body: JSON.stringify({
+                key_number: keyNumber,
+                action: 'release'
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            // Use keepalive to ensure the request is sent even when page is unloading
+            keepalive: true
+        }).catch(function() {
+            // Ignore errors during page unload
+        });
+    });
+    pressedKeys.clear();
+});
 </script>
 {% endblock %}
