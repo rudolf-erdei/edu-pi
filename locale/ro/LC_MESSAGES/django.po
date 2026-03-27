@@ -1,0 +1,124 @@
+{% load i18n %}
+
+msgid ""
+msgstr ""
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1?0:(((n%100>19)||((n%100==0)&&(n!=0)))?2:1));\n"
+
+# App (Plugin) related translations
+msgid "Active Plugins"
+msgstr "Aplicații active"
+
+msgid "Active App"
+msgstr "Aplicație activă"
+
+msgid "Apps"
+msgstr "Aplicații"
+
+msgid "App Management"
+msgstr "Administrare aplicații"
+
+msgid "Running Plugins"
+msgstr "Aplicații în execuție"
+
+msgid "Running"
+msgstr "În execuție"
+
+msgid "Available Plugins"
+msgstr "Aplicații disponibile"
+
+msgid "Available Apps"
+msgstr "Aplicații disponibile"
+
+msgid "No Plugins Installed"
+msgstr "Nicio aplicație instalată"
+
+msgid "No Apps Installed"
+msgstr "Nicio aplicație instalată"
+
+msgid "No description available"
+msgstr "Fără descriere disponibilă"
+
+msgid "Unknown author"
+msgstr "Autor necunoscut"
+
+# Navigation
+msgid "Home"
+msgstr "Acasă"
+
+msgid "Admin"
+msgstr "Administrare"
+
+# Dashboard
+msgid "EDU-PI Dashboard"
+msgstr "Panou EDU-PI"
+
+msgid "Welcome to the classroom management system."
+msgstr "Bun venit în sistemul de management al clasei."
+
+msgid "Manage your classroom activities and monitor student engagement with our plugin system."
+msgstr "Gestionați activitățile din clasă și monitorizați implicarea elevilor cu sistemul nostru de aplicații."
+
+msgid "Manage your classroom activities and monitor student engagement with our app system."
+msgstr "Gestionați activitățile din clasă și monitorizați implicarea elevilor cu sistemul nostru de aplicații."
+
+# Quick Actions
+msgid "Quick Actions"
+msgstr "Acțiuni rapide"
+
+msgid "Go to Admin Panel"
+msgstr "Accesați panoul de administrare"
+
+msgid "Plugin Management"
+msgstr "Administrare aplicații"
+
+msgid "App Management"
+msgstr "Administrare aplicații"
+
+msgid "Admin Panel"
+msgstr "Panou de administrare"
+
+# Admin Dashboard
+msgid "Plugin Management"
+msgstr "Administrare aplicații"
+
+msgid "Manage your installed plugins, view their status, and configure settings."
+msgstr "Gestionați aplicațiile instalate, vizualizați starea lor și configurați setările."
+
+msgid "View Installed Plugins"
+msgstr "Vedeți aplicațiile instalate"
+
+msgid "View Installed Apps"
+msgstr "Vedeți aplicațiile instalate"
+
+msgid "Installed Plugins"
+msgstr "Aplicații instalate"
+
+msgid "Installed Apps"
+msgstr "Aplicații instalate"
+
+msgid "EDU-PI Plugin Administration"
+msgstr "Administrare EDU-PI"
+
+msgid "Dashboard"
+msgstr "Panou de bord"
+
+# Status messages
+msgid "Active"
+msgstr "Activ"
+
+msgid "Disabled"
+msgstr "Dezactivat"
+
+msgid "There are currently no active plugins available. Please check the admin panel or install some plugins."
+msgstr "Momentan nu există aplicații active disponibile. Verificați panoul de administrare sau instalați aplicații."
+
+msgid "There are currently no active apps available. Please check the admin panel or install some apps."
+msgstr "Momentan nu există aplicații active disponibile. Verificați panoul de administrare sau instalați aplicații."
+
+# Footer
+msgid "EDU-PI Educational Platform"
+msgstr "Platformă Educațională EDU-PI"

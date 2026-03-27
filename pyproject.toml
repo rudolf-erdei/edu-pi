@@ -1,0 +1,19 @@
+[project]
+name = "edu-pi"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "Django>=4.2,<5.0",
+    "gpiozero>=2.0",
+]
+
+[project.optional-dependencies]
+# Raspberry Pi GPIO libraries - install on actual Pi
+# RPi.GPIO>=0.7.1
+# lgpio>=0.2
+pi = [
+    "RPi.GPIO>=0.7.1",
+    "lgpio>=0.2",
+]

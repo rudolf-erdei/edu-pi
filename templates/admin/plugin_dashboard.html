@@ -1,0 +1,99 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module">
+        <h2>Installed Plugins</h2>
+        
+        <div class="dashboard-stats" style="margin-bottom: 20px;">
+            <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #28a745;">
+                    <strong style="font-size: 24px; color: #28a745;">{{ enabled_plugins }}</strong>
+                    <div style="color: #666;">Enabled</div>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;">
+                    <strong style="font-size: 24px; color: #007bff;">{{ total_plugins }}</strong>
+                    <div style="color: #666;">Total Installed</div>
+                </div>
+            </div>
+        </div>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Version</th>
+                    <th>Author</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plugin in db_plugins %}
+                <tr>
+                    <td>
+                        <strong>{{ plugin.name }}</strong>
+                        <br><small style="color: #666;">{{ plugin.plugin_path }}</small>
+                    </td>
+                    <td><code>{{ plugin.version }}</code></td>
+                    <td>{{ plugin.author|default:"-" }}</td>
+                    <td>{{ plugin.description|truncatechars:50|default:"-" }}</td>
+                    <td>
+                        {% if plugin.is_enabled %}
+                            <span style="color: #28a745; font-weight: bold;">✓ Active</span>
+                        {% else %}
+                            <span style="color: #dc3545;">✗ Disabled</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ plugin.updated_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: #666;">
+                        No plugins installed yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if runtime_plugins %}
+    <div class="module" style="margin-top: 30px;">
+        <h2>Runtime Plugin Information</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Plugin Path</th>
+                    <th>Status</th>
+                    <th>GPIO Pins</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for path, plugin in runtime_plugins.items %}
+                <tr>
+                    <td><code>{{ path }}</code></td>
+                    <td>
+                        {% if plugin.enabled %}
+                            <span style="color: #28a745;">Running</span>
+                        {% else %}
+                            <span style="color: #6c757d;">Stopped</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if plugin.gpio_pins %}
+                            {{ plugin.gpio_pins|join:", " }}
+                        {% else %}
+                            <span style="color: #999;">None</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

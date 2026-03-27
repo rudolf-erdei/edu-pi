@@ -1,0 +1,76 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EDU-PI{% endblock %}</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.1/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-base-200 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <div class="navbar bg-primary text-primary-content shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex-1">
+                <a href="{% url 'home' %}" class="btn btn-ghost text-xl font-bold">EDU-PI</a>
+            </div>
+            <div class="flex-none">
+                <ul class="menu menu-horizontal px-1">
+                    <li><a href="{% url 'home' %}" class="font-medium">{% trans "Home" %}</a></li>
+                    <li><a href="/admin/" class="font-medium">{% trans "Admin" %}</a></li>
+                </ul>
+                
+                <!-- Language Selector -->
+                <div class="dropdown dropdown-end ml-4">
+                    <label tabindex="0" class="btn btn-ghost btn-circle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </label>
+                    <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-4">
+                        <form action="{% url 'set_language' %}" method="post" class="contents">
+                            {% csrf_token %}
+                            <input name="next" type="hidden" value="{{ request.path }}" />
+                            <li>
+                                <button type="submit" name="language" value="en" class="{% if LANGUAGE_CODE == 'en' %}active font-bold{% endif %}">
+                                    English
+                                </button>
+                            </li>
+                            <li>
+                                <button type="submit" name="language" value="ro" class="{% if LANGUAGE_CODE == 'ro' %}active font-bold{% endif %}">
+                                    Română (Romanian)
+                                </button>
+                            </li>
+                        </form>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer footer-center p-4 bg-base-300 text-base-content">
+        <div>
+            <p>{% trans "EDU-PI Educational Platform" %} © 2025</p>
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
