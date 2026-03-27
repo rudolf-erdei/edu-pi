@@ -81,10 +81,10 @@ EDU-PI is an educational platform running on Raspberry Pi, designed for interact
 
 **Priority**: HIGH
 
-- Configurable countdown timer for classroom activities
-- Visual progress bar on LED strip or single RGB LED
-- Optional buzzer for time-up notification
-- Web controls for start/pause/reset
+- [x] Configurable countdown timer for classroom activities
+- [x] Visual progress bar on LED strip or single RGB LED
+- [x] Optional buzzer for time-up notification
+- [x] Web controls for start/pause/reset
 
 ### Feature 5: Sensor Data Logger
 
