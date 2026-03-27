@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} - EDU-PI{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-primary">
+            <i class="fas fa-book mr-3"></i>{{ title }}
+        </h1>
+        <a href="{% url 'touch_piano:dashboard' %}" class="btn btn-outline">
+            {% trans "Back to Piano" %}
+        </a>
+    </div>
+
+    <!-- Introduction -->
+    <div class="card bg-base-100 shadow-xl mb-8">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">{% trans "About the Touch Piano" %}</h2>
+            <p class="mb-4">
+                {% trans "The Touch Piano is an educational project that allows students to learn about circuits and conductivity by playing musical notes through touch-sensitive inputs. By connecting conductive materials like bananas, aluminum foil, or copper tape to GPIO pins, students can create a working piano!" %}
+            </p>
+            <div class="alert alert-info">
+                <i class="fas fa-lightbulb"></i>
+                <span>{% trans "This project teaches: GPIO programming, capacitive/resistive sensing, audio synthesis, and basic music theory." %}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Materials Needed -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-xl mb-4">
+                    <i class="fas fa-toolbox mr-2"></i>{% trans "Materials Needed" %}
+                </h2>
+                <ul class="list-disc list-inside space-y-2">
+                    {% for material in materials %}
+                    <li>{{ material }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- GPIO Pin Mapping -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-xl mb-4">
+                    <i class="fas fa-microchip mr-2"></i>{% trans "GPIO Pin Mapping" %}
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Key" %}</th>
+                                <th>{% trans "Note" %}</th>
+                                <th>{% trans "GPIO (BCM)" %}</th>
+                                <th>{% trans "Physical Pin" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pin in gpio_pins %}
+                            <tr>
+                                <td>{{ pin.key }}</td>
+                                <td class="font-bold">{{ pin.note }}</td>
+                                <td><span class="badge badge-primary">GPIO {{ pin.pin }}</span></td>
+                                <td>{{ pin.pin_physical }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Setup Steps -->
+    <div class="card bg-base-100 shadow-xl mt-8">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-6">
+                <i class="fas fa-wrench mr-2"></i>{% trans "Setup Instructions" %}
+            </h2>
+            
+            <div class="space-y-6">
+                {% for step in steps %}
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                        {{ forloop.counter }}
+                    </div>
+                    <div class="flex-grow pt-2">
+                        <p class="text-lg">{{ step }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Circuit Diagram -->
+    <div class="card bg-base-100 shadow-xl mt-8">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">
+                <i class="fas fa-project-diagram mr-2"></i>{% trans "Circuit Diagram" %}
+            </h2>
+            
+            <div class="bg-base-200 p-8 rounded-lg">
+                <pre class="font-mono text-sm overflow-x-auto">
++-------------------------------------------------------------+
+|                     RASPBERRY PI                           |
+|                                                              |
+|  GPIO 23 (Pin 16) ----[1MΩ]----+---- Banana/Key 1          |
+|  GPIO 24 (Pin 18) ----[1MΩ]----+---- Banana/Key 2          |
+|  GPIO 10 (Pin 19) ----[1MΩ]----+---- Banana/Key 3          |
+|  GPIO  9 (Pin 21) ----[1MΩ]----+---- Banana/Key 4          |
+|  GPIO 25 (Pin 22) ----[1MΩ]----+---- Banana/Key 5          |
+|  GPIO 11 (Pin 23) ----[1MΩ]----+---- Banana/Key 6          |
+|                                 |                            |
+|                                GND                           |
+|                                                              |
+|  Audio Jack ------------------ Speaker/Headphones            |
++-------------------------------------------------------------+
+
+Note: [1MΩ] represents 1 megaohm pull-up resistors (optional for 
+capacitive sensing, helps with noise reduction)
+                </pre>
+            </div>
+
+            <div class="mt-6 space-y-4">
+                <h3 class="font-bold text-lg">{% trans "Wiring Explanation" %}</h3>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>
+                        <strong>{% trans "Important:" %}</strong> {% trans "The 1MΩ resistors are optional but recommended. They help stabilize the input signals and reduce false triggers from electrical noise." %}
+                    </span>
+                </div>
+
+                <p>
+                    {% trans "Each GPIO pin acts as an input with an internal pull-up resistor. When you touch the conductive material connected to a GPIO pin, your body creates a path to ground, pulling the pin low. This change is detected by the software and triggers the corresponding piano note." %}
+                </p>
+
+                <h3 class="font-bold text-lg mt-4">{% trans "Troubleshooting" %}</h3>
+                <ul class="list-disc list-inside space-y-2">
+                    <li>{% trans "If keys are too sensitive or triggering randomly, try increasing the sensitivity setting in the configuration." %}</li>
+                    <li>{% trans "If keys don't respond, ensure all connections are secure and the conductive material is clean." %}</li>
+                    <li>{% trans "For better touch detection, make sure you have a good ground connection (touch the ground pin or hold a grounded metal object)." %}</li>
+                    <li>{% trans "If using fruits, make sure they are fresh and not dried out." %}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Educational Value -->
+    <div class="card bg-base-100 shadow-xl mt-8">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">
+                <i class="fas fa-graduation-cap mr-2"></i>{% trans "Learning Objectives" %}
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-bold text-lg mb-2">{% trans "Physical Concepts" %}</h3>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li>{% trans "Understanding electrical conductivity" %}</li>
+                        <li>{% trans "How capacitive touch sensing works" %}</li>
+                        <li>{% trans "Pull-up resistors and digital inputs" %}</li>
+                        <li>{% trans "Ground connections in circuits" %}</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="font-bold text-lg mb-2">{% trans "Programming Concepts" %}</h3>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li>{% trans "GPIO pin configuration and reading" %}</li>
+                        <li>{% trans "Event-driven programming" %}</li>
+                        <li>{% trans "Audio synthesis and playback" %}</li>
+                        <li>{% trans "Real-time input handling" %}</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="font-bold text-lg mb-2">{% trans "Musical Concepts" %}</h3>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li>{% trans "Musical notes and frequencies" %}</li>
+                        <li>{% trans "Scale construction (C major scale)" %}</li>
+                        <li>{% trans "Sound wave generation" %}</li>
+                        <li>{% trans "Envelope shaping (attack/decay)" %}</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="font-bold text-lg mb-2">{% trans "Extension Activities" %}</h3>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li>{% trans "Experiment with different conductive materials" %}</li>
+                        <li>{% trans "Modify the code to play different scales" %}</li>
+                        <li>{% trans "Create a recording/playback feature" %}</li>
+                        <li>{% trans "Add LEDs that light up with each key press" %}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call to Action -->
+    <div class="text-center mt-8">
+        <a href="{% url 'touch_piano:dashboard' %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-music mr-2"></i>{% trans "Start Playing!" %}
+        </a>
+    </div>
+</div>
+{% endblock %}

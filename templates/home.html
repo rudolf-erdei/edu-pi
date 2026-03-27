@@ -23,9 +23,9 @@
       {% for plugin in plugins %}
       <a
         href="{{ plugin.url }}"
-        class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 border border-base-300 hover:border-primary cursor-pointer block no-underline text-inherit"
+        class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 border border-base-300 hover:border-primary cursor-pointer block no-underline text-inherit flex flex-col"
       >
-        <div class="card-body">
+        <div class="card-body flex-grow">
           <h3 class="card-title text-lg">{{ plugin.name }}</h3>
 
           <p class="text-base-content/70 text-sm mt-2 line-clamp-3">
@@ -77,40 +77,13 @@
     </div>
     {% endif %}
   </div>
-
-  <!-- Stats Cards -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-    <div class="card bg-success text-success-content shadow-lg">
-      <div class="card-body">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="card-title text-lg">{% trans "Active Apps" %}</h2>
-            <p class="text-4xl font-bold mt-2">{{ plugin_count }}</p>
-          </div>
-          <div class="text-6xl opacity-20">🔧</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card bg-info text-info-content shadow-lg">
-      <div class="card-body">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="card-title text-lg">{% trans "Running" %}</h2>
-            <p class="text-4xl font-bold mt-2">{{ runtime_count }}</p>
-          </div>
-          <div class="text-6xl opacity-20">⚡</div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div class="divider"></div>
 
   <!-- Quick Actions -->
   <div class="card bg-base-100 shadow-lg">
-    <div class="card-body">
-      <h3 class="card-title">{% trans "Quick Actions" %}</h3>
-
-      <div class="card-actions mt-4">
+    <div class="card-body p-4">
+      <div class="card-actions justify-center">
+        <span class="badge badge-xl py-6 shadow bg-gray-100 mr-8">{% trans "Active Apps" %}: {{ plugin_count }}</span>
         <a href="/admin/" class="btn btn-primary">{% trans "Admin Panel" %}</a>
         <a href="/admin/plugins/" class="btn btn-outline btn-secondary"
           >{% trans "App Management" %}</a

@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} - EDU-PI{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-primary">
+            <i class="fas fa-cog mr-3"></i>{{ title }}
+        </h1>
+        <a href="{% url 'touch_piano:config_list' %}" class="btn btn-outline">
+            {% trans "Back to Configurations" %}
+        </a>
+    </div>
+
+    <!-- Configuration Form -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-6">{% trans "Configuration Details" %}</h2>
+            
+            <form id="config-form" method="post">
+                {% csrf_token %}
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Name -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">{{ form.name.label }}</span>
+                        </label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <label class="label">
+                                <span class="label-text-alt text-error">{{ form.name.errors.0 }}</span>
+                            </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Volume -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">{{ form.volume.label }}</span>
+                        </label>
+                        {{ form.volume }}
+                        {% if form.volume.errors %}
+                            <label class="label">
+                                <span class="label-text-alt text-error">{{ form.volume.errors.0 }}</span>
+                            </label>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="form-control mt-4">
+                    <label class="label">
+                        <span class="label-text">{{ form.description.label }}</span>
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                        <label class="label">
+                            <span class="label-text-alt text-error">{{ form.description.errors.0 }}</span>
+                        </label>
+                    {% endif %}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <!-- Sensitivity -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">{{ form.sensitivity.label }}</span>
+                            <span class="label-text-alt">{% trans "1 = Low, 10 = High" %}</span>
+                        </label>
+                        {{ form.sensitivity }}
+                        {% if form.sensitivity.errors %}
+                            <label class="label">
+                                <span class="label-text-alt text-error">{{ form.sensitivity.errors.0 }}</span>
+                            </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Active -->
+                    <div class="form-control">
+                        <label class="label cursor-pointer">
+                            <span class="label-text">{{ form.is_active.label }}</span>
+                            {{ form.is_active }}
+                        </label>
+                        {% if form.is_active.errors %}
+                            <label class="label">
+                                <span class="label-text-alt text-error">{{ form.is_active.errors.0 }}</span>
+                            </label>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex justify-end gap-4 mt-8">
+                    <a href="{% url 'touch_piano:config_list' %}" class="btn btn-ghost">
+                        {% trans "Cancel" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>{{ action }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if config %}
+    <!-- Piano Keys Configuration -->
+    <div class="card bg-base-100 shadow-xl mt-8">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-6">{% trans "Piano Keys" %}</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for key in config.keys.all %}
+                <div class="card bg-base-200">
+                    <div class="card-body p-4">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="font-bold text-lg">{% trans "Key" %} {{ key.key_number }}</h3>
+                                <p class="text-sm text-gray-500">GPIO {{ key.gpio_pin }}</p>
+                            </div>
+                            <div class="w-8 h-8 rounded-full" style="background-color: {{ key.color }};"></div>
+                        </div>
+                        
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span>{% trans "Note:" %}</span>
+                                <span class="font-medium">{{ key.note }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>{% trans "Frequency:" %}</span>
+                                <span class="font-medium">{{ key.frequency }} Hz</span>
+                            </div>
+                            {% if key.label %}
+                            <div class="flex justify-between">
+                                <span>{% trans "Label:" %}</span>
+                                <span class="font-medium">{{ key.label }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mt-4">
+                            <span class="badge {% if key.is_active %}badge-success{% else %}badge-ghost{% endif %}">
+                                {% if key.is_active %}{% trans "Enabled" %}{% else %}{% trans "Disabled" %}{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.getElementById('config-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch(window.location.pathname, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = '{% url "touch_piano:config_list" %}';
+        } else {
+            // Display errors
+            if (data.errors) {
+                let errorMsg = '';
+                for (const [field, errors] of Object.entries(data.errors)) {
+                    errorMsg += `${field}: ${errors.join(', ')}\n`;
+                }
+                alert(errorMsg);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('{% trans "An error occurred. Please try again." %}');
+    });
+});
+</script>
+{% endblock %}

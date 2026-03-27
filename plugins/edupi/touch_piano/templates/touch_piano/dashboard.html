@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} - EDU-PI{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-primary">
+            <i class="fas fa-music mr-3"></i>{{ title }}
+        </h1>
+        <div class="flex gap-4">
+            <a href="{% url 'touch_piano:instructions' %}" class="btn btn-outline btn-info">
+                <i class="fas fa-book mr-2"></i>{% trans "Setup Guide" %}
+            </a>
+            <a href="{% url 'home' %}" class="btn btn-outline">
+                {% trans "Back to Dashboard" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Piano Display Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Piano Keys -->
+        <div class="lg:col-span-2">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl mb-4">
+                        <i class="fas fa-keyboard mr-2"></i>{% trans "Touch Piano Keys" %}
+                    </h2>
+                    
+                    <!-- Piano Visualization -->
+                    <div class="flex justify-center gap-2 mb-6 p-4 bg-base-200 rounded-lg">
+                        {% for key in keys %}
+                        <div 
+                            id="piano-key-{{ key.key_number }}"
+                            class="piano-key w-24 h-48 rounded-b-lg cursor-pointer transition-all duration-100 flex flex-col items-center justify-end pb-4 select-none"
+                            style="background-color: {{ key.color }};"
+                            data-key-number="{{ key.key_number }}"
+                            data-note="{{ key.note }}"
+                            onmousedown="onKeyPress({{ key.key_number }})"
+                            onmouseup="onKeyRelease({{ key.key_number }})"
+                            onmouseleave="onKeyRelease({{ key.key_number }})"
+                            ontouchstart="event.preventDefault(); onKeyPress({{ key.key_number }})"
+                            ontouchend="event.preventDefault(); onKeyRelease({{ key.key_number }})"
+                        >
+                            <span class="text-white font-bold text-lg">{{ key.note }}</span>
+                            <span class="text-white text-xs opacity-75">{{ key.label }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Instructions -->
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <span>{% trans "Click or touch the keys above to play, or touch the physical conductive materials connected to GPIO pins." %}</span>
+                    </div>
+
+                    <!-- Active Session Info -->
+                    <div id="session-info" class="mt-4 p-4 bg-base-200 rounded-lg {% if not current_session %}hidden{% endif %}">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm"><strong>{% trans "Active Session:" %}</strong> <span id="session-config-name">{{ current_session.config.name|default:"N/A" }}</span></p>
+                                <p class="text-sm"><strong>{% trans "Total Presses:" %}</strong> <span id="session-presses">{{ current_session.total_key_presses|default:0 }}</span></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm text-gray-500">{% trans "Session ID:" %} <span id="session-id">{{ current_session.id|default:"-" }}</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-xl mb-4">{% trans "Control Panel" %}</h2>
+                
+                <!-- Session Controls -->
+                <div class="mb-6">
+                    <div id="session-controls-stopped" class="{% if current_session %}hidden{% endif %}">
+                        <form id="start-session-form">
+                            <div class="form-control mb-4">
+                                <label class="label">
+                                    <span class="label-text">{% trans "Configuration" %}</span>
+                                </label>
+                                {{ quick_form.config_id }}
+                            </div>
+                            <button type="button" class="btn btn-success btn-lg w-full" onclick="startSession()">
+                                <i class="fas fa-play mr-2"></i>{% trans "Start Piano Session" %}
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div id="session-controls-running" class="{% if not current_session %}hidden{% endif %}">
+                        <button class="btn btn-error btn-lg w-full" onclick="stopSession()">
+                            <i class="fas fa-stop mr-2"></i>{% trans "Stop Session" %}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- GPIO Pin Info -->
+                <h3 class="font-semibold mb-3">{% trans "GPIO Pin Mapping" %}</h3>
+                <div class="space-y-2 text-sm">
+                    {% for key in keys %}
+                    <div class="flex justify-between items-center p-2 bg-base-200 rounded">
+                        <span class="font-medium">{% trans "Key" %} {{ key.key_number }} ({{ key.note }})</span>
+                        <span class="badge badge-outline">GPIO {{ key.gpio_pin }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="divider"></div>
+
+                <a href="{% url 'touch_piano:config_list' %}" class="btn btn-ghost btn-block">
+                    <i class="fas fa-cog mr-2"></i>{% trans "Manage Configurations" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">{% trans "Recent Sessions" %}</h2>
+            <div class="overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{% trans "ID" %}</th>
+                            <th>{% trans "Configuration" %}</th>
+                            <th>{% trans "Key Presses" %}</th>
+                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Started" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in recent_sessions|default:""|slice:":10" %}
+                            <tr>
+                                <td>{{ session.id }}</td>
+                                <td>{{ session.config.name|default:"N/A" }}</td>
+                                <td>{{ session.total_key_presses }}</td>
+                                <td>
+                                    <span class="badge {% if session.is_active %}badge-success{% else %}badge-ghost{% endif %}">
+                                        {% if session.is_active %}{% trans "Active" %}{% else %}{% trans "Ended" %}{% endif %}
+                                    </span>
+                                </td>
+                                <td>{{ session.started_at|date:"Y-m-d H:i" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-gray-500">
+                                    {% trans "No recent sessions" %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.piano-key {
+    border: 3px solid transparent;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.piano-key:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+}
+
+.piano-key:active,
+.piano-key.pressed {
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    filter: brightness(0.9);
+    border-color: white;
+}
+</style>
+
+<script>
+let currentSessionId = {{ current_session.id|default:"null" }};
+let statusCheckInterval = null;
+let pressedKeys = new Set();
+
+function onKeyPress(keyNumber) {
+    if (pressedKeys.has(keyNumber)) return;
+    pressedKeys.add(keyNumber);
+    
+    // Visual feedback
+    const keyElement = document.getElementById(`piano-key-${keyNumber}`);
+    if (keyElement) {
+        keyElement.classList.add('pressed');
+    }
+    
+    // Send to server
+    fetch('{% url "touch_piano:web_key_press" %}', {
+        method: 'POST',
+        body: JSON.stringify({
+            key_number: keyNumber,
+            action: 'press'
+        }),
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    }).catch(error => console.error('Error:', error));
+}
+
+function onKeyRelease(keyNumber) {
+    if (!pressedKeys.has(keyNumber)) return;
+    pressedKeys.delete(keyNumber);
+    
+    // Remove visual feedback
+    const keyElement = document.getElementById(`piano-key-${keyNumber}`);
+    if (keyElement) {
+        keyElement.classList.remove('pressed');
+    }
+    
+    // Send to server
+    fetch('{% url "touch_piano:web_key_press" %}', {
+        method: 'POST',
+        body: JSON.stringify({
+            key_number: keyNumber,
+            action: 'release'
+        }),
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    }).catch(error => console.error('Error:', error));
+}
+
+function startSession() {
+    const configId = document.querySelector('[name="config_id"]').value;
+    const formData = new FormData();
+    if (configId) {
+        formData.append('config_id', configId);
+    }
+    
+    fetch('{% url "touch_piano:session_start" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentSessionId = data.session_id;
+            updateSessionUI(true, data);
+            startStatusCheck();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function stopSession() {
+    fetch('{% url "touch_piano:session_stop" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentSessionId = null;
+            updateSessionUI(false);
+            stopStatusCheck();
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function updateSessionUI(isRunning, data) {
+    const stoppedControls = document.getElementById('session-controls-stopped');
+    const runningControls = document.getElementById('session-controls-running');
+    const sessionInfo = document.getElementById('session-info');
+    
+    if (isRunning) {
+        stoppedControls.classList.add('hidden');
+        runningControls.classList.remove('hidden');
+        sessionInfo.classList.remove('hidden');
+        
+        if (data) {
+            document.getElementById('session-id').textContent = data.session_id;
+            document.getElementById('session-config-name').textContent = data.config_name || 'N/A';
+            document.getElementById('session-presses').textContent = '0';
+        }
+    } else {
+        stoppedControls.classList.remove('hidden');
+        runningControls.classList.add('hidden');
+        sessionInfo.classList.add('hidden');
+    }
+}
+
+function checkStatus() {
+    fetch('{% url "touch_piano:status" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.has_active_session) {
+                // Update key states
+                if (data.key_states) {
+                    Object.entries(data.key_states).forEach(([key, isPressed]) => {
+                        const keyElement = document.getElementById(`piano-key-${key}`);
+                        if (keyElement) {
+                            if (isPressed) {
+                                keyElement.classList.add('pressed');
+                            } else {
+                                keyElement.classList.remove('pressed');
+                            }
+                        }
+                    });
+                }
+                
+                // Update session info
+                if (data.session) {
+                    document.getElementById('session-presses').textContent = data.session.total_presses;
+                }
+            } else if (currentSessionId) {
+                // Session ended
+                currentSessionId = null;
+                updateSessionUI(false);
+                stopStatusCheck();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function startStatusCheck() {
+    if (!statusCheckInterval) {
+        statusCheckInterval = setInterval(checkStatus, 100);
+    }
+}
+
+function stopStatusCheck() {
+    if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+        statusCheckInterval = null;
+    }
+}
+
+// Keyboard shortcuts
+const keyboardMapping = {
+    'a': 1, 's': 2, 'd': 3, 'f': 4, 'g': 5, 'h': 6,
+    'A': 1, 'S': 2, 'D': 3, 'F': 4, 'G': 5, 'H': 6
+};
+
+document.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    const keyNumber = keyboardMapping[e.key];
+    if (keyNumber) {
+        e.preventDefault();
+        onKeyPress(keyNumber);
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    const keyNumber = keyboardMapping[e.key];
+    if (keyNumber) {
+        e.preventDefault();
+        onKeyRelease(keyNumber);
+    }
+});
+
+// Start status check if session is already running
+{% if current_session %}
+startStatusCheck();
+{% endif %}
+</script>
+{% endblock %}

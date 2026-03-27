@@ -8,6 +8,7 @@ dependencies = [
     "Django>=4.2,<5.0",
     "gpiozero>=2.0",
     "polib>=1.2.0",
+    "pygame>=2.6.1",
 ]
 
 [project.optional-dependencies]

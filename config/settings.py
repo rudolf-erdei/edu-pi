@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "core.edupi_core",
     "core.plugin_system",
     "plugins.edupi.activity_timer",
+    "plugins.edupi.touch_piano",
 ]
 
 MIDDLEWARE = [
