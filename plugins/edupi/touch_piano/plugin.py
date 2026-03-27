@@ -29,6 +29,8 @@ class Plugin(PluginBase):
 
     def boot(self) -> None:
         """Initialize the plugin and register GPIO pins."""
+        from django.utils.translation import gettext as _
+
         # Register GPIO pins for 6 piano keys
         # Using capacitive touch sensing with pull-up resistors
         self.register_gpio_pins(
@@ -42,11 +44,14 @@ class Plugin(PluginBase):
             }
         )
 
-        logger.info(f"{self.name} plugin booted - GPIO pins registered")
+        logger.info(
+            _("%(name)s plugin booted - GPIO pins registered") % {"name": self.name}
+        )
 
     def register(self) -> None:
         """Register models, URLs, and admin menus."""
         from django.urls import include, path
+        from django.utils.translation import gettext as _
 
         from .models import PianoConfig, PianoSession, KeyPress
 
@@ -62,13 +67,13 @@ class Plugin(PluginBase):
 
         # Register admin menu
         self.register_admin_menu(
-            "Touch Piano", "/plugins/edupi/touch_piano/", icon="music"
+            _("Touch Piano"), "/plugins/edupi/touch_piano/", icon="music"
         )
 
         # Register settings
         self.register_setting(
             "volume",
-            "Piano Volume (%)",
+            _("Piano Volume (%)"),
             default=80,
             field_type="number",
             min=0,
@@ -76,29 +81,29 @@ class Plugin(PluginBase):
         )
         self.register_setting(
             "audio_device",
-            "Audio Output Device",
+            _("Audio Output Device"),
             default="default",
             field_type="text",
-            help_text="ALSA audio device (e.g., default, hw:0,0, or plughw:1,0)",
+            help_text=_("ALSA audio device (e.g., default, hw:0,0, or plughw:1,0)"),
         )
         self.register_setting(
             "sensitivity",
-            "Touch Sensitivity",
+            _("Touch Sensitivity"),
             default=5,
             field_type="number",
             min=1,
             max=10,
-            help_text="Higher values = more sensitive touch detection",
+            help_text=_("Higher values = more sensitive touch detection"),
         )
         self.register_setting(
             "enable_visual_feedback",
-            "Enable Visual Feedback",
+            _("Enable Visual Feedback"),
             default=True,
             field_type="boolean",
-            help_text="Show key presses on web interface in real-time",
+            help_text=_("Show key presses on web interface in real-time"),
         )
 
-        logger.info(f"{self.name} plugin registered")
+        logger.info(_("%(name)s plugin registered") % {"name": self.name})
 
     def uninstall(self) -> None:
         """Cleanup GPIO pins and resources."""

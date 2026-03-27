@@ -1,0 +1,77 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: EDU-PI Touch Piano Plugin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-03-27 14:00+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: plugin.py:19
+msgid "Touch Piano"
+msgstr "Touch Piano"
+
+#: plugin.py:20
+msgid ""
+"Play musical notes by touching conductive materials connected to GPIO pins. "
+"Supports bananas, foil, copper tape, and other conductive items."
+msgstr ""
+"Play musical notes by touching conductive materials connected to GPIO pins. "
+"Supports bananas, foil, copper tape, and other conductive items."
+
+#: plugin.py:48
+#, python-format
+msgid "%(name)s plugin booted - GPIO pins registered"
+msgstr "%(name)s plugin booted - GPIO pins registered"
+
+#: plugin.py:68
+msgid "Touch Piano"
+msgstr "Touch Piano"
+
+#: plugin.py:73
+msgid "Piano Volume (%)"
+msgstr "Piano Volume (%)"
+
+#: plugin.py:80
+msgid "Audio Output Device"
+msgstr "Audio Output Device"
+
+#: plugin.py:87
+msgid "ALSA audio device (e.g., default, hw:0,0, or plughw:1,0)"
+msgstr "ALSA audio device (e.g., default, hw:0,0, or plughw:1,0)"
+
+#: plugin.py:91
+msgid "Touch Sensitivity"
+msgstr "Touch Sensitivity"
+
+#: plugin.py:97
+msgid "Higher values = more sensitive touch detection"
+msgstr "Higher values = more sensitive touch detection"
+
+#: plugin.py:100
+msgid "Enable Visual Feedback"
+msgstr "Enable Visual Feedback"
+
+#: plugin.py:106
+msgid "Show key presses on web interface in real-time"
+msgstr "Show key presses on web interface in real-time"
+
+#: plugin.py:110
+#, python-format
+msgid "%(name)s plugin registered"
+msgstr "%(name)s plugin registered"
+
+#: apps.py:8
+msgid "Touch Piano"
+msgstr "Touch Piano"
