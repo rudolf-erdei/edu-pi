@@ -1,0 +1,434 @@
+# Activity Timer Plugin - English Translation
+# Copyright (C) 2025 EDU-PI Team
+# This file is distributed under the same license as the edu-pi package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: edu-pi-activity-timer 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-03-27 10:00+0200\n"
+"PO-Revision-Date: 2025-03-27 10:00+0200\n"
+"Last-Translator: EDU-PI Team\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: models.py:15
+msgid "Name of the timer configuration"
+msgstr "Name of the timer configuration"
+
+#: models.py:20
+msgid "Description of when to use this timer"
+msgstr "Description of when to use this timer"
+
+#: models.py:25
+msgid "Duration in minutes"
+msgstr "Duration in minutes"
+
+#: models.py:30
+msgid "Percentage remaining when warning color appears"
+msgstr "Percentage remaining when warning color appears"
+
+#: models.py:35
+msgid "Play buzzer sound when timer ends"
+msgstr "Play buzzer sound when timer ends"
+
+#: models.py:40
+msgid "Hex color code for timer start (green)"
+msgstr "Hex color code for timer start (green)"
+
+#: models.py:46
+msgid "Hex color code for warning state (yellow)"
+msgstr "Hex color code for warning state (yellow)"
+
+#: models.py:52
+msgid "Hex color code for timer end (red)"
+msgstr "Hex color code for timer end (red)"
+
+#: models.py:57
+msgid "Use this as the default configuration"
+msgstr "Use this as the default configuration"
+
+#: models.py:62
+msgid "Whether this configuration is active"
+msgstr "Whether this configuration is active"
+
+#: models.py:67
+msgid "Timer Configuration"
+msgstr "Timer Configuration"
+
+#: models.py:68
+msgid "Timer Configurations"
+msgstr "Timer Configurations"
+
+#: models.py:86
+msgid "Pending"
+msgstr "Pending"
+
+#: models.py:87
+msgid "Running"
+msgstr "Running"
+
+#: models.py:88
+msgid "Paused"
+msgstr "Paused"
+
+#: models.py:89
+msgid "Completed"
+msgstr "Completed"
+
+#: models.py:90
+msgid "Cancelled"
+msgstr "Cancelled"
+
+#: models.py:97
+msgid "Configuration used for this session"
+msgstr "Configuration used for this session"
+
+#: models.py:104
+msgid "Current status of the timer"
+msgstr "Current status of the timer"
+
+#: models.py:109
+msgid "Total duration in seconds"
+msgstr "Total duration in seconds"
+
+#: models.py:114
+msgid "Remaining time in seconds"
+msgstr "Remaining time in seconds"
+
+#: models.py:120
+msgid "When the timer was started"
+msgstr "When the timer was started"
+
+#: models.py:126
+msgid "When the timer was last paused"
+msgstr "When the timer was last paused"
+
+#: models.py:132
+msgid "When the timer completed"
+msgstr "When the timer completed"
+
+#: models.py:138
+msgid "Timer Session"
+msgstr "Timer Session"
+
+#: models.py:139
+msgid "Timer Sessions"
+msgstr "Timer Sessions"
+
+#: forms.py:30
+msgid "e.g., Test Timer"
+msgstr "e.g., Test Timer"
+
+#: forms.py:45
+msgid "Timer Name"
+msgstr "Timer Name"
+
+#: forms.py:46
+msgid "Description"
+msgstr "Description"
+
+#: forms.py:47
+msgid "Duration (minutes)"
+msgstr "Duration (minutes)"
+
+#: forms.py:48
+msgid "Warning Threshold (%)"
+msgstr "Warning Threshold (%)"
+
+#: forms.py:49
+msgid "Enable Buzzer"
+msgstr "Enable Buzzer"
+
+#: forms.py:50
+msgid "Start Color (Green)"
+msgstr "Start Color (Green)"
+
+#: forms.py:51
+msgid "Warning Color (Yellow)"
+msgstr "Warning Color (Yellow)"
+
+#: forms.py:52
+msgid "End Color (Red)"
+msgstr "End Color (Red)"
+
+#: forms.py:53
+msgid "Set as Default"
+msgstr "Set as Default"
+
+#: forms.py:54
+msgid "Active"
+msgstr "Active"
+
+#: forms.py:62
+msgid "Duration (minutes)"
+msgstr "Duration (minutes)"
+
+#: forms.py:69
+msgid "Enable Buzzer"
+msgstr "Enable Buzzer"
+
+#: views.py:44 templates/activity_timer/dashboard.html:26
+msgid "Activity Timer"
+msgstr "Activity Timer"
+
+#: views.py:74
+msgid "Ready to start"
+msgstr "Ready to start"
+
+#: views.py:89 templates/activity_timer/dashboard.html:68
+msgid "Start"
+msgstr "Start"
+
+#: views.py:90 templates/activity_timer/dashboard.html:72
+msgid "Pause"
+msgstr "Pause"
+
+#: views.py:91 templates/activity_timer/dashboard.html:76
+msgid "Resume"
+msgstr "Resume"
+
+#: views.py:92 templates/activity_timer/dashboard.html:80
+msgid "Stop"
+msgstr "Stop"
+
+#: views.py:117
+msgid "No default configuration set"
+msgstr "No default configuration set"
+
+#: views.py:135
+msgid "Timer started"
+msgstr "Timer started"
+
+#: views.py:146
+msgid "Timer paused"
+msgstr "Timer paused"
+
+#: views.py:155
+msgid "Timer resumed"
+msgstr "Timer resumed"
+
+#: views.py:163
+msgid "Timer stopped"
+msgstr "Timer stopped"
+
+#: templates/activity_timer/dashboard.html:18
+msgid "Back to Dashboard"
+msgstr "Back to Dashboard"
+
+#: templates/activity_timer/dashboard.html:34
+msgid "Timer Control"
+msgstr "Timer Control"
+
+#: templates/activity_timer/dashboard.html:88
+msgid "Paused"
+msgstr "Paused"
+
+#: templates/activity_timer/dashboard.html:99
+msgid "Configuration:"
+msgstr "Configuration:"
+
+#: templates/activity_timer/dashboard.html:104
+msgid "Duration:"
+msgstr "Duration:"
+
+#: templates/activity_timer/dashboard.html:105
+msgid "minutes"
+msgstr "minutes"
+
+#: templates/activity_timer/dashboard.html:119
+msgid "Quick Start"
+msgstr "Quick Start"
+
+#: templates/activity_timer/dashboard.html:127
+msgid "Enable Buzzer"
+msgstr "Enable Buzzer"
+
+#: templates/activity_timer/dashboard.html:132
+msgid "Start Quick Timer"
+msgstr "Start Quick Timer"
+
+#: templates/activity_timer/dashboard.html:139
+msgid "Preset Timers"
+msgstr "Preset Timers"
+
+#: templates/activity_timer/dashboard.html:144
+msgid "No configurations available"
+msgstr "No configurations available"
+
+#: templates/activity_timer/dashboard.html:150
+msgid "Manage Configurations"
+msgstr "Manage Configurations"
+
+#: templates/activity_timer/dashboard.html:158
+msgid "Recent Sessions"
+msgstr "Recent Sessions"
+
+#: templates/activity_timer/dashboard.html:165
+msgid "ID"
+msgstr "ID"
+
+#: templates/activity_timer/dashboard.html:166
+msgid "Configuration"
+msgstr "Configuration"
+
+#: templates/activity_timer/dashboard.html:167
+msgid "Duration"
+msgstr "Duration"
+
+#: templates/activity_timer/dashboard.html:168
+msgid "Status"
+msgstr "Status"
+
+#: templates/activity_timer/dashboard.html:169
+msgid "Started"
+msgstr "Started"
+
+#: templates/activity_timer/dashboard.html:186
+msgid "No recent sessions"
+msgstr "No recent sessions"
+
+#: templates/activity_timer/config_list.html:13
+msgid "New Configuration"
+msgstr "New Configuration"
+
+#: templates/activity_timer/config_list.html:16
+msgid "Back to Timer"
+msgstr "Back to Timer"
+
+#: templates/activity_timer/config_list.html:26
+msgid "Name"
+msgstr "Name"
+
+#: templates/activity_timer/config_list.html:27
+msgid "Description"
+msgstr "Description"
+
+#: templates/activity_timer/config_list.html:29
+msgid "Warning %"
+msgstr "Warning %"
+
+#: templates/activity_timer/config_list.html:30
+msgid "Colors"
+msgstr "Colors"
+
+#: templates/activity_timer/config_list.html:31
+msgid "Actions"
+msgstr "Actions"
+
+#: templates/activity_timer/config_list.html:48
+msgid "min"
+msgstr "min"
+
+#: templates/activity_timer/config_list.html:54
+msgid "Start"
+msgstr "Start"
+
+#: templates/activity_timer/config_list.html:55
+msgid "Warning"
+msgstr "Warning"
+
+#: templates/activity_timer/config_list.html:56
+msgid "End"
+msgstr "End"
+
+#: templates/activity_timer/config_list.html:62
+msgid "Default"
+msgstr "Default"
+
+#: templates/activity_timer/config_list.html:65
+msgid "Inactive"
+msgstr "Inactive"
+
+#: templates/activity_timer/config_list.html:69
+msgid "Buzzer enabled"
+msgstr "Buzzer enabled"
+
+#: templates/activity_timer/config_list.html:79
+msgid "Cannot delete default configuration"
+msgstr "Cannot delete default configuration"
+
+#: templates/activity_timer/config_list.html:87
+msgid "No configurations found"
+msgstr "No configurations found"
+
+#: templates/activity_timer/config_list.html:89
+msgid "Create your first configuration"
+msgstr "Create your first configuration"
+
+#: templates/activity_timer/config_list.html:99
+msgid "Preset Configurations"
+msgstr "Preset Configurations"
+
+#: templates/activity_timer/config_list.html:103
+msgid "Click below to create preset timer configurations for common classroom activities:"
+msgstr "Click below to create preset timer configurations for common classroom activities:"
+
+#: templates/activity_timer/config_list.html:109
+msgid "Test Timer (5 min)"
+msgstr "Test Timer (5 min)"
+
+#: templates/activity_timer/config_list.html:113
+msgid "Teaching (10 min)"
+msgstr "Teaching (10 min)"
+
+#: templates/activity_timer/config_list.html:117
+msgid "Quiz (15 min)"
+msgstr "Quiz (15 min)"
+
+#: templates/activity_timer/config_list.html:121
+msgid "Group Work (20 min)"
+msgstr "Group Work (20 min)"
+
+#: templates/activity_timer/config_list.html:125
+msgid "Exam (45 min)"
+msgstr "Exam (45 min)"
+
+#: templates/activity_timer/config_form.html:15
+msgid "Create a timer configuration with custom colors and settings."
+msgstr "Create a timer configuration with custom colors and settings."
+
+#: templates/activity_timer/config_form.html:25
+msgid "Basic Settings"
+msgstr "Basic Settings"
+
+#: templates/activity_timer/config_form.html:76
+msgid "Warning Settings"
+msgstr "Warning Settings"
+
+#: templates/activity_timer/config_form.html:92
+msgid "When remaining time drops below this percentage, the LED changes to warning color."
+msgstr "When remaining time drops below this percentage, the LED changes to warning color."
+
+#: templates/activity_timer/config_form.html:100
+msgid "Play a sound when timer ends"
+msgstr "Play a sound when timer ends"
+
+#: templates/activity_timer/config_form.html:108
+msgid "LED Colors"
+msgstr "LED Colors"
+
+#: templates/activity_timer/config_form.html:140
+msgid "Options"
+msgstr "Options"
+
+#: templates/activity_timer/config_form.html:161
+msgid "Cancel"
+msgstr "Cancel"
+
+#: templates/activity_timer/config_form.html:189
+msgid "Please correct the errors in the form."
+msgstr "Please correct the errors in the form."
+
+#: templates/activity_timer/config_form.html:194
+msgid "An error occurred while saving the configuration."
+msgstr "An error occurred while saving the configuration."
+
+#: plugin.py:19
+msgid "Visual countdown timer for classroom activities with RGB LED feedback"
+msgstr "Visual countdown timer for classroom activities with RGB LED feedback"
+

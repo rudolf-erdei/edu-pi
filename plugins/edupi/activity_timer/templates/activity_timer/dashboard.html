@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} - EDU-PI{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-primary">
+            <i class="fas fa-clock mr-3"></i>{{ title }}
+        </h1>
+        <a href="{% url 'home' %}" class="btn btn-outline">
+            {% trans "Back to Dashboard" %}
+        </a>
+    </div>
+
+    <!-- Timer Display Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Main Timer Card -->
+        <div class="lg:col-span-2">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl mb-4">{% trans "Timer Control" %}</h2>
+                    
+                    <!-- Timer Display -->
+                    <div class="text-center py-8" id="timer-display">
+                        <div class="text-8xl font-mono font-bold mb-4" id="time-remaining">
+                            00:00
+                        </div>
+                        <div class="text-xl text-gray-500" id="timer-status">
+                            {% trans "Ready to start" %}
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-gray-200 rounded-full h-4 mb-6">
+                        <div id="progress-bar" class="bg-success h-4 rounded-full transition-all duration-1000" style="width: 100%"></div>
+                    </div>
+
+                    <!-- Control Buttons -->
+                    <div class="flex justify-center gap-4">
+                        <button id="btn-start" class="btn btn-success btn-lg" onclick="startTimer()">
+                            <i class="fas fa-play mr-2"></i>{% trans "Start" %}
+                        </button>
+                        <button id="btn-pause" class="btn btn-warning btn-lg hidden" onclick="pauseTimer()">
+                            <i class="fas fa-pause mr-2"></i>{% trans "Pause" %}
+                        </button>
+                        <button id="btn-resume" class="btn btn-info btn-lg hidden" onclick="resumeTimer()">
+                            <i class="fas fa-play mr-2"></i>{% trans "Resume" %}
+                        </button>
+                        <button id="btn-stop" class="btn btn-error btn-lg hidden" onclick="stopTimer()">
+                            <i class="fas fa-stop mr-2"></i>{% trans "Stop" %}
+                        </button>
+                    </div>
+
+                    <!-- Current Config Info -->
+                    <div class="mt-6 p-4 bg-base-200 rounded-lg" id="config-info">
+                        {% if default_config %}
+                            <p class="text-sm">
+                                <strong>{% trans "Configuration:" %}</strong> 
+                                <span id="current-config-name">{{ default_config.name }}</span>
+                            </p>
+                            <p class="text-sm">
+                                <strong>{% trans "Duration:" %}</strong> 
+                                <span id="current-duration">{{ default_config.duration_minutes }}</span> {% trans "minutes" %}
+                            </p>
+                        {% else %}
+                            <p class="text-sm text-gray-500">{% trans "No default configuration set" %}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Start Section -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-xl mb-4">{% trans "Quick Start" %}</h2>
+                
+                <!-- Quick Timer Form -->
+                <form id="quick-timer-form" class="mb-6">
+                    <div class="form-control mb-4">
+                        <label class="label">
+                            <span class="label-text">{% trans "Duration (minutes)" %}</span>
+                        </label>
+                        {{ quick_form.duration_minutes }}
+                    </div>
+                    <div class="form-control mb-4">
+                        <label class="label cursor-pointer">
+                            <span class="label-text">{% trans "Enable Buzzer" %}</span>
+                            {{ quick_form.use_buzzer }}
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-primary w-full" onclick="startQuickTimer()">
+                        {% trans "Start Quick Timer" %}
+                    </button>
+                </form>
+
+                <div class="divider"></div>
+
+                <!-- Preset Configurations -->
+                <h3 class="font-semibold mb-3">{% trans "Preset Timers" %}</h3>
+                <div class="space-y-2">
+                    {% for config in configs %}
+                        <button class="btn btn-outline btn-block justify-between" 
+                                onclick="startWithConfig({{ config.id }})">
+                            <span>{{ config.name }}</span>
+                            <span class="badge badge-primary">{{ config.duration_minutes }} min</span>
+                        </button>
+                    {% empty %}
+                        <p class="text-sm text-gray-500 text-center">
+                            {% trans "No configurations available" %}
+                        </p>
+                    {% endfor %}
+                </div>
+
+                <div class="divider"></div>
+
+                <a href="{% url 'activity_timer:config_list' %}" class="btn btn-ghost btn-block">
+                    <i class="fas fa-cog mr-2"></i>{% trans "Manage Configurations" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">{% trans "Recent Sessions" %}</h2>
+            <div class="overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{% trans "ID" %}</th>
+                            <th>{% trans "Configuration" %}</th>
+                            <th>{% trans "Duration" %}</th>
+                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Started" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in recent_sessions %}
+                            <tr>
+                                <td>{{ session.id }}</td>
+                                <td>{{ session.config.name|default:"N/A" }}</td>
+                                <td>{{ session.get_remaining_display }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if session.status == 'completed' %}badge-success
+                                        {% elif session.status == 'running' %}badge-primary
+                                        {% elif session.status == 'paused' %}badge-warning
+                                        {% else %}badge-ghost{% endif %}">
+                                        {{ session.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>{{ session.created_at|date:"Y-m-d H:i" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-gray-500">
+                                    {% trans "No recent sessions" %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timer Control JavaScript -->
+<script>
+let currentSessionId = null;
+let statusCheckInterval = null;
+
+function updateTimerDisplay(session) {
+    if (!session) {
+        document.getElementById('time-remaining').textContent = '00:00';
+        document.getElementById('timer-status').textContent = '{% trans "Ready to start" %}';
+        document.getElementById('progress-bar').style.width = '100%';
+        return;
+    }
+    
+    const minutes = Math.floor(session.remaining_seconds / 60);
+    const seconds = session.remaining_seconds % 60;
+    document.getElementById('time-remaining').textContent = 
+        `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    
+    document.getElementById('timer-status').textContent = session.status_display;
+    
+    const progress = session.progress_percent;
+    document.getElementById('progress-bar').style.width = `${100 - progress}%`;
+    
+    // Update color based on progress
+    const progressBar = document.getElementById('progress-bar');
+    progressBar.className = 'h-4 rounded-full transition-all duration-1000 ';
+    if (progress >= 80) {
+        progressBar.classList.add('bg-error');
+    } else if (progress >= session.warning_threshold_percent) {
+        progressBar.classList.add('bg-warning');
+    } else {
+        progressBar.classList.add('bg-success');
+    }
+    
+    currentSessionId = session.id;
+}
+
+function updateButtons(status) {
+    const btnStart = document.getElementById('btn-start');
+    const btnPause = document.getElementById('btn-pause');
+    const btnResume = document.getElementById('btn-resume');
+    const btnStop = document.getElementById('btn-stop');
+    
+    // Hide all first
+    btnStart.classList.add('hidden');
+    btnPause.classList.add('hidden');
+    btnResume.classList.add('hidden');
+    btnStop.classList.add('hidden');
+    
+    if (!status || status === 'completed' || status === 'cancelled') {
+        btnStart.classList.remove('hidden');
+    } else if (status === 'running') {
+        btnPause.classList.remove('hidden');
+        btnStop.classList.remove('hidden');
+    } else if (status === 'paused') {
+        btnResume.classList.remove('hidden');
+        btnStop.classList.remove('hidden');
+    }
+}
+
+function startTimer(configId = null) {
+    const formData = new FormData();
+    formData.append('action', 'start');
+    if (configId) {
+        formData.append('config_id', configId);
+    }
+    
+    fetch('{% url "activity_timer:control" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateTimerDisplay(data);
+            updateButtons('running');
+            startStatusCheck();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function startQuickTimer() {
+    const duration = document.querySelector('[name="duration_minutes"]').value;
+    // Create a temporary config and start
+    startTimer();
+}
+
+function startWithConfig(configId) {
+    startTimer(configId);
+}
+
+function pauseTimer() {
+    const formData = new FormData();
+    formData.append('action', 'pause');
+    
+    fetch('{% url "activity_timer:control" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateButtons('paused');
+            document.getElementById('timer-status').textContent = '{% trans "Paused" %}';
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function resumeTimer() {
+    const formData = new FormData();
+    formData.append('action', 'resume');
+    
+    fetch('{% url "activity_timer:control" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateButtons('running');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function stopTimer() {
+    const formData = new FormData();
+    formData.append('action', 'stop');
+    
+    fetch('{% url "activity_timer:control" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateButtons(null);
+            updateTimerDisplay(null);
+            stopStatusCheck();
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function checkStatus() {
+    fetch('{% url "activity_timer:status" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.has_active_session) {
+                updateTimerDisplay(data.session);
+                updateButtons(data.session.status);
+                
+                if (data.session.status === 'completed' || data.session.status === 'cancelled') {
+                    stopStatusCheck();
+                    updateButtons(null);
+                    setTimeout(() => updateTimerDisplay(null), 3000);
+                }
+            } else {
+                updateButtons(null);
+                updateTimerDisplay(null);
+                stopStatusCheck();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function startStatusCheck() {
+    if (!statusCheckInterval) {
+        statusCheckInterval = setInterval(checkStatus, 1000);
+    }
+}
+
+function stopStatusCheck() {
+    if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+        statusCheckInterval = null;
+    }
+}
+
+// Check for active session on page load
+{% if is_running %}
+startStatusCheck();
+{% endif %}
+</script>
+{% endblock %}

@@ -36,10 +36,6 @@ class PluginStatus(models.Model):
         help_text="Whether the plugin is installed",
     )
 
-    is_installed = models.BooleanField(
-        default=True, help_text="Whether the plugin is installed"
-    )
-
     created_at = models.DateTimeField(
         auto_now_add=True, help_text="When the plugin was first discovered"
     )

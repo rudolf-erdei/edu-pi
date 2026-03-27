@@ -1,5 +1,6 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
+{% load plugin_extras %}
 
 {% block content %}
 <div id="content-main">
@@ -34,7 +35,13 @@
                 {% for plugin in db_plugins %}
                 <tr>
                     <td>
-                        <strong>{{ plugin.name }}</strong>
+                        {% if plugin.is_enabled and plugin.plugin_path in plugin_urls %}
+                            <a href="{{ plugin_urls|dict_get:plugin.plugin_path }}" style="text-decoration: none; color: inherit;">
+                                <strong>{{ plugin.name }}</strong>
+                            </a>
+                        {% else %}
+                            <strong>{{ plugin.name }}</strong>
+                        {% endif %}
                         <br><small style="color: #666;">{{ plugin.plugin_path }}</small>
                     </td>
                     <td><code>{{ plugin.version }}</code></td>

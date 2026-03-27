@@ -30,6 +30,8 @@ urlpatterns = [
     path("", home_view, name="home"),
     # Language switcher
     path("i18n/", include("django.conf.urls.i18n")),
+    # Plugin URLs - plugins register under /plugins/<author>/<plugin>/
+    path("plugins/", include("core.plugin_system.urls")),
     # Plugin dashboard URLs - must come before admin/ catch-all
     path("admin/plugins/", plugin_dashboard_view, name="plugin_dashboard"),
     path(

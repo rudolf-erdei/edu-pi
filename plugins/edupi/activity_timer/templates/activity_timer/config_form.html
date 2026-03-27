@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} - EDU-PI{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-2xl">
+    
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold text-primary mb-2">{{ title }}</h1>
+        <p class="text-gray-600">
+            {% trans "Create a timer configuration with custom colors and settings." %}
+        </p>
+    </div>
+
+    <!-- Configuration Form -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <form id="config-form" method="post" action="{% if config %}{% url 'activity_timer:config_update' config.id %}{% else %}{% url 'activity_timer:config_create' %}{% endif %}">
+                {% csrf_token %}
+                
+                <!-- Basic Settings -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-semibold mb-4 pb-2 border-b">{% trans "Basic Settings" %}</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">{{ form.name.label }}</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <span class="text-error text-sm">{{ form.name.errors.0 }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">{{ form.duration_minutes.label }}</span>
+                            </label>
+                            {{ form.duration_minutes }}
+                            {% if form.duration_minutes.errors %}
+                                <span class="text-error text-sm">{{ form.duration_minutes.errors.0 }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-control mt-4">
+                        <label class="label">
+                            <span class="label-text">{{ form.description.label }}</span>
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <span class="text-error text-sm">{{ form.description.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Warning Settings -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-semibold mb-4 pb-2 border-b">{% trans "Warning Settings" %}</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">{{ form.warning_threshold_percent.label }}</span>
+                            </label>
+                            {{ form.warning_threshold_percent }}
+                            <p class="text-sm text-gray-500 mt-1">
+                                {% trans "When remaining time drops below this percentage, the LED changes to warning color." %}
+                            </p>
+                            {% if form.warning_threshold_percent.errors %}
+                                <span class="text-error text-sm">{{ form.warning_threshold_percent.errors.0 }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label cursor-pointer">
+                                <span class="label-text">{{ form.enable_buzzer.label }}</span>
+                                {{ form.enable_buzzer }}
+                            </label>
+                            <p class="text-sm text-gray-500 mt-1">
+                                {% trans "Play a sound when timer ends" %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LED Colors -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-semibold mb-4 pb-2 border-b">{% trans "LED Colors" %}</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">{{ form.led_color_start.label }}</span>
+                            </label>
+                            <div class="flex gap-2">
+                                {{ form.led_color_start }}
+                                <div id="preview-start" class="w-10 h-10 rounded border border-gray-300"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">{{ form.led_color_warning.label }}</span>
+                            </label>
+                            <div class="flex gap-2">
+                                {{ form.led_color_warning }}
+                                <div id="preview-warning" class="w-10 h-10 rounded border border-gray-300"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">{{ form.led_color_end.label }}</span>
+                            </label>
+                            <div class="flex gap-2">
+                                {{ form.led_color_end }}
+                                <div id="preview-end" class="w-10 h-10 rounded border border-gray-300"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-semibold mb-4 pb-2 border-b">{% trans "Options" %}</h2>
+                    
+                    <div class="flex gap-4">
+                        <div class="form-control">
+                            <label class="label cursor-pointer">
+                                <span class="label-text">{{ form.is_default.label }}</span>
+                                {{ form.is_default }}
+                            </label>
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label cursor-pointer">
+                                <span class="label-text">{{ form.is_active.label }}</span>
+                                {{ form.is_active }}
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-4 justify-end">
+                    <a href="{% url 'activity_timer:config_list' %}" class="btn btn-ghost">
+                        {% trans "Cancel" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>{{ action }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update color previews
+function updatePreviews() {
+    const startColor = document.querySelector('[name="led_color_start"]').value;
+    const warningColor = document.querySelector('[name="led_color_warning"]').value;
+    const endColor = document.querySelector('[name="led_color_end"]').value;
+    
+    document.getElementById('preview-start').style.backgroundColor = startColor;
+    document.getElementById('preview-warning').style.backgroundColor = warningColor;
+    document.getElementById('preview-end').style.backgroundColor = endColor;
+}
+
+// Add event listeners to color inputs
+document.querySelectorAll('input[type="color"]').forEach(input => {
+    input.addEventListener('input', updatePreviews);
+});
+
+// Initialize previews
+updatePreviews();
+
+// Handle form submission
+document.getElementById('config-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const url = this.getAttribute('action');
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = '{% url "activity_timer:config_list" %}';
+        } else {
+            // Display errors
+            console.error('Form errors:', data.errors);
+            alert('{% trans "Please correct the errors in the form." %}');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('{% trans "An error occurred while saving the configuration." %}');
+    });
+});
+</script>
+{% endblock %}

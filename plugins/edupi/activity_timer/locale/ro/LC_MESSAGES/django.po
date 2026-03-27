@@ -1,0 +1,434 @@
+# Activity Timer Plugin - Romanian Translation
+# Copyright (C) 2025 EDU-PI Team
+# This file is distributed under the same license as the edu-pi package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: edu-pi-activity-timer 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-03-27 10:00+0200\n"
+"PO-Revision-Date: 2025-03-27 10:00+0200\n"
+"Last-Translator: EDU-PI Team\n"
+"Language-Team: Romanian\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);\n"
+
+#: models.py:15
+msgid "Name of the timer configuration"
+msgstr "Numele configurației de timer"
+
+#: models.py:20
+msgid "Description of when to use this timer"
+msgstr "Descrierea când se folosește acest timer"
+
+#: models.py:25
+msgid "Duration in minutes"
+msgstr "Durata în minute"
+
+#: models.py:30
+msgid "Percentage remaining when warning color appears"
+msgstr "Procentajul rămas când apare culoarea de avertizare"
+
+#: models.py:35
+msgid "Play buzzer sound when timer ends"
+msgstr "Redă sunet de buzzer când se termină timerul"
+
+#: models.py:40
+msgid "Hex color code for timer start (green)"
+msgstr "Cod culoare hex pentru începutul timerului (verde)"
+
+#: models.py:46
+msgid "Hex color code for warning state (yellow)"
+msgstr "Cod culoare hex pentru starea de avertizare (galben)"
+
+#: models.py:52
+msgid "Hex color code for timer end (red)"
+msgstr "Cod culoare hex pentru sfârșitul timerului (roșu)"
+
+#: models.py:57
+msgid "Use this as the default configuration"
+msgstr "Folosește aceasta ca configurație implicită"
+
+#: models.py:62
+msgid "Whether this configuration is active"
+msgstr "Dacă această configurație este activă"
+
+#: models.py:67
+msgid "Timer Configuration"
+msgstr "Configurație Timer"
+
+#: models.py:68
+msgid "Timer Configurations"
+msgstr "Configurații Timer"
+
+#: models.py:86
+msgid "Pending"
+msgstr "În așteptare"
+
+#: models.py:87
+msgid "Running"
+msgstr "În desfășurare"
+
+#: models.py:88
+msgid "Paused"
+msgstr "Pauză"
+
+#: models.py:89
+msgid "Completed"
+msgstr "Completat"
+
+#: models.py:90
+msgid "Cancelled"
+msgstr "Anulat"
+
+#: models.py:97
+msgid "Configuration used for this session"
+msgstr "Configurație folosită pentru această sesiune"
+
+#: models.py:104
+msgid "Current status of the timer"
+msgstr "Starea curentă a timerului"
+
+#: models.py:109
+msgid "Total duration in seconds"
+msgstr "Durata totală în secunde"
+
+#: models.py:114
+msgid "Remaining time in seconds"
+msgstr "Timp rămas în secunde"
+
+#: models.py:120
+msgid "When the timer was started"
+msgstr "Când a fost pornit timerul"
+
+#: models.py:126
+msgid "When the timer was last paused"
+msgstr "Când a fost pus pe pauză timerul"
+
+#: models.py:132
+msgid "When the timer completed"
+msgstr "Când s-a terminat timerul"
+
+#: models.py:138
+msgid "Timer Session"
+msgstr "Sesiune Timer"
+
+#: models.py:139
+msgid "Timer Sessions"
+msgstr "Sesiuni Timer"
+
+#: forms.py:30
+msgid "e.g., Test Timer"
+msgstr "ex., Timer de Test"
+
+#: forms.py:45
+msgid "Timer Name"
+msgstr "Numele Timerului"
+
+#: forms.py:46
+msgid "Description"
+msgstr "Descriere"
+
+#: forms.py:47
+msgid "Duration (minutes)"
+msgstr "Durata (minute)"
+
+#: forms.py:48
+msgid "Warning Threshold (%)"
+msgstr "Prag de Avertizare (%)"
+
+#: forms.py:49
+msgid "Enable Buzzer"
+msgstr "Activează Buzzer"
+
+#: forms.py:50
+msgid "Start Color (Green)"
+msgstr "Culoare Început (Verde)"
+
+#: forms.py:51
+msgid "Warning Color (Yellow)"
+msgstr "Culoare Avertizare (Galben)"
+
+#: forms.py:52
+msgid "End Color (Red)"
+msgstr "Culoare Final (Roșu)"
+
+#: forms.py:53
+msgid "Set as Default"
+msgstr "Setează ca Implicit"
+
+#: forms.py:54
+msgid "Active"
+msgstr "Activ"
+
+#: forms.py:62
+msgid "Duration (minutes)"
+msgstr "Durata (minute)"
+
+#: forms.py:69
+msgid "Enable Buzzer"
+msgstr "Activează Buzzer"
+
+#: views.py:44 templates/activity_timer/dashboard.html:26
+msgid "Activity Timer"
+msgstr "Timer de Activitate"
+
+#: views.py:74
+msgid "Ready to start"
+msgstr "Gata de pornire"
+
+#: views.py:89 templates/activity_timer/dashboard.html:68
+msgid "Start"
+msgstr "Pornește"
+
+#: views.py:90 templates/activity_timer/dashboard.html:72
+msgid "Pause"
+msgstr "Pauză"
+
+#: views.py:91 templates/activity_timer/dashboard.html:76
+msgid "Resume"
+msgstr "Continuă"
+
+#: views.py:92 templates/activity_timer/dashboard.html:80
+msgid "Stop"
+msgstr "Oprește"
+
+#: views.py:117
+msgid "No default configuration set"
+msgstr "Nu există configurație implicită setată"
+
+#: views.py:135
+msgid "Timer started"
+msgstr "Timer pornit"
+
+#: views.py:146
+msgid "Timer paused"
+msgstr "Timer în pauză"
+
+#: views.py:155
+msgid "Timer resumed"
+msgstr "Timer reluat"
+
+#: views.py:163
+msgid "Timer stopped"
+msgstr "Timer oprit"
+
+#: templates/activity_timer/dashboard.html:18
+msgid "Back to Dashboard"
+msgstr "Înapoi la Panou de Control"
+
+#: templates/activity_timer/dashboard.html:34
+msgid "Timer Control"
+msgstr "Control Timer"
+
+#: templates/activity_timer/dashboard.html:88
+msgid "Paused"
+msgstr "În pauză"
+
+#: templates/activity_timer/dashboard.html:99
+msgid "Configuration:"
+msgstr "Configurație:"
+
+#: templates/activity_timer/dashboard.html:104
+msgid "Duration:"
+msgstr "Durata:"
+
+#: templates/activity_timer/dashboard.html:105
+msgid "minutes"
+msgstr "minute"
+
+#: templates/activity_timer/dashboard.html:119
+msgid "Quick Start"
+msgstr "Pornire Rapidă"
+
+#: templates/activity_timer/dashboard.html:127
+msgid "Enable Buzzer"
+msgstr "Activează Buzzer"
+
+#: templates/activity_timer/dashboard.html:132
+msgid "Start Quick Timer"
+msgstr "Pornește Timer Rapid"
+
+#: templates/activity_timer/dashboard.html:139
+msgid "Preset Timers"
+msgstr "Timere Predefinite"
+
+#: templates/activity_timer/dashboard.html:144
+msgid "No configurations available"
+msgstr "Nu există configurații disponibile"
+
+#: templates/activity_timer/dashboard.html:150
+msgid "Manage Configurations"
+msgstr "Gestionează Configurațiile"
+
+#: templates/activity_timer/dashboard.html:158
+msgid "Recent Sessions"
+msgstr "Sesiuni Recente"
+
+#: templates/activity_timer/dashboard.html:165
+msgid "ID"
+msgstr "ID"
+
+#: templates/activity_timer/dashboard.html:166
+msgid "Configuration"
+msgstr "Configurație"
+
+#: templates/activity_timer/dashboard.html:167
+msgid "Duration"
+msgstr "Durata"
+
+#: templates/activity_timer/dashboard.html:168
+msgid "Status"
+msgstr "Stare"
+
+#: templates/activity_timer/dashboard.html:169
+msgid "Started"
+msgstr "Început"
+
+#: templates/activity_timer/dashboard.html:186
+msgid "No recent sessions"
+msgstr "Nu există sesiuni recente"
+
+#: templates/activity_timer/config_list.html:13
+msgid "New Configuration"
+msgstr "Configurație Nouă"
+
+#: templates/activity_timer/config_list.html:16
+msgid "Back to Timer"
+msgstr "Înapoi la Timer"
+
+#: templates/activity_timer/config_list.html:26
+msgid "Name"
+msgstr "Nume"
+
+#: templates/activity_timer/config_list.html:27
+msgid "Description"
+msgstr "Descriere"
+
+#: templates/activity_timer/config_list.html:29
+msgid "Warning %"
+msgstr "% Avertizare"
+
+#: templates/activity_timer/config_list.html:30
+msgid "Colors"
+msgstr "Culori"
+
+#: templates/activity_timer/config_list.html:31
+msgid "Actions"
+msgstr "Acțiuni"
+
+#: templates/activity_timer/config_list.html:48
+msgid "min"
+msgstr "min"
+
+#: templates/activity_timer/config_list.html:54
+msgid "Start"
+msgstr "Început"
+
+#: templates/activity_timer/config_list.html:55
+msgid "Warning"
+msgstr "Avertizare"
+
+#: templates/activity_timer/config_list.html:56
+msgid "End"
+msgstr "Sfârșit"
+
+#: templates/activity_timer/config_list.html:62
+msgid "Default"
+msgstr "Implicit"
+
+#: templates/activity_timer/config_list.html:65
+msgid "Inactive"
+msgstr "Inactiv"
+
+#: templates/activity_timer/config_list.html:69
+msgid "Buzzer enabled"
+msgstr "Buzzer activat"
+
+#: templates/activity_timer/config_list.html:79
+msgid "Cannot delete default configuration"
+msgstr "Nu se poate șterge configurația implicită"
+
+#: templates/activity_timer/config_list.html:87
+msgid "No configurations found"
+msgstr "Nu există configurații găsite"
+
+#: templates/activity_timer/config_list.html:89
+msgid "Create your first configuration"
+msgstr "Creează prima ta configurație"
+
+#: templates/activity_timer/config_list.html:99
+msgid "Preset Configurations"
+msgstr "Configurații Predefinite"
+
+#: templates/activity_timer/config_list.html:103
+msgid "Click below to create preset timer configurations for common classroom activities:"
+msgstr "Click mai jos pentru a crea configurații de timer predefinite pentru activități comune în clasă:"
+
+#: templates/activity_timer/config_list.html:109
+msgid "Test Timer (5 min)"
+msgstr "Timer de Test (5 min)"
+
+#: templates/activity_timer/config_list.html:113
+msgid "Teaching (10 min)"
+msgstr "Predare (10 min)"
+
+#: templates/activity_timer/config_list.html:117
+msgid "Quiz (15 min)"
+msgstr "Test (15 min)"
+
+#: templates/activity_timer/config_list.html:121
+msgid "Group Work (20 min)"
+msgstr "Lucru în Grup (20 min)"
+
+#: templates/activity_timer/config_list.html:125
+msgid "Exam (45 min)"
+msgstr "Examen (45 min)"
+
+#: templates/activity_timer/config_form.html:15
+msgid "Create a timer configuration with custom colors and settings."
+msgstr "Creează o configurație de timer cu culori și setări personalizate."
+
+#: templates/activity_timer/config_form.html:25
+msgid "Basic Settings"
+msgstr "Setări de Bază"
+
+#: templates/activity_timer/config_form.html:76
+msgid "Warning Settings"
+msgstr "Setări de Avertizare"
+
+#: templates/activity_timer/config_form.html:92
+msgid "When remaining time drops below this percentage, the LED changes to warning color."
+msgstr "Când timul rămas scade sub acest procentaj, LED-ul schimbă culoarea la avertizare."
+
+#: templates/activity_timer/config_form.html:100
+msgid "Play a sound when timer ends"
+msgstr "Redă un sunet când se termină timerul"
+
+#: templates/activity_timer/config_form.html:108
+msgid "LED Colors"
+msgstr "Culori LED"
+
+#: templates/activity_timer/config_form.html:140
+msgid "Options"
+msgstr "Opțiuni"
+
+#: templates/activity_timer/config_form.html:161
+msgid "Cancel"
+msgstr "Anulează"
+
+#: templates/activity_timer/config_form.html:189
+msgid "Please correct the errors in the form."
+msgstr "Te rog corectează erorile din formular."
+
+#: templates/activity_timer/config_form.html:194
+msgid "An error occurred while saving the configuration."
+msgstr "A apărut o eroare la salvarea configurației."
+
+#: plugin.py:19
+msgid "Visual countdown timer for classroom activities with RGB LED feedback"
+msgstr "Timer de numărătoare inversă vizual pentru activități în clasă cu feedback LED RGB"
+

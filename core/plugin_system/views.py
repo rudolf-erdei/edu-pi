@@ -18,13 +18,21 @@ def plugin_dashboard_view(request):
     # Get plugins from database
     db_plugins = PluginStatus.objects.all().order_by("-is_enabled", "name")
 
-    # Get runtime plugins from manager
+    # Get runtime plugins from manager and build URL map
     runtime_plugins = plugin_manager.get_all_plugins()
+
+    # Build plugin URL map
+    plugin_urls = {}
+    for path, plugin in runtime_plugins.items():
+        namespace = plugin.get_namespace()
+        url_path = namespace.replace(".", "/")
+        plugin_urls[path] = f"/plugins/{url_path}/"
 
     context = {
         "title": "Installed Plugins",
         "db_plugins": db_plugins,
         "runtime_plugins": runtime_plugins,
+        "plugin_urls": plugin_urls,
         "total_plugins": db_plugins.count(),
         "enabled_plugins": db_plugins.filter(is_enabled=True).count(),
         "has_permission": True,

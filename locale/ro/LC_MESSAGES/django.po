@@ -1,5 +1,3 @@
-{% load i18n %}
-
 msgid ""
 msgstr ""
 "Language: ro\n"

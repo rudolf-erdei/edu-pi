@@ -491,7 +491,25 @@ class PluginManager:
 
         # Load all plugins first
         for path in plugin_paths:
-            self.load_plugin(path)
+            plugin = self.load_plugin(path)
+            if plugin:
+                # Create or update database record
+                try:
+                    from .models import PluginStatus
+
+                    PluginStatus.objects.get_or_create(
+                        plugin_path=path,
+                        defaults={
+                            "name": plugin.name,
+                            "description": plugin.description,
+                            "author": plugin.author,
+                            "version": plugin.version,
+                            "is_enabled": True,
+                            "is_installed": True,
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not create database record for {path}: {e}")
 
         # Boot plugins (respecting dependencies)
         for path, plugin in self._plugins.items():

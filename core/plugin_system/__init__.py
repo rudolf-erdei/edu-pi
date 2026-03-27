@@ -1,6 +1,5 @@
-from django.apps import AppConfig
+"""Plugin system for EDU-PI."""
 
-class PluginSystemConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'core.plugin_system'
-    verbose_name = 'Plugin System'
+from .apps import PluginSystemConfig
+
+__all__ = ["PluginSystemConfig"]

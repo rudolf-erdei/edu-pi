@@ -23,9 +23,20 @@ EDU-PI enables teachers to create engaging, hands-on learning experiences by com
 
 ## ✨ Features
 
+### Required hardware
+
+- Raspberry PI - 1 pcs
+- 3D printer - optional, for printing the case
+- Screen - 1 pcs
+  - <https://www.optimusdigital.ro/ro/optoelectronice-lcd-uri/12652-modul-ecran-2-ips-lcd-240x320.html?search_query=ecran&results=150>
+  - <https://www.emag.ro/display-tactil-tft-lcd-2-8-inch-320x240-touchscreen-spi-driver-ili9341-arduino-rx961/pd/DSFJ88YBM/?ref=history-shopping_482672898_221614_1>
+- RGB LEDs or 10 RGB LED strip - 2 pcs
+- Speaker - 1 pcs
+
 ### Implemented ✅
 
 #### Core Platform
+
 - **Django 4.2+** backend with SQLite database
 - **Plugin System** with auto-discovery from `plugins/` directory
 - **GPIO Management** with pin allocation and conflict detection
@@ -34,12 +45,14 @@ EDU-PI enables teachers to create engaging, hands-on learning experiences by com
 - **i18n Support** - English (primary) and Romanian (secondary)
 
 #### Hardware Integration (Planned)
+
 - [ ] **Noise Monitor**: Dual RGB LED display (10s and 5-10min averages)
 - [ ] **Touch Piano**: 5-6 touch-sensitive keys using conductive materials
 - [ ] **GPIO Explorer**: Interactive pin testing interface
 - [ ] **Activity Timer**: Visual countdown with LED progress bar
 
 #### Frontend
+
 - Responsive design using Tailwind CSS and DaisyUI
 - Language selector in navigation
 - "App" terminology for teachers (backend uses "Plugin")
@@ -66,32 +79,38 @@ EDU-PI enables teachers to create engaging, hands-on learning experiences by com
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/yourusername/edu-pi.git
    cd edu-pi
    ```
 
 2. **Install dependencies**
+
    ```bash
    uv sync
    ```
 
 3. **Install Raspberry Pi specific dependencies** (on actual Pi)
+
    ```bash
    uv sync --extra pi
    ```
 
 4. **Run migrations**
+
    ```bash
    uv run python manage.py migrate
    ```
 
 5. **Create admin user**
+
    ```bash
    uv run python manage.py createsuperuser
    ```
 
 6. **Start the development server**
+
    ```bash
    uv run python manage.py runserver
    ```
@@ -147,6 +166,7 @@ EDU-PI uses an OctoberCMS-inspired plugin system. Plugins are self-contained pac
 ### Creating a Plugin
 
 1. **Create the directory structure**
+
    ```
    plugins/authorname/pluginname/
    ├── __init__.py
@@ -160,6 +180,7 @@ EDU-PI uses an OctoberCMS-inspired plugin system. Plugins are self-contained pac
    ```
 
 2. **Create the plugin registration file**
+
    ```python
    # plugins/acme/myplugin/plugin.py
    from core.plugin_system.base import PluginBase
@@ -177,7 +198,7 @@ EDU-PI uses an OctoberCMS-inspired plugin system. Plugins are self-contained pac
                'led': 17,
                'sensor': 18
            })
-           
+
            # Schedule tasks
            self.register_schedule(interval=60, callback=self.update)
 
@@ -222,6 +243,56 @@ Use the globe icon in the navigation bar to switch between languages. Translatio
 2. Create translation file: `django.po`
 3. Compile translations: `uv run django-admin compilemessages`
 
+### Plugin Translations
+
+Plugins can include their own portable translation files. The Activity Timer plugin includes translations in its `locale/` directory.
+
+#### Compiling Plugin Translations
+
+We provide a script to compile plugin translations:
+
+```bash
+# Compile all plugin translations
+python scripts/compile_translations.py
+
+# Compile specific plugin
+python scripts/compile_translations.py --plugin edupi/activity_timer
+
+# List plugins with translations
+python scripts/compile_translations.py --list
+
+# Show detailed output
+python scripts/compile_translations.py --verbose
+```
+
+#### Adding Translations to a Plugin
+
+1. Create locale structure in your plugin:
+   ```
+   plugins/author/plugin/locale/
+   ├── en/LC_MESSAGES/
+   │   └── django.po
+   └── ro/LC_MESSAGES/
+       └── django.po
+   ```
+
+2. Mark strings for translation in your plugin:
+   ```python
+   from django.utils.translation import gettext as _
+
+   class Plugin(PluginBase):
+       name = _("My Plugin")
+       description = _("Plugin description here")
+   ```
+
+3. Add translations to `.po` files:
+   ```
+   msgid "My Plugin"
+   msgstr "Pluginul Meu"
+   ```
+
+4. Compile with: `python scripts/compile_translations.py --plugin author/plugin`
+
 ## 🔧 Configuration
 
 ### Environment Variables
@@ -249,6 +320,7 @@ def boot(self):
 ```
 
 The system automatically:
+
 - Checks for conflicts between plugins
 - Allocates pins exclusively
 - Handles cleanup on plugin disable
@@ -294,6 +366,7 @@ except ImportError:
 ## 📊 Hardware Requirements
 
 ### Required
+
 - Raspberry Pi 4 (2GB+ RAM) or Pi 3B+
 - MicroSD card (32GB+ recommended)
 - USB microphone or microphone module
@@ -303,6 +376,7 @@ except ImportError:
 - Speaker or headphones (3.5mm jack)
 
 ### Optional
+
 - Capacitive touch sensors (TTP223)
 - LED strip (WS2812B)
 - Buzzer module
@@ -359,6 +433,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 📧 Support
 
 For questions or support:
+
 - Open an issue on GitHub
 - Check the documentation in `docs/`
 - Review the plugin development guide

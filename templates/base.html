@@ -21,7 +21,7 @@
 <body class="bg-base-200 min-h-screen flex flex-col">
     <!-- Navbar -->
     <div class="navbar bg-primary text-primary-content shadow-lg">
-        <div class="container mx-auto px-4">
+        <div class="container mx-auto px-4 max-w-7xl">
             <div class="flex-1">
                 <a href="{% url 'home' %}" class="btn btn-ghost text-xl font-bold">EDU-PI</a>
             </div>
@@ -30,7 +30,7 @@
                     <li><a href="{% url 'home' %}" class="font-medium">{% trans "Home" %}</a></li>
                     <li><a href="/admin/" class="font-medium">{% trans "Admin" %}</a></li>
                 </ul>
-                
+
                 <!-- Language Selector -->
                 <div class="dropdown dropdown-end ml-4">
                     <label tabindex="0" class="btn btn-ghost btn-circle">
@@ -43,12 +43,12 @@
                             {% csrf_token %}
                             <input name="next" type="hidden" value="{{ request.path }}" />
                             <li>
-                                <button type="submit" name="language" value="en" class="{% if LANGUAGE_CODE == 'en' %}active font-bold{% endif %}">
+                                <button type="submit" name="language" value="en" class="text-black {% if LANGUAGE_CODE == 'en' %}active font-bold{% endif %}">
                                     English
                                 </button>
                             </li>
                             <li>
-                                <button type="submit" name="language" value="ro" class="{% if LANGUAGE_CODE == 'ro' %}active font-bold{% endif %}">
+                                <button type="submit" name="language" value="ro" class="text-black {% if LANGUAGE_CODE == 'ro' %}active font-bold{% endif %}">
                                     Română (Romanian)
                                 </button>
                             </li>
