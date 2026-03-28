@@ -281,8 +281,8 @@ When testing on actual hardware:
 
 - [Project Structure](structure.md) - Understand the codebase
 - [Hardware Requirements](hardware/requirements.md) - Connect GPIO components
-- [Plugin Tutorial](../plugins/tutorial.md) - Create your first plugin
-- [Plugin API](../plugins/api.md) - Plugin development reference
+- [Plugin Tutorial](plugins/tutorial.md) - Create your first plugin
+- [Plugin API](plugins/api.md) - Plugin development reference
 
 ## Useful Commands
 

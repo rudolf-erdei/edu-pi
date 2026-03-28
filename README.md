@@ -695,11 +695,18 @@ Pin 24 (GPIO 8):  Buzzer / Additional output
 
 ## 📚 Documentation
 
-- **Plugin Development**: `docs/PLUGIN_DEVELOPMENT.md`
+Full documentation is available at:
+- **Documentation Site**: Run `uv run mkdocs serve` and visit http://127.0.0.1:8000/
 - **Developer Guidelines**: `AGENTS.md`
 - **Requirements**: `REQUIREMENTS.md`
 - **Django Docs**: https://docs.djangoproject.com/en/4.2/
 - **gpiozero Docs**: https://gpiozero.readthedocs.io/
+
+### Documentation Structure
+
+- **Teacher Guide**: Getting started, installation, plugin usage
+- **Developer Guide**: Plugin development, hardware setup, API reference
+- **Reference**: Configuration options, API endpoints, troubleshooting
 
 ## 🤝 Contributing
 

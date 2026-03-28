@@ -158,4 +158,4 @@ uv run django-admin makemessages -l ro --no-obsolete
 ## See Also
 
 - [Django i18n Documentation](https://docs.djangoproject.com/en/4.2/topics/i18n/)
-- [Plugin Development](../plugins/tutorial.md)
+- [Plugin Development](plugins/tutorial.md)

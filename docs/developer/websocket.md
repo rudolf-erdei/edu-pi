@@ -352,5 +352,5 @@ async def test_my_consumer():
 ## See Also
 
 - [Django Channels Documentation](https://channels.readthedocs.io/)
-- [Plugin Tutorial](tutorial.md) - Create plugins
-- [Testing](../testing.md) - Test WebSocket consumers
+- [Plugin Tutorial](plugins/tutorial.md) - Create plugins
+- [Testing](testing.md) - Test WebSocket consumers

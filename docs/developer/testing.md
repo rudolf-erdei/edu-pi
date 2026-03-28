@@ -204,4 +204,4 @@ def test_with_mock(self):
 
 - [pytest Documentation](https://docs.pytest.org/)
 - [Django Testing](https://docs.djangoproject.com/en/4.2/topics/testing/)
-- [Plugin Tutorial](../plugins/tutorial.md)
+- [Plugin Tutorial](plugins/tutorial.md)

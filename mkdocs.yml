@@ -83,8 +83,7 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/rudolf-erdei/edu-pi
-  version:
-    provider: mike
+
 
 # Markdown Extensions
 markdown_extensions:

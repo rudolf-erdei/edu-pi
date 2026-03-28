@@ -886,8 +886,9 @@ _Last updated: 2025-03-28_
 
 ### Documentation
 
-- **Plugin Development Guide**: `docs/PLUGIN_DEVELOPMENT.md`
-- **AGENTS.md**: Developer instructions and coding standards
+- **Full Documentation**: Available via `uv run mkdocs serve` (Material for MkDocs)
+- **Developer Guidelines**: `AGENTS.md`
+- **Code Standards**: PEP 8 with 88-character line length
 - **Admin User**: admin / admin123
 - **Access URLs:**
   - Dashboard: `http://localhost:8000/`
