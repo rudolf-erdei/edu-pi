@@ -14,11 +14,11 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
 
 **Acceptance Criteria**:
 
-- [ ] Continuously monitor ambient sound using microphone
-- [ ] Calculate TWO rolling averages:
+- [x] Continuously monitor ambient sound using microphone
+- [x] Calculate TWO rolling averages:
   - **Instant Noise**: Average over 10 seconds (teacher can modify)
   - **Session Average**: Average over 5-10 minutes (teacher can modify)
-- [ ] Display noise levels on TWO separate RGB LEDs:
+- [x] Display noise levels on TWO separate RGB LEDs:
   - **LED 1 (Instant Noise)**: Shows real-time 10-second average
     - Green: Low noise (quiet work)
     - Yellow: Medium noise (discussion allowed)
@@ -27,12 +27,19 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
     - Green: Session has been quiet overall
     - Yellow: Session has been moderately noisy
     - Red: Session has been noisy overall
-- [ ] Teacher can set noise thresholds via web interface
-- [ ] Support multiple profiles:
+- [x] Teacher can set noise thresholds via web interface
+- [x] Support multiple profiles:
   - `Test`: Minimal noise (silent mode)
   - `Teaching`: Moderate noise (teacher voice normal)
   - `Group Work`: Higher tolerance
   - `Custom`: User-defined thresholds
+- [x] Real-time updates via WebSocket
+- [x] Web interface displays both noise metrics separately
+- [x] LED brightness control (10-100%)
+- [x] Session reset functionality
+- [x] Historical readings tracking
+
+**Status**: ✅ **COMPLETED** (WebSocket support added)
 
 **Technical Notes**:
 
@@ -89,10 +96,26 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
 
 **Priority**: HIGH
 
+**Status**: ✅ **COMPLETED** (Core features implemented)
+
 - [x] Configurable countdown timer for classroom activities
-- [x] Visual progress bar on LED strip or single RGB LED
+- [x] Visual progress indicator on single RGB LED (LED strip support planned)
 - [x] Optional buzzer for time-up notification
 - [x] Web controls for start/pause/reset
+- [x] **Configurable Preset Profiles** with custom display colors
+- [x] **Minute of Silence preset** - Calming 60-second timer with:
+  - [ ] Breathing circle animation (UI - planned)
+  - [ ] Ambient sound support (nature, white noise, ocean, rain) - planned
+  - [ ] TTS announcements ("Minute of silence begins now", "Time's up") - planned
+  - [x] Calming blue LED colors
+  - [x] Custom display color (indigo)
+- [x] **Break Time preset** - Standard 10-minute break
+- [x] **Activity preset** - General 30-minute activity timer
+- [x] **Custom presets** with user-defined colors and durations
+- [x] **Display colors** per preset for visual identification
+- [x] Per-config ambient sound and breathing animation options (in database, not yet implemented)
+
+**Note**: Breathing animation, ambient sounds, and TTS fields exist in models but actual playback/implementations are planned for future updates. The plugin uses HTTP polling for status updates; WebSocket support is planned for consistency with Noise Monitor plugin.
 
 ### Feature 5: Sensor Data Logger
 
@@ -181,27 +204,31 @@ games/
     └── game.js
 ```
 
-### Feature 8: Minute of Silence
+### Feature 8: Minute of Silence (Integrated into Activity Timer)
 
 **Priority**: Medium
+
+**Status**: ✅ **COMPLETED** - Integrated as a preset in Activity Timer plugin
 
 **User Story**: As a teacher, I want to enforce a minute of silence before starting any activity so that students can calm down and prepare mentally.
 
 **Acceptance Criteria**:
 
-- [ ] Display a visible 60-second countdown timer on the screen
-- [ ] Optional calming visual (e.g., breathing circle animation) during countdown
-- [ ] Gentle audible signal when minute starts and ends
-- [ ] Teacher can adjust duration (30-120 seconds)
-- [ ] Pause/resume functionality
-- [ ] Skip option for emergency situations
-- [ ] Optional background ambient sound (nature sounds, white noise)
+- [x] Display a visible 60-second countdown timer on the screen
+- [ ] Optional calming visual (e.g., breathing circle animation) during countdown - planned
+- [ ] Gentle audible signal when minute starts and ends (TTS announcements) - planned
+- [x] Teacher can adjust duration (30-120 seconds) via configuration
+- [x] Pause/resume functionality
+- [x] Skip option for emergency situations (Stop button)
+- [ ] Optional background ambient sound (nature sounds, white noise) - planned
+- [x] Built-in preset with custom display color (indigo)
 
-**Technical Notes**:
+**Access**: http://localhost:8000/plugins/edupi/activity_timer/
+
+**Note**: Minute of Silence is now available as a preset profile within the Activity Timer plugin, along with Break Time and Activity presets. Breathing animation, ambient sounds, and TTS are planned for future updates.
 
 - Full-screen countdown overlay
-- Text-to-speech for "Minute of silence begins now" and "Time's up"
-- Configurable start/end sounds
+- Calming blue LED colors
 - Store statistics (usage count, average actual silence duration)
 
 ### Feature 9: Routines (Text-to-Speech)
@@ -470,9 +497,9 @@ Pin 24 (GPIO 8): Buzzer / Additional output
 
 ### Technology Stack
 
-- **Backend**: Django 4.2+ with Django Channels ⏳ (WebSocket planned)
+- **Backend**: Django 4.2+ with Django Channels ✅
 - **Frontend**: Django Templates + Tailwind CSS + DaisyUI ✅
-- **Real-time**: WebSocket (Django Channels) ⏳ **PLANNED**
+- **Real-time**: WebSocket (Django Channels) ✅ **IMPLEMENTED**
 - **GPIO**: gpiozero library ✅
 - **Database**: SQLite (default) or PostgreSQL (production) ✅
 - **Audio**: pygame for audio playback ⏳ **PLANNED**
@@ -503,7 +530,7 @@ edu-pi/
 - `POST /api/noise-profile` - Update noise thresholds
 - `GET /api/gpio-status` - Current GPIO pin states
 - `POST /api/gpio-control` - Control GPIO outputs
-- `WS /ws/dashboard` - WebSocket for real-time updates
+- `WS /ws/noise-monitor/` - WebSocket for real-time noise updates
 
 ## Implementation Phases
 
@@ -580,6 +607,50 @@ The following features have been implemented:
 - ✅ Event logging for debugging
 - ✅ Dependency management
 - ✅ Custom plugin dashboard at `/admin/plugins/`
+
+**Audio:**
+- ✅ pygame for audio playback (Touch Piano plugin)
+
+#### Noise Monitor Plugin ✅
+
+**User Story**: As a teacher, I want the students to visualize classroom noise levels so that they can self-regulate their volume.
+
+**Features Implemented:**
+- ✅ Continuous microphone monitoring with dual rolling averages
+  - **Instant Average**: 10-second rolling window (configurable 5-60 seconds)
+  - **Session Average**: 5-minute rolling window (configurable 1-30 minutes)
+- ✅ Dual RGB LED visual feedback
+  - LED 1: Shows instant noise level with color-coded thresholds
+  - LED 2: Shows session average for overall session quality
+- ✅ Multiple noise profiles with preset thresholds:
+  - `Test`: Silent mode (yellow: 30, red: 50)
+  - `Teaching`: Moderate noise (yellow: 40, red: 70)
+  - `Group Work`: Higher tolerance (yellow: 50, red: 80)
+  - `Custom`: User-defined thresholds via web interface
+- ✅ Real-time WebSocket updates (no polling required)
+  - Updates sent every 0.1 seconds during monitoring
+  - Auto-reconnect on connection loss
+  - WebSocket endpoint: `ws://host/ws/noise-monitor/`
+- ✅ Web dashboard with dual metrics display
+  - Visual LED indicators on screen matching physical LEDs
+  - Progress bars for both instant and session averages
+  - Status banner showing monitoring state
+  - Historical readings table (last 50 readings)
+- ✅ LED brightness control (10-100%)
+- ✅ Session reset functionality
+- ✅ Historical noise data tracking with database storage
+
+**Technical Implementation:**
+- Django Channels for WebSocket support
+- Async WebSocket consumer at `plugins/edupi/noise_monitor/consumers.py`
+- Singleton noise monitoring service with threading
+- GPIO PWM control for dual RGB LEDs
+- Mock mode for development on non-Pi systems
+
+**Access URLs:**
+- Dashboard: `/plugins/edupi/noise_monitor/`
+- Configuration: `/plugins/edupi/noise_monitor/config/`
+- API: `/plugins/edupi/noise_monitor/api/level/`
 
 #### Translations ✅
 
@@ -660,7 +731,7 @@ Create a systemd service that manages the Django application:
 
 ---
 
-_Last updated: 2025-03-27_
+_Last updated: 2025-03-28_
 
 ### Documentation
 

@@ -12,6 +12,15 @@ from collections import deque
 from typing import Optional, Callable, List, Tuple
 from datetime import datetime, timedelta
 
+# Channel layer for WebSocket broadcasting
+try:
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+
+    CHANNELS_AVAILABLE = True
+except ImportError:
+    CHANNELS_AVAILABLE = False
+
 try:
     from gpiozero import PWMLED
 
@@ -263,6 +272,9 @@ class NoiseMonitorService:
         self._monitor_thread.start()
         self._is_monitoring = True
 
+        # Broadcast status change
+        self._broadcast_status(True)
+
         logger.info("Noise monitoring started")
 
     def stop_monitoring(self) -> None:
@@ -280,6 +292,9 @@ class NoiseMonitorService:
         # Turn off LEDs
         self._set_instant_led_color(0, 0, 0)
         self._set_session_led_color(0, 0, 0)
+
+        # Broadcast status change
+        self._broadcast_status(False)
 
         logger.info("Noise monitoring stopped")
 
@@ -330,6 +345,18 @@ class NoiseMonitorService:
                         )
                     except Exception as e:
                         logger.error(f"Error in callback: {e}")
+
+                # Broadcast update to WebSocket clients
+                self._broadcast_update(
+                    {
+                        "instant_average": self._instant_average,
+                        "session_average": self._session_average,
+                        "instant_color": self._instant_color,
+                        "session_color": self._session_color,
+                        "is_monitoring": True,
+                        "timestamp": timestamp.isoformat(),
+                    }
+                )
 
                 # Sleep until next sample
                 elapsed = time.time() - last_update
@@ -518,6 +545,50 @@ class NoiseMonitorService:
     def is_monitoring(self) -> bool:
         """Check if monitoring is active."""
         return self._is_monitoring
+
+    def _broadcast_update(self, data: dict) -> None:
+        """Broadcast noise update to WebSocket clients.
+
+        Args:
+            data: Dictionary containing noise level data
+        """
+        if CHANNELS_AVAILABLE:
+            try:
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "noise_monitor",
+                    {
+                        "type": "noise_update",
+                        "data": data,
+                    },
+                )
+            except Exception as e:
+                logger.debug(f"Could not broadcast to WebSocket: {e}")
+
+    def _broadcast_status(self, is_monitoring: bool) -> None:
+        """Broadcast monitoring status change to WebSocket clients.
+
+        Args:
+            is_monitoring: Whether monitoring is active
+        """
+        if CHANNELS_AVAILABLE:
+            try:
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "noise_monitor",
+                    {
+                        "type": "monitoring_status",
+                        "data": {
+                            "is_monitoring": is_monitoring,
+                            "instant_average": self._instant_average,
+                            "session_average": self._session_average,
+                            "instant_color": self._instant_color,
+                            "session_color": self._session_color,
+                        },
+                    },
+                )
+            except Exception as e:
+                logger.debug(f"Could not broadcast status to WebSocket: {e}")
 
 
 # Global noise service instance

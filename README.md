@@ -44,12 +44,75 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
 - **Teacher Dashboard** at `/` showing all installed apps
 - **i18n Support** - English (primary) and Romanian (secondary)
 
-#### Hardware Integration (Planned)
+#### Hardware Integration
 
-- [ ] **Noise Monitor**: Dual RGB LED display (10s and 5-10min averages)
-- [ ] **Touch Piano**: 5-6 touch-sensitive keys using conductive materials
-- [ ] **GPIO Explorer**: Interactive pin testing interface
-- [ ] **Activity Timer**: Visual countdown with LED progress bar
+- [x] **Noise Monitor**: Dual RGB LED display with real-time WebSocket updates (10s and 5-10min averages)
+- [x] **Touch Piano**: 6 touch-sensitive keys using conductive materials with pygame audio
+- [ ] **GPIO Explorer**: Interactive pin testing interface (planned)
+- [x] **Activity Timer**: Visual countdown with LED progress bar and configurable preset profiles
+
+#### Activity Timer Plugin ⏱️
+
+Visual countdown timer with configurable preset profiles for different classroom activities:
+
+- **Preset Profiles**:
+  - **Minute of Silence**: 60-second calming timer with:
+    - [x] Calming blue LED colors and indigo display color
+    - [ ] Breathing circle animation (planned)
+    - [ ] Ambient sound support (nature, white noise, ocean, rain) (planned)
+    - [ ] TTS announcements (planned)
+  - **Break Time**: Standard 10-minute break with green theme
+  - **Activity**: General 30-minute activity timer with amber theme
+  - **Custom**: User-defined presets with custom colors and durations
+
+- **Visual Features**:
+  - Color-coded preset buttons (each preset has its own display color)
+  - RGB LED showing remaining time (green→yellow→red)
+  - Large digital countdown display
+  - Status indicators for running/paused/stopped states
+
+- **Controls**:
+  - Start/Pause/Resume/Stop controls
+  - Quick timer with custom duration
+  - Preset selection with one-click start
+  - Configuration management interface
+
+- **Timer Features**:
+  - Configurable duration (1-120 minutes)
+  - Warning threshold (color changes at X% remaining)
+  - Optional buzzer on completion
+  - Session history tracking
+
+- **Customization**:
+  - Per-preset display colors for visual identification
+  - LED color schemes (start/warning/end)
+
+**Planned Features**:
+- Breathing animation for calming timers
+- Ambient sound support
+- TTS announcement messages
+- LED strip progress bar
+- WebSocket real-time updates
+
+**Access**: http://localhost:8000/plugins/edupi/activity_timer/
+
+#### Noise Monitor Plugin 🔊
+
+Real-time classroom noise visualization with dual RGB LED feedback:
+
+- **Dual Rolling Averages**: 
+  - Instant: 10-second average (configurable 5-60s)
+  - Session: 5-minute average (configurable 1-30min)
+- **Dual RGB LEDs**: Independent color control for instant vs session noise
+- **Noise Profiles**: Test, Teaching, Group Work, and Custom profiles
+- **Real-time Updates**: WebSocket-based (no polling) at 10Hz
+- **Web Dashboard**: Visual indicators, progress bars, and historical data
+- **LED Brightness**: Adjustable 10-100%
+- **Session Management**: Start/stop/reset controls
+
+**Access**: http://localhost:8000/plugins/edupi/noise_monitor/
+
+**WebSocket**: `ws://localhost:8000/ws/noise-monitor/`
 
 #### Frontend
 
@@ -64,8 +127,37 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
 - [ ] **Lesson Mode** - Step-by-step guided activities
 - [ ] **Achievement System** - Progress tracking and badges
 - [ ] **Multi-Pi Support** - Control multiple Raspberry Pis
-- [ ] **WebSocket Integration** - Real-time updates
+- [x] **WebSocket Integration** - Real-time updates (Noise Monitor)
+- [ ] **Activity Timer Enhancements** - Breathing animation, ambient sounds, TTS, LED strip support
 - [ ] **Plugin Marketplace** - Community plugin sharing
+
+### Important Behavior: Plugins Run Independently 🔄
+
+**When a teacher starts an activity (like a timer or noise monitoring) and then navigates away to use another plugin, the activity continues running in the background.**
+
+This design ensures classroom activities aren't interrupted when teachers switch between tools. Here's what happens:
+
+**What Continues:**
+- ✅ Timers keep counting down (LED shows remaining time)
+- ✅ Noise monitoring keeps measuring (LEDs show current levels)
+- ✅ GPIO pins remain active with their current state
+- ✅ Database continues logging session data
+- ✅ Hardware operations (buzzers, LEDs) continue working
+
+**What Pauses:**
+- ❌ Web browser updates (no page to display them)
+- ❌ WebSocket real-time data streams
+- ❌ Visual feedback on the web interface
+
+**When You Return:**
+The web interface automatically fetches the current state from the running background service and resumes displaying updates immediately. This allows teachers to:
+1. Start a 30-minute activity timer
+2. Switch to the Noise Monitor to check classroom levels
+3. Return to the timer to see exactly how much time remains
+4. All physical LED feedback continues throughout
+
+**Technical Details:**
+Plugins use singleton background services with daemon threads that persist independently of the web interface. This is why GPIO operations continue even when the browser is closed or the teacher navigates to another page.
 
 ## 🚀 Quick Start
 
@@ -119,6 +211,25 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
     - Dashboard: http://localhost:8000/
     - Admin Panel: http://localhost:8000/admin/
     - Plugin Management: http://localhost:8000/admin/plugins/
+    - Noise Monitor: http://localhost:8000/plugins/edupi/noise_monitor/
+
+### WebSocket Support
+
+The application uses Django Channels for real-time WebSocket communication. For development, `runserver` automatically supports WebSockets:
+
+```bash
+# Development with WebSocket support
+uv run python manage.py runserver
+```
+
+For production or testing ASGI directly:
+
+```bash
+# Production with Daphne (ASGI server)
+uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
+```
+
+**Note**: WebSocket connections use the same port as HTTP (8000 by default). The Noise Monitor plugin broadcasts real-time updates via WebSocket at `ws://localhost:8000/ws/noise-monitor/`.
 
 ## 🚀 Production Deployment (Raspberry Pi)
 

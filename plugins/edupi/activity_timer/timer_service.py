@@ -95,6 +95,8 @@ class TimerService:
         self._update_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._callback: Optional[Callable] = None
+        self._last_update_time: float = 0.0
+        self._is_paused: bool = False
 
     def initialize_gpio(
         self,
@@ -168,6 +170,10 @@ class TimerService:
 
         session.start()
 
+        # Initialize timing tracking
+        self._last_update_time = time.time()
+        self._is_paused = False
+
         # Start the update thread
         self._update_thread = threading.Thread(target=self._timer_loop, daemon=True)
         self._update_thread.start()
@@ -179,14 +185,25 @@ class TimerService:
         """Pause the current timer."""
         if self._active_session and self._active_session.is_running():
             self._active_session.pause()
+            self._is_paused = True
             self._update_led_display()
-            logger.info("Timer paused")
+            logger.info(
+                f"Timer paused - Remaining: {self._active_session.remaining_seconds}s"
+            )
 
     def resume_timer(self) -> None:
         """Resume the paused timer."""
         if self._active_session and self._active_session.is_paused():
+            # Refresh from database to get latest remaining_seconds
+            self._active_session.refresh_from_db()
             self._active_session.resume()
-            logger.info("Timer resumed")
+            self._is_paused = False
+            # Reset the last update time to now, so elapsed time
+            # calculation doesn't include the paused period
+            self._last_update_time = time.time()
+            logger.info(
+                f"Timer resumed - Remaining: {self._active_session.remaining_seconds}s"
+            )
 
     def stop_timer(self) -> None:
         """Stop the current timer."""
@@ -201,7 +218,7 @@ class TimerService:
 
     def _timer_loop(self) -> None:
         """Main timer loop that runs in a separate thread."""
-        last_update = time.time()
+        self._last_update_time = time.time()
 
         while not self._stop_event.is_set():
             if not self._active_session:
@@ -215,7 +232,7 @@ class TimerService:
                 break
 
             current_time = time.time()
-            elapsed = current_time - last_update
+            elapsed = current_time - self._last_update_time
 
             if elapsed >= 1.0:  # Update every second
                 self._active_session.remaining_seconds = max(
@@ -223,7 +240,7 @@ class TimerService:
                 )
                 self._active_session.save()
 
-                last_update = current_time
+                self._last_update_time = current_time
 
                 self._update_led_display()
 

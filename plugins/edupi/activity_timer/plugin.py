@@ -51,11 +51,15 @@ class Plugin(PluginBase):
         """Register models, URLs, and admin menus."""
         from django.urls import include, path
 
-        from .models import TimerConfig, TimerSession
+        from .models import TimerPreset, TimerConfig, TimerSession
 
         # Register models
+        self.register_model(TimerPreset)
         self.register_model(TimerConfig)
         self.register_model(TimerSession)
+
+        # Create default presets if they don't exist
+        self._create_default_presets()
 
         # Register URLs using include
         self.register_url_pattern(
@@ -101,6 +105,68 @@ class Plugin(PluginBase):
         )
 
         logger.info(f"{self.name} plugin registered")
+
+    def _create_default_presets(self) -> None:
+        """Create default timer presets if they don't exist."""
+        from django.utils.translation import gettext as _
+        from .models import TimerPreset
+
+        presets = [
+            {
+                "preset_type": TimerPreset.PresetType.MINUTE_OF_SILENCE,
+                "name": _("Minute of Silence"),
+                "description": _(
+                    "60 seconds of silence to calm down and prepare mentally"
+                ),
+                "duration_minutes": 1,
+                "display_color": "#6366F1",  # Indigo
+                "led_color_start": "#60A5FA",  # Light blue
+                "led_color_warning": "#3B82F6",  # Blue
+                "led_color_end": "#1E40AF",  # Dark blue
+                "enable_breathing": True,
+                "enable_ambient_sound": True,
+                "ambient_sound_type": "nature",
+                "announce_start": True,
+                "announce_end": True,
+                "start_message": _("Minute of silence begins now"),
+                "end_message": _("Time's up"),
+            },
+            {
+                "preset_type": TimerPreset.PresetType.BREAK_TIME,
+                "name": _("Break Time"),
+                "description": _("Standard break between activities"),
+                "duration_minutes": 10,
+                "display_color": "#10B981",  # Emerald
+                "led_color_start": "#00FF00",
+                "led_color_warning": "#FFFF00",
+                "led_color_end": "#FF0000",
+                "enable_breathing": False,
+                "enable_ambient_sound": False,
+                "announce_start": False,
+                "announce_end": False,
+            },
+            {
+                "preset_type": TimerPreset.PresetType.ACTIVITY,
+                "name": _("Activity Timer"),
+                "description": _("General classroom activity"),
+                "duration_minutes": 30,
+                "display_color": "#F59E0B",  # Amber
+                "led_color_start": "#00FF00",
+                "led_color_warning": "#FFFF00",
+                "led_color_end": "#FF0000",
+                "enable_breathing": False,
+                "enable_ambient_sound": False,
+                "announce_start": False,
+                "announce_end": False,
+            },
+        ]
+
+        for preset_data in presets:
+            TimerPreset.objects.get_or_create(
+                preset_type=preset_data["preset_type"], defaults=preset_data
+            )
+
+        logger.info("Default timer presets created")
 
     def uninstall(self) -> None:
         """Cleanup GPIO pins and resources."""

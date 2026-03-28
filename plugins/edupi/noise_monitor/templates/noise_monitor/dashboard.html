@@ -243,9 +243,12 @@
     </div>
 </div>
 
-<!-- Auto-refresh script -->
+<!-- WebSocket script for real-time updates -->
 <script>
-let refreshInterval;
+let ws;
+let reconnectInterval;
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsUrl = `${wsProtocol}//${window.location.host}/ws/noise-monitor/`;
 
 function updateDisplay(data) {
     // Update instant display
@@ -280,25 +283,50 @@ function updateDisplay(data) {
     }
 }
 
-function fetchNoiseData() {
-    fetch('{% url "noise_monitor:api_level" %}')
-        .then(response => response.json())
-        .then(data => {
+function connectWebSocket() {
+    ws = new WebSocket(wsUrl);
+    
+    ws.onopen = function() {
+        console.log('WebSocket connected');
+        if (reconnectInterval) {
+            clearInterval(reconnectInterval);
+            reconnectInterval = null;
+        }
+    };
+    
+    ws.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
             updateDisplay(data);
-        })
-        .catch(error => console.error('Error fetching noise data:', error));
+        } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+        }
+    };
+    
+    ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+    };
+    
+    ws.onclose = function() {
+        console.log('WebSocket disconnected');
+        // Try to reconnect every 3 seconds
+        if (!reconnectInterval) {
+            reconnectInterval = setInterval(connectWebSocket, 3000);
+        }
+    };
 }
 
-{% if is_monitoring %}
-// Auto-refresh every second when monitoring
-refreshInterval = setInterval(fetchNoiseData, 1000);
+// Connect on page load
+connectWebSocket();
 
 // Clean up on page unload
 window.addEventListener('beforeunload', function() {
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
+    if (ws) {
+        ws.close();
+    }
+    if (reconnectInterval) {
+        clearInterval(reconnectInterval);
     }
 });
-{% endif %}
 </script>
 {% endblock %}

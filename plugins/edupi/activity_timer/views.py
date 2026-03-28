@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 
-from .models import TimerConfig, TimerSession
+from .models import TimerPreset, TimerConfig, TimerSession
 from .forms import TimerConfigForm, QuickTimerForm, TimerControlForm
 from .timer_service import timer_service
 
@@ -24,6 +24,9 @@ class TimerDashboardView(View):
         """Display the timer dashboard."""
         # Get all active timer configurations
         configs = TimerConfig.objects.filter(is_active=True).order_by("name")
+
+        # Get all active presets
+        presets = TimerPreset.objects.filter(is_active=True).order_by("preset_type")
 
         # Get the default config
         default_config = TimerConfig.objects.filter(
@@ -39,6 +42,7 @@ class TimerDashboardView(View):
         context = {
             "title": _("Activity Timer"),
             "configs": configs,
+            "presets": presets,
             "default_config": default_config,
             "recent_sessions": recent_sessions,
             "active_session": active_session,
@@ -57,12 +61,15 @@ class TimerControlView(View):
         """Handle timer control actions."""
         action = request.POST.get("action")
         config_id = request.POST.get("config_id")
+        preset_id = request.POST.get("preset_id")
 
-        logger.info(f"Timer action received: {action}, config_id: {config_id}")
+        logger.info(
+            f"Timer action received: {action}, config_id: {config_id}, preset_id: {preset_id}"
+        )
 
         try:
             if action == "start":
-                return self._start_timer(config_id, request)
+                return self._start_timer(config_id, request, preset_id)
             elif action == "pause":
                 return self._pause_timer()
             elif action == "resume":
@@ -88,10 +95,26 @@ class TimerControlView(View):
                 status=500,
             )
 
-    def _start_timer(self, config_id, request):
+    def _start_timer(self, config_id, request, preset_id=None):
         """Start a new timer session."""
-        # Get config
-        if config_id:
+        config = None
+
+        # If preset_id is provided, create a config from preset
+        if preset_id:
+            preset = get_object_or_404(TimerPreset, id=preset_id, is_active=True)
+            config = TimerConfig.objects.create(
+                name=preset.name,
+                description=preset.description,
+                duration_minutes=preset.duration_minutes,
+                display_color=preset.display_color,
+                led_color_start=preset.led_color_start,
+                led_color_warning=preset.led_color_warning,
+                led_color_end=preset.led_color_end,
+                enable_breathing=preset.enable_breathing,
+                enable_ambient_sound=preset.enable_ambient_sound,
+                is_active=True,
+            )
+        elif config_id:
             config = get_object_or_404(TimerConfig, id=config_id, is_active=True)
         else:
             # Use default config or first active config

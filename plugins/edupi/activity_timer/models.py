@@ -5,10 +5,146 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
+class TimerPreset(models.Model):
+    """
+    Predefined timer presets (e.g., Minute of Silence, Break Time, etc.)
+    """
+
+    class PresetType(models.TextChoices):
+        MINUTE_OF_SILENCE = "minute_of_silence", _("Minute of Silence")
+        BREAK_TIME = "break_time", _("Break Time")
+        ACTIVITY = "activity", _("Activity")
+        CUSTOM = "custom", _("Custom")
+
+    preset_type = models.CharField(
+        max_length=30,
+        choices=PresetType.choices,
+        default=PresetType.ACTIVITY,
+        unique=True,
+        help_text=_("Type of timer preset"),
+    )
+
+    name = models.CharField(
+        max_length=100,
+        help_text=_("Display name for this preset"),
+    )
+
+    description = models.TextField(
+        blank=True,
+        help_text=_("Description of when to use this preset"),
+    )
+
+    duration_minutes = models.PositiveIntegerField(
+        default=10,
+        help_text=_("Default duration in minutes"),
+    )
+
+    # Color for the built-in display (hex color)
+    display_color = models.CharField(
+        max_length=7,
+        default="#3B82F6",
+        help_text=_("Hex color for the preset button/display"),
+    )
+
+    # LED colors for physical LED
+    led_color_start = models.CharField(
+        max_length=7,
+        default="#00FF00",
+        help_text=_("Hex color code for timer start"),
+    )
+
+    led_color_warning = models.CharField(
+        max_length=7,
+        default="#FFFF00",
+        help_text=_("Hex color code for warning state"),
+    )
+
+    led_color_end = models.CharField(
+        max_length=7,
+        default="#FF0000",
+        help_text=_("Hex color code for timer end"),
+    )
+
+    # Breathing animation for Minute of Silence
+    enable_breathing = models.BooleanField(
+        default=False,
+        help_text=_("Enable breathing circle animation"),
+    )
+
+    # Calming audio options
+    enable_ambient_sound = models.BooleanField(
+        default=False,
+        help_text=_("Play ambient background sound"),
+    )
+
+    ambient_sound_type = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ("nature", _("Nature Sounds")),
+            ("white_noise", _("White Noise")),
+            ("ocean", _("Ocean Waves")),
+            ("rain", _("Rain")),
+        ],
+        help_text=_("Type of ambient sound"),
+    )
+
+    # TTS for start/end
+    announce_start = models.BooleanField(
+        default=False,
+        help_text=_("Announce start with TTS"),
+    )
+
+    announce_end = models.BooleanField(
+        default=False,
+        help_text=_("Announce end with TTS"),
+    )
+
+    start_message = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text=_("Message to announce at start"),
+    )
+
+    end_message = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text=_("Message to announce at end"),
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        help_text=_("Whether this preset is active"),
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "edupi_activity_timer"
+        verbose_name = _("Timer Preset")
+        verbose_name_plural = _("Timer Presets")
+        ordering = ["preset_type"]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_preset_type_display()})"
+
+
 class TimerConfig(models.Model):
     """
-    Predefined timer configurations for different activities.
+    Timer configurations - can be based on presets or custom.
     """
+
+    preset = models.ForeignKey(
+        TimerPreset,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="configs",
+        help_text=_("Base preset for this configuration (optional)"),
+    )
 
     name = models.CharField(
         max_length=100,
@@ -35,6 +171,13 @@ class TimerConfig(models.Model):
         help_text=_("Play buzzer sound when timer ends"),
     )
 
+    # Color for the built-in display button
+    display_color = models.CharField(
+        max_length=7,
+        default="#3B82F6",
+        help_text=_("Hex color for display button"),
+    )
+
     led_color_start = models.CharField(
         max_length=7,
         default="#00FF00",
@@ -51,6 +194,17 @@ class TimerConfig(models.Model):
         max_length=7,
         default="#FF0000",
         help_text=_("Hex color code for timer end (red)"),
+    )
+
+    # Minute of Silence specific features
+    enable_breathing = models.BooleanField(
+        default=False,
+        help_text=_("Enable breathing circle animation"),
+    )
+
+    enable_ambient_sound = models.BooleanField(
+        default=False,
+        help_text=_("Play ambient background sound"),
     )
 
     is_default = models.BooleanField(

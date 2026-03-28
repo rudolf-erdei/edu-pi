@@ -4,6 +4,10 @@ This file provides instructions for AI agents working on the edu-pi Raspberry Pi
 
 Project requirements are in the REQUIREMENTS.md file.
 
+Project readme is in the README.md file
+
+After any modification, update the README and REQUIREMENTS files with what was done.
+
 Admin user: admin
 
 Admin pass: edupi2026

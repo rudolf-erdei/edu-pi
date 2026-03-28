@@ -104,9 +104,10 @@
                 <div class="space-y-2">
                     {% for config in configs %}
                         <button class="btn btn-outline btn-block justify-between" 
-                                onclick="startWithConfig({{ config.id }})">
+                                onclick="startWithConfig({{ config.id }})"
+                                style="border-color: {{ config.display_color|default:'#3B82F6' }}; color: {{ config.display_color|default:'#3B82F6' }};">
                             <span>{{ config.name }}</span>
-                            <span class="badge badge-primary">{{ config.duration_minutes }} min</span>
+                            <span class="badge" style="background-color: {{ config.display_color|default:'#3B82F6' }};">{{ config.duration_minutes }} min</span>
                         </button>
                     {% empty %}
                         <p class="text-sm text-gray-500 text-center">
@@ -114,6 +115,21 @@
                         </p>
                     {% endfor %}
                 </div>
+
+                {% if presets %}
+                <div class="divider"></div>
+                <h3 class="font-semibold mb-3">{% trans "Quick Presets" %}</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    {% for preset in presets %}
+                        <button class="btn btn-outline btn-block text-sm" 
+                                onclick="startWithPreset({{ preset.id }})"
+                                style="border-color: {{ preset.display_color|default:'#6366F1' }}; color: {{ preset.display_color|default:'#6366F1' }};">
+                            <i class="fas fa-circle mr-1" style="color: {{ preset.display_color|default:'#6366F1' }};"></i>
+                            {{ preset.name }}
+                        </button>
+                    {% endfor %}
+                </div>
+                {% endif %}
 
                 <div class="divider"></div>
 
@@ -265,6 +281,31 @@ function startQuickTimer() {
 
 function startWithConfig(configId) {
     startTimer(configId);
+}
+
+function startWithPreset(presetId) {
+    const formData = new FormData();
+    formData.append('action', 'start');
+    formData.append('preset_id', presetId);
+    
+    fetch('{% url "activity_timer:control" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateTimerDisplay(data);
+            updateButtons('running');
+            startStatusCheck();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => console.error('Error:', error));
 }
 
 function pauseTimer() {
