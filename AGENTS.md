@@ -12,6 +12,18 @@ Admin user: admin
 
 Admin pass: edupi2026
 
+Serving the documentation is done via the command 
+
+```bash
+uv run mkdocs serve
+````
+
+Building the documentation for Github Pages is done via the command 
+
+```bash
+uv run mkdocs gh-deploy
+```
+
 ## Project Overview
 
 A Django-based educational platform for Raspberry Pi GPIO control and experimentation. Uses UV for Python package management.
@@ -45,10 +57,6 @@ uv run python manage.py createsuperuser
 
 # Check types (if mypy added)
 uv run mypy .
-
-# Code formatting (if black/ruff added)
-# uv run black .
-# uv run ruff check . --fix
 ```
 
 ## Code Style Guidelines
