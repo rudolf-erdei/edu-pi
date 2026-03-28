@@ -18,8 +18,10 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
 - 🌐 **Web Dashboard**: Responsive interface using Tailwind CSS + DaisyUI
 - 🔊 **Noise Monitor**: Visual noise level feedback with RGB LEDs
 - 🎹 **Touch Piano**: Learn circuits through musical interaction
+- 🎤 **Routines**: Text-to-speech classroom routines with USB presenter support
 - 🌍 **Multilingual**: English and Romanian support
 - 🎨 **Modern UI**: Clean, accessible interface for teachers
+- 🔍 **Auto-Discovery**: Plugins automatically discovered from `plugins/` directory
 
 ## ✨ Features
 
@@ -43,6 +45,7 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
 - **Admin Dashboard** for plugin management
 - **Teacher Dashboard** at `/` showing all installed apps
 - **i18n Support** - English (primary) and Romanian (secondary)
+- **Auto-Discovery** - Plugins automatically registered in Django without manual configuration
 
 #### Hardware Integration
 
@@ -50,6 +53,7 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
 - [x] **Touch Piano**: 6 touch-sensitive keys using conductive materials with pygame audio
 - [ ] **GPIO Explorer**: Interactive pin testing interface (planned)
 - [x] **Activity Timer**: Visual countdown with LED progress bar and configurable preset profiles
+- [x] **Routines**: Text-to-speech classroom routines with USB presenter control
 
 #### Activity Timer Plugin ⏱️
 
@@ -96,6 +100,60 @@ Visual countdown timer with configurable preset profiles for different classroom
 
 **Access**: http://localhost:8000/plugins/edupi/activity_timer/
 
+#### Routines Plugin 🎤
+
+Text-to-speech classroom routines for warm-ups, transitions, and cooldowns:
+
+- **Multi-Engine TTS Support**:
+  - **pyttsx3**: System TTS (offline, works everywhere)
+  - **edge-tts**: High-quality online voices (requires internet)
+  - **gTTS**: Google TTS (requires internet)
+  - Teacher can select preferred engine per routine
+  - Configurable speed (0.5x - 2.0x)
+  - Language support (en, ro, and others)
+
+- **Audio File Upload**:
+  - Upload MP3/WAV files to override TTS
+  - Useful for music or custom recordings
+  - Automatic fallback to TTS if no file uploaded
+
+- **Line-by-Line Playback**:
+  - Text split by lines
+  - Current line highlighted
+  - Progress tracking
+  - Auto-advance to next line
+
+- **USB Presenter Support**:
+  - Compatible with standard USB wireless presenters (Logitech, Kensington, etc.)
+  - Configurable button mappings:
+    - **Next**: Advance to next line
+    - **Previous**: Go back to previous line
+    - **Play/Pause**: Pause/resume speech
+    - **Stop**: End routine
+  - Auto-detects presenter when plugged in
+  - Graceful degradation on non-Linux systems (evdev library required on Pi)
+
+- **Pre-built Routines**:
+  - **Hand Warming Exercise**: Writing preparation routine
+  - **Finger Stretch**: Hand stretching routine
+  - **Deep Breathing**: Calming transition routine
+
+- **Web Interface**:
+  - Dashboard with categorized routines (Warm-up, Transition, Cooldown)
+  - Full-screen player with synchronized text highlighting
+  - TTS preview with live testing
+  - Category management
+  - Routine CRUD operations
+
+- **Real-time Sync**:
+  - WebSocket support for real-time updates
+  - HTTP polling fallback
+  - Keyboard shortcuts (Space, Arrow keys, Escape)
+
+**Access**: http://localhost:8000/plugins/edupi/routines/
+
+**WebSocket**: `ws://localhost:8000/ws/routines/`
+
 #### Noise Monitor Plugin 🔊
 
 Real-time classroom noise visualization with dual RGB LED feedback:
@@ -127,7 +185,7 @@ Real-time classroom noise visualization with dual RGB LED feedback:
 - [ ] **Lesson Mode** - Step-by-step guided activities
 - [ ] **Achievement System** - Progress tracking and badges
 - [ ] **Multi-Pi Support** - Control multiple Raspberry Pis
-- [x] **WebSocket Integration** - Real-time updates (Noise Monitor)
+- [x] **WebSocket Integration** - Real-time updates (Noise Monitor, Routines)
 - [ ] **Activity Timer Enhancements** - Breathing animation, ambient sounds, TTS, LED strip support
 - [ ] **Plugin Marketplace** - Community plugin sharing
 
@@ -212,6 +270,7 @@ Plugins use singleton background services with daemon threads that persist indep
     - Admin Panel: http://localhost:8000/admin/
     - Plugin Management: http://localhost:8000/admin/plugins/
     - Noise Monitor: http://localhost:8000/plugins/edupi/noise_monitor/
+    - Routines: http://localhost:8000/plugins/edupi/routines/
 
 ### WebSocket Support
 
@@ -229,7 +288,9 @@ For production or testing ASGI directly:
 uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
 ```
 
-**Note**: WebSocket connections use the same port as HTTP (8000 by default). The Noise Monitor plugin broadcasts real-time updates via WebSocket at `ws://localhost:8000/ws/noise-monitor/`.
+**Note**: WebSocket connections use the same port as HTTP (8000 by default). Available WebSocket endpoints:
+- Noise Monitor: `ws://localhost:8000/ws/noise-monitor/`
+- Routines: `ws://localhost:8000/ws/routines/`
 
 ## 🚀 Production Deployment (Raspberry Pi)
 
@@ -316,7 +377,7 @@ For production deployment where the Raspberry Pi boots directly into the applica
 ```
 edu-pi/
 ├── config/                  # Django project configuration
-│   ├── settings.py         # Main settings
+│   ├── settings.py         # Main settings (with plugin auto-discovery)
 │   ├── urls.py             # URL routing
 │   └── wsgi.py             # WSGI application
 ├── core/                    # Core functionality
@@ -328,8 +389,12 @@ edu-pi/
 │       ├── models.py       # Plugin models
 │       ├── admin.py        # Admin interface
 │       └── views.py        # Plugin management views
-├── plugins/                 # Plugin directory
+├── plugins/                 # Plugin directory (auto-discovered)
 │   └── edupi/              # Built-in plugins
+│       ├── activity_timer/    # Countdown timer
+│       ├── noise_monitor/     # Noise visualization
+│       ├── routines/          # TTS classroom routines
+│       └── touch_piano/       # Musical circuits
 ├── templates/               # HTML templates
 │   ├── base.html           # Base template
 │   ├── home.html           # Dashboard
@@ -347,7 +412,7 @@ edu-pi/
 
 ## 🔌 Plugin Development
 
-Tinko uses an OctoberCMS-inspired plugin system. Plugins are self-contained packages that can extend the platform's functionality.
+Tinko uses an OctoberCMS-inspired plugin system with **automatic discovery**. Plugins are self-contained packages that can extend the platform's functionality.
 
 ### Creating a Plugin
 
@@ -355,17 +420,33 @@ Tinko uses an OctoberCMS-inspired plugin system. Plugins are self-contained pack
 
    ```
    plugins/authorname/pluginname/
-   ├── __init__.py
-   ├── plugin.py          # Required: Plugin registration class
-   ├── models.py          # Django models (optional)
-   ├── views.py           # Views (optional)
-   ├── urls.py            # URL routes (optional)
-   ├── forms.py           # Forms (optional)
-   ├── static/            # CSS/JS assets
-   └── templates/         # HTML templates
+   ├── __init__.py          # Must import Plugin class
+   ├── apps.py              # Django app configuration (optional but recommended)
+   ├── plugin.py            # Required: Plugin registration class
+   ├── models.py            # Django models (optional)
+   ├── views.py             # Views (optional)
+   ├── urls.py              # URL routes (optional)
+   ├── forms.py             # Forms (optional)
+   ├── consumers.py         # WebSocket consumers (optional)
+   ├── routing.py           # WebSocket routing (optional)
+   ├── migrations/          # Database migrations
+   ├── static/              # CSS/JS assets
+   └── templates/           # HTML templates
    ```
 
-2. **Create the plugin registration file**
+2. **Create the __init__.py file** (required for auto-discovery)
+
+   ```python
+   # plugins/authorname/pluginname/__init__.py
+   try:
+       from .plugin import Plugin
+   except ImportError:
+       pass  # Plugin class not available during early Django startup
+   
+   default_app_config = "plugins.authorname.pluginname.apps.PluginNameConfig"
+   ```
+
+3. **Create the plugin registration file**
 
    ```python
    # plugins/acme/myplugin/plugin.py
@@ -377,6 +458,7 @@ Tinko uses an OctoberCMS-inspired plugin system. Plugins are self-contained pack
        description = "A sample plugin"
        author = "Acme Corp"
        version = "1.0.0"
+       icon = "star"  # Font Awesome icon name
 
        def boot(self):
            # Register GPIO pins
@@ -385,28 +467,48 @@ Tinko uses an OctoberCMS-inspired plugin system. Plugins are self-contained pack
                'sensor': 18
            })
 
-           # Schedule tasks
-           self.register_schedule(interval=60, callback=self.update)
+           # Start background services
+           self.start_background_service()
 
        def register(self):
            # Register models and URLs
            self.register_model(MyModel)
            self.register_url_pattern('myplugin/', include('plugins.acme.myplugin.urls'))
-           self.register_admin_menu('My Plugin', '/admin/myplugin/')
+           self.register_admin_menu('My Plugin', '/plugins/acme/myplugin/')
+           
+           # Register settings
+           self.register_setting(
+               'my_setting',
+               'My Setting',
+               default='value',
+               field_type='text'
+           )
 
        def uninstall(self):
            # Cleanup
            self.cleanup_gpio_pins()
-
-       def update(self):
-           # Called every 60 seconds
-           pass
    ```
 
-3. **Access the plugin**
-   - Restart Django
-   - Plugin auto-discovered from `plugins/` directory
-   - Enable/disable via Admin Panel
+4. **Access the plugin**
+   - Plugin is **auto-discovered** - no manual registration needed!
+   - The `discover_plugin_apps()` function in `config/settings.py` automatically finds all plugins
+   - Plugins are automatically added to Django's `INSTALLED_APPS`
+   - Enable/disable via Admin Panel at `/admin/plugins/`
+
+### Auto-Discovery
+
+The system automatically discovers plugins from the `plugins/` directory:
+
+1. At startup, `discover_plugin_apps()` scans `plugins/*/*/`
+2. Any directory with an `__init__.py` file is registered as a Django app
+3. Plugins are automatically added to `INSTALLED_APPS`
+4. No manual configuration required!
+
+This means:
+- ✅ Just create a plugin directory with `__init__.py` and `plugin.py`
+- ✅ Restart Django server
+- ✅ Plugin is automatically available
+- ✅ Migrations are created and applied automatically
 
 ### Plugin API Reference
 
@@ -568,6 +670,7 @@ except ImportError:
 - Buzzer module
 - Temperature/humidity sensor (DHT22)
 - Conductive materials (bananas, foil, copper tape)
+- USB wireless presenter (for Routines plugin)
 
 ### GPIO Pin Assignments
 
