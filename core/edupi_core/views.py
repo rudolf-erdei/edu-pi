@@ -7,6 +7,7 @@ from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.conf import settings
 
 from core.plugin_system.models import PluginStatus
 from core.plugin_system.settings import SiteSettings
@@ -85,12 +86,102 @@ class GlobalSettingsFormImpl(GlobalSettingsForm):
         help_text=_("Default language for the interface"),
     )
 
-    timezone = forms.CharField(
+    def get_timezone_choices():
+        """Get common timezone choices organized by region."""
+        from zoneinfo import available_timezones
+
+        # Common timezones organized by region
+        common_timezones = [
+            ("UTC", "UTC (Universal Time Coordinated)"),
+            ("", "--- Europe ---"),
+            ("Europe/London", "London"),
+            ("Europe/Paris", "Paris"),
+            ("Europe/Berlin", "Berlin"),
+            ("Europe/Rome", "Rome"),
+            ("Europe/Madrid", "Madrid"),
+            ("Europe/Amsterdam", "Amsterdam"),
+            ("Europe/Bucharest", "Bucharest"),
+            ("Europe/Athens", "Athens"),
+            ("Europe/Warsaw", "Warsaw"),
+            ("Europe/Vienna", "Vienna"),
+            ("Europe/Stockholm", "Stockholm"),
+            ("Europe/Oslo", "Oslo"),
+            ("Europe/Copenhagen", "Copenhagen"),
+            ("Europe/Helsinki", "Helsinki"),
+            ("Europe/Dublin", "Dublin"),
+            ("Europe/Lisbon", "Lisbon"),
+            ("Europe/Prague", "Prague"),
+            ("Europe/Budapest", "Budapest"),
+            ("Europe/Sofia", "Sofia"),
+            ("", "--- America ---"),
+            ("America/New_York", "New York (Eastern)"),
+            ("America/Chicago", "Chicago (Central)"),
+            ("America/Denver", "Denver (Mountain)"),
+            ("America/Los_Angeles", "Los Angeles (Pacific)"),
+            ("America/Anchorage", "Anchorage (Alaska)"),
+            ("America/Honolulu", "Honolulu (Hawaii)"),
+            ("America/Toronto", "Toronto"),
+            ("America/Vancouver", "Vancouver"),
+            ("America/Mexico_City", "Mexico City"),
+            ("America/Sao_Paulo", "São Paulo"),
+            ("America/Buenos_Aires", "Buenos Aires"),
+            ("America/Santiago", "Santiago"),
+            ("America/Bogota", "Bogotá"),
+            ("America/Lima", "Lima"),
+            ("", "--- Asia ---"),
+            ("Asia/Tokyo", "Tokyo"),
+            ("Asia/Shanghai", "Shanghai"),
+            ("Asia/Hong_Kong", "Hong Kong"),
+            ("Asia/Singapore", "Singapore"),
+            ("Asia/Seoul", "Seoul"),
+            ("Asia/Taipei", "Taipei"),
+            ("Asia/Bangkok", "Bangkok"),
+            ("Asia/Jakarta", "Jakarta"),
+            ("Asia/Manila", "Manila"),
+            ("Asia/Kuala_Lumpur", "Kuala Lumpur"),
+            ("Asia/Dubai", "Dubai"),
+            ("Asia/Qatar", "Qatar"),
+            ("Asia/Tehran", "Tehran"),
+            ("Asia/Baghdad", "Baghdad"),
+            ("Asia/Jerusalem", "Jerusalem"),
+            ("Asia/Beirut", "Beirut"),
+            ("Asia/Damascus", "Damascus"),
+            ("Asia/Amman", "Amman"),
+            ("Asia/Kolkata", "Kolkata (India)"),
+            ("Asia/Mumbai", "Mumbai (India)"),
+            ("Asia/Dhaka", "Dhaka"),
+            ("Asia/Karachi", "Karachi"),
+            ("", "--- Australia/Oceania ---"),
+            ("Australia/Sydney", "Sydney"),
+            ("Australia/Melbourne", "Melbourne"),
+            ("Australia/Brisbane", "Brisbane"),
+            ("Australia/Perth", "Perth"),
+            ("Australia/Adelaide", "Adelaide"),
+            ("Australia/Darwin", "Darwin"),
+            ("Australia/Canberra", "Canberra"),
+            ("Pacific/Auckland", "Auckland"),
+            ("Pacific/Fiji", "Fiji"),
+            ("Pacific/Honolulu", "Honolulu"),
+            ("", "--- Africa ---"),
+            ("Africa/Cairo", "Cairo"),
+            ("Africa/Johannesburg", "Johannesburg"),
+            ("Africa/Lagos", "Lagos"),
+            ("Africa/Nairobi", "Nairobi"),
+            ("Africa/Casablanca", "Casablanca"),
+            ("Africa/Tunis", "Tunis"),
+            ("Africa/Algiers", "Algiers"),
+            ("Africa/Tripoli", "Tripoli"),
+        ]
+
+        # Filter out empty values (section headers) if they exist
+        return [(tz, name) for tz, name in common_timezones if tz]
+
+    timezone = forms.ChoiceField(
         label=_("Timezone"),
-        max_length=50,
+        choices=get_timezone_choices(),
         required=False,
         initial="UTC",
-        help_text=_("Timezone (e.g., Europe/Bucharest, America/New_York)"),
+        help_text=_("Select your local timezone"),
     )
 
 
@@ -154,8 +245,8 @@ def settings_view(request: HttpRequest) -> HttpResponse:
     # Add plugin setting tabs
     from core.plugin_system.settings import SettingsRegistry
 
-    for plugin_name, settings in SettingsRegistry.get_all_settings().items():
-        if settings._settings_fields:
+    for plugin_name, plugin_settings in SettingsRegistry.get_all_settings().items():
+        if plugin_settings._settings_fields:
             tabs.append(
                 {
                     "id": plugin_name.replace(".", "_"),
@@ -174,6 +265,9 @@ def settings_view(request: HttpRequest) -> HttpResponse:
         "logo_path": logo_path,
         "is_global": True,
         "tabs": tabs,
+        "MEDIA_URL": settings.MEDIA_URL,
     }
+
+    return render(request, "settings/settings_page.html", context)
 
     return render(request, "settings/settings_page.html", context)
