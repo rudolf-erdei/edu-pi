@@ -21,12 +21,18 @@ django_asgi_app = get_asgi_application()
 
 # Import websocket routes after Django setup
 from plugins.edupi.noise_monitor import routing as noise_routing
+from plugins.edupi.routines import routing as routines_routing
+
+# Combine all websocket routes
+websocket_urlpatterns = (
+    noise_routing.websocket_urlpatterns + routines_routing.websocket_urlpatterns
+)
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
         "websocket": AllowedHostsOriginValidator(
-            AuthMiddlewareStack(URLRouter(noise_routing.websocket_urlpatterns))
+            AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
         ),
     }
 )

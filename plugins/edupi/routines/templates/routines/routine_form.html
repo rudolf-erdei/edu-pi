@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center gap-4 mb-8">
+        <a href="{% url 'routines:dashboard' %}" class="btn btn-ghost btn-sm">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h1 class="text-3xl font-bold">{{ title }}</h1>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Main Form -->
+        <div class="lg:col-span-2">
+            <div class="card bg-base-100 shadow">
+                <div class="card-body">
+                    <form id="routine-form" method="post" 
+                          action="{% if routine %}{% url 'routines:routine_update' routine.id %}{% else %}{% url 'routines:routine_create' %}{% endif %}"
+                          enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Title -->
+                        <div class="form-control mb-4">
+                            <label class="label">
+                                <span class="label-text">{% trans "Title" %} *</span>
+                            </label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                            <label class="label">
+                                <span class="label-text-alt text-error">{{ form.title.errors.0 }}</span>
+                            </label>
+                            {% endif %}
+                        </div>
+
+                        <!-- Category -->
+                        <div class="form-control mb-4">
+                            <label class="label">
+                                <span class="label-text">{% trans "Category" %}</span>
+                            </label>
+                            {{ form.category }}
+                        </div>
+
+                        <!-- Content -->
+                        <div class="form-control mb-4">
+                            <label class="label">
+                                <span class="label-text">{% trans "Content" %} *</span>
+                                <span class="label-text-alt">{% trans "One line per instruction" %}</span>
+                            </label>
+                            {{ form.content }}
+                            {% if form.content.errors %}
+                            <label class="label">
+                                <span class="label-text-alt text-error">{{ form.content.errors.0 }}</span>
+                            </label>
+                            {% endif %}
+                        </div>
+
+                        <!-- Audio File Upload -->
+                        <div class="form-control mb-4">
+                            <label class="label">
+                                <span class="label-text">{% trans "Audio File (optional)" %}</span>
+                                <span class="label-text-alt">{% trans "MP3 or WAV - overrides TTS" %}</span>
+                            </label>
+                            {{ form.audio_file }}
+                            {% if routine and routine.audio_file %}
+                            <div class="mt-2 text-sm text-gray-600">
+                                <i class="fas fa-file-audio mr-1"></i>
+                                {% trans "Current:" %} {{ routine.audio_file.name }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- TTS Settings -->
+                        <div class="divider">{% trans "Text-to-Speech Settings" %}</div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- TTS Engine -->
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text">{% trans "TTS Engine" %}</span>
+                                </label>
+                                {{ form.tts_engine }}
+                            </div>
+
+                            <!-- TTS Speed -->
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text">{% trans "Speed" %}</span>
+                                    <span class="label-text-alt">0.5 = slow, 2.0 = fast</span>
+                                </label>
+                                {{ form.tts_speed }}
+                            </div>
+
+                            <!-- TTS Language -->
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text">{% trans "Language" %}</span>
+                                    <span class="label-text-alt">e.g., 'en', 'ro', 'es'</span>
+                                </label>
+                                {{ form.tts_language }}
+                            </div>
+
+                            <!-- TTS Voice -->
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text">{% trans "Voice (optional)" %}</span>
+                                    <span class="label-text-alt">Engine-specific</span>
+                                </label>
+                                {{ form.tts_voice }}
+                            </div>
+                        </div>
+
+                        <!-- Active Checkbox -->
+                        <div class="form-control mt-4">
+                            <label class="label cursor-pointer justify-start gap-4">
+                                {{ form.is_active }}
+                                <span class="label-text">{% trans "Active" %}</span>
+                            </label>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="card-actions justify-end mt-8">
+                            <a href="{% url 'routines:dashboard' %}" class="btn btn-ghost">
+                                {% trans "Cancel" %}
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save mr-2"></i>{{ action }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar: TTS Test -->
+        <div class="lg:col-span-1">
+            <div class="card bg-base-100 shadow">
+                <div class="card-body">
+                    <h3 class="card-title text-lg mb-4">
+                        <i class="fas fa-volume-up mr-2"></i>
+                        {% trans "Test TTS" %}
+                    </h3>
+                    
+                    <form id="tts-test-form">
+                        {% csrf_token %}
+                        <div class="form-control mb-4">
+                            {{ tts_test_form.text }}
+                        </div>
+                        
+                        <div class="form-control mb-4">
+                            <label class="label-text">{% trans "Engine" %}</label>
+                            {{ tts_test_form.engine }}
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-4">
+                            <div class="form-control">
+                                <label class="label-text">{% trans "Language" %}</label>
+                                {{ tts_test_form.language }}
+                            </div>
+                            
+                            <div class="form-control">
+                                <label class="label-text">{% trans "Speed" %}</label>
+                                {{ tts_test_form.speed }}
+                            </div>
+                        </div>
+                        
+                        <div class="form-control mb-4">
+                            <label class="label-text">{% trans "Voice" %}</label>
+                            {{ tts_test_form.voice }}
+                        </div>
+                        
+                        <button type="button" onclick="testTTS()" class="btn btn-secondary w-full"
+                                id="btn-test-tts">
+                            <i class="fas fa-play mr-2"></i>{% trans "Preview" %}
+                        </button>
+                    </form>
+                    
+                    <!-- Audio Player -->
+                    <div id="tts-audio-player" class="mt-4 hidden">
+                        <audio controls class="w-full">
+                            <source src="" type="audio/mpeg">
+                            {% trans "Your browser does not support the audio element." %}
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Card -->
+            <div class="card bg-base-200 mt-4">
+                <div class="card-body">
+                    <h4 class="font-semibold mb-2">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        {% trans "Tips" %}
+                    </h4>
+                    <ul class="list-disc list-inside text-sm space-y-1">
+                        <li>{% trans "Write one instruction per line" %}</li>
+                        <li>{% trans "Upload MP3/WAV to use custom audio" %}</li>
+                        <li>{% trans "TTS speed: 0.7-0.9 is good for kids" %}</li>
+                        <li>{% trans "Test TTS before saving" %}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Handle form submission
+document.getElementById('routine-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const formData = new FormData(form);
+    
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.location.href = '{% url "routines:dashboard" %}';
+        } else {
+            // Show errors
+            if (data.errors) {
+                let errorHtml = '<div class="alert alert-error mb-4"><ul>';
+                for (const [field, errors] of Object.entries(data.errors)) {
+                    errors.forEach(error => {
+                        errorHtml += `<li>${field}: ${error}</li>`;
+                    });
+                }
+                errorHtml += '</ul></div>';
+                
+                // Insert at top of form
+                form.insertAdjacentHTML('afterbegin', errorHtml);
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('{% trans "Error saving routine" %}');
+    }
+});
+
+// Test TTS
+async function testTTS() {
+    const btn = document.getElementById('btn-test-tts');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>{% trans "Generating..." %}';
+    btn.disabled = true;
+    
+    try {
+        const formData = new FormData(document.getElementById('tts-test-form'));
+        
+        const response = await fetch('/plugins/edupi/routines/api/tts-test/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.audio_path) {
+            const player = document.getElementById('tts-audio-player');
+            const audio = player.querySelector('audio');
+            audio.src = data.audio_path;
+            player.classList.remove('hidden');
+            audio.play();
+        } else {
+            alert(data.error || '{% trans "Failed to generate TTS" %}');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('{% trans "Error generating TTS" %}');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

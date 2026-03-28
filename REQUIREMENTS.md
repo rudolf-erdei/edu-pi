@@ -128,7 +128,7 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
 
 ### Feature 6: Lesson Mode
 
-**Priority**: Medium\*\*
+**Priority**: Low
 
 - Step-by-step guided activities
 - Progress tracking for students
@@ -137,7 +137,7 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
 
 ### Feature 11: Game Mode
 
-**Priority**: High
+**Priority**: Low
 
 **User Story**: As a teacher, I want to run interactive games that multiple teams can play simultaneously on their computers, with the Raspberry Pi as the central host, so that students can engage in educational competitions.
 
@@ -315,6 +315,29 @@ Ready to write, nice and warm!"
   - Same presenter can be used for both Feature 9 and Feature 10
   - Automatic detection of presenter when plugged in
   - Fallback to GPIO button if presenter not connected
+
+### Feature 12: Settings area
+
+**Priority**: High
+
+**User Stories**: 
+
+As a teacher, I want to see all settings in a Settings page. All the plugins should register settings 
+to this page, so a system overview is possible without having to enter all plugins one by one (this is also 
+OctoberCMS-style).
+
+As a teacher, I want to set the name of the school I work in and also upload the school logo, if it exists, 
+so that I can personalize the robot for my needs.
+
+As a teacher, I want to be able to change the robot's name, so I can adapt it to my class needs.
+
+**Acceptance Criteria**:
+
+- [ ] Each plugin's registration class should expose a number of settings (if it has seettings) to the system
+- [ ] These settings will be displayed on the application main Settings page.
+- [ ] These settings will have custom keys, like `developer.plugin_name.setting_name` and can be read with a special model, which is defined at the plugin level (e.g. `[PluginName]Settings` or other unique class name) in the `plugin_settings.py` file.
+- [ ] Global settings and each plugin settings should be sepparated.
+
 
 ### Feature 7: Plugin System (OctoberCMS-style) ✅
 

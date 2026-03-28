@@ -11,6 +11,9 @@ dependencies = [
     "pygame>=2.6.1",
     "channels>=4.0.0",
     "daphne>=4.0.0",
+    "pyttsx3>=2.90",
+    "edge-tts>=6.1.0",
+    "gTTS>=2.5.0",
 ]
 
 [project.optional-dependencies]

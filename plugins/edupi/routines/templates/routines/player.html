@@ -1,0 +1,512 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+    <!-- Player Header -->
+    <div class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <a href="{% url 'routines:dashboard' %}" class="btn btn-ghost btn-sm">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    <h1 class="text-xl font-bold truncate max-w-md">{{ routine.title }}</h1>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <div class="badge badge-lg" id="status-badge">
+                        <i class="fas fa-circle text-xs mr-1"></i>
+                        <span>{% trans "Ready" %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="bg-white border-b">
+        <div class="container mx-auto px-4 py-2">
+            <div class="flex items-center gap-4">
+                <div class="flex-1">
+                    <progress class="progress progress-primary w-full" 
+                              value="0" max="100" id="progress-bar"></progress>
+                </div>
+                <span class="text-sm text-gray-600 whitespace-nowrap">
+                    <span id="current-line-num">0</span> / <span id="total-lines">{{ line_count }}</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Player Area -->
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            
+            <!-- Line Display -->
+            <div class="card bg-white shadow-lg mb-8">
+                <div class="card-body p-8 md:p-12">
+                    <div id="line-display" class="text-center">
+                        <p class="text-2xl md:text-4xl font-medium text-gray-800 leading-relaxed">
+                            {% trans "Press Play to start" %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="card bg-base-100 shadow">
+                <div class="card-body p-6">
+                    <div class="flex justify-center items-center gap-4 mb-6">
+                        <!-- Previous -->
+                        <button onclick="prevLine()" class="btn btn-circle btn-lg btn-outline"
+                                id="btn-prev" disabled>
+                            <i class="fas fa-step-backward"></i>
+                        </button>
+
+                        <!-- Play/Pause -->
+                        <button onclick="togglePlayPause()" class="btn btn-circle btn-xl btn-primary"
+                                id="btn-play-pause">
+                            <i class="fas fa-play text-2xl"></i>
+                        </button>
+
+                        <!-- Next -->
+                        <button onclick="nextLine()" class="btn btn-circle btn-lg btn-outline"
+                                id="btn-next">
+                            <i class="fas fa-step-forward"></i>
+                        </button>
+
+                        <!-- Stop -->
+                        <button onclick="stopRoutine()" class="btn btn-circle btn-lg btn-error"
+                                id="btn-stop" disabled>
+                            <i class="fas fa-stop"></i>
+                        </button>
+                    </div>
+
+                    <!-- Keyboard Shortcuts Info -->
+                    <div class="text-center text-sm text-gray-500">
+                        <p class="mb-2">{% trans "Keyboard Shortcuts:" %}</p>
+                        <div class="flex justify-center gap-4">
+                            <span><span class="kbd">Space</span> {% trans "Play/Pause" %}</span>
+                            <span><span class="kbd">←</span> {% trans "Previous" %}</span>
+                            <span><span class="kbd">→</span> {% trans "Next" %}</span>
+                            <span><span class="kbd">Esc</span> {% trans "Stop" %}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full Text Preview -->
+            <div class="card bg-base-100 shadow mt-8">
+                <div class="card-body p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">{% trans "Full Text" %}</h3>
+                        <button onclick="togglePreview()" class="btn btn-ghost btn-sm">
+                            <i class="fas fa-chevron-down" id="preview-icon"></i>
+                        </button>
+                    </div>
+                    
+                    <div id="preview-content" class="hidden">
+                        <ul class="space-y-2">
+                            {% for line in lines %}
+                            <li id="preview-line-{{ forloop.counter0 }}" 
+                                class="p-3 rounded transition-colors"
+                                data-line-index="{{ forloop.counter0 }}">
+                                {{ line }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+const routineId = {{ routine.id }};
+const totalLines = {{ line_count }};
+let currentLineIndex = -1;
+let isPlaying = false;
+let isPaused = false;
+let ws = null;
+
+// Initialize WebSocket
+function initWebSocket() {
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${wsScheme}://${window.location.host}/ws/routines/`);
+    
+    ws.onopen = function() {
+        console.log('WebSocket connected');
+    };
+    
+    ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        handleWebSocketMessage(data);
+    };
+    
+    ws.onclose = function() {
+        console.log('WebSocket disconnected');
+        // Reconnect after 3 seconds
+        setTimeout(initWebSocket, 3000);
+    };
+    
+    ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+    };
+}
+
+function handleWebSocketMessage(data) {
+    switch(data.type) {
+        case 'status_update':
+            if (data.has_active_session) {
+                updateUI(data.session);
+            }
+            break;
+        case 'line_changed':
+            highlightLine(data.line_index, data.line_text);
+            updateProgress(data.progress_percent);
+            break;
+        case 'status_changed':
+            updateStatus(data.status);
+            break;
+        case 'completed':
+            routineCompleted();
+            break;
+    }
+}
+
+// Start routine
+async function startRoutine() {
+    try {
+        const response = await fetch('/plugins/edupi/routines/api/control/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                action: 'start',
+                routine_id: routineId
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            isPlaying = true;
+            isPaused = false;
+            updatePlayButton();
+            updateControls();
+            playLine(0);
+        } else {
+            alert(data.error || '{% trans "Error starting routine" %}');
+        }
+    } catch (error) {
+        console.error('Error starting routine:', error);
+    }
+}
+
+// Toggle play/pause
+async function togglePlayPause() {
+    if (!isPlaying && !isPaused) {
+        await startRoutine();
+        return;
+    }
+    
+    const action = isPlaying ? 'pause' : 'resume';
+    
+    try {
+        const response = await fetch('/plugins/edupi/routines/api/control/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ action: action })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            if (isPlaying) {
+                isPlaying = false;
+                isPaused = true;
+            } else {
+                isPlaying = true;
+                isPaused = false;
+            }
+            updatePlayButton();
+            updateStatus(isPlaying ? 'playing' : 'paused');
+        }
+    } catch (error) {
+        console.error('Error toggling playback:', error);
+    }
+}
+
+// Next line
+async function nextLine() {
+    try {
+        const response = await fetch('/plugins/edupi/routines/api/control/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ action: 'next' })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            currentLineIndex++;
+            // Line will update via WebSocket
+        }
+    } catch (error) {
+        console.error('Error going to next line:', error);
+    }
+}
+
+// Previous line
+async function prevLine() {
+    try {
+        const response = await fetch('/plugins/edupi/routines/api/control/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ action: 'prev' })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            currentLineIndex--;
+            // Line will update via WebSocket
+        }
+    } catch (error) {
+        console.error('Error going to previous line:', error);
+    }
+}
+
+// Stop routine
+async function stopRoutine() {
+    try {
+        const response = await fetch('/plugins/edupi/routines/api/control/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ action: 'stop' })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            isPlaying = false;
+            isPaused = false;
+            currentLineIndex = -1;
+            updatePlayButton();
+            updateControls();
+            updateStatus('stopped');
+            document.getElementById('line-display').innerHTML = `
+                <p class="text-2xl md:text-4xl font-medium text-gray-800">
+                    {% trans "Press Play to start" %}
+                </p>
+            `;
+        }
+    } catch (error) {
+        console.error('Error stopping routine:', error);
+    }
+}
+
+// Play specific line
+function playLine(index) {
+    currentLineIndex = index;
+    highlightLine(index);
+}
+
+// Highlight current line
+function highlightLine(index, text) {
+    // Update main display
+    const lineDisplay = document.getElementById('line-display');
+    if (text) {
+        lineDisplay.innerHTML = `
+            <p class="text-3xl md:text-5xl font-medium text-gray-800 leading-relaxed animate-fade-in">
+                ${text}
+            </p>
+        `;
+    }
+    
+    // Update preview
+    document.querySelectorAll('[data-line-index]').forEach(el => {
+        el.classList.remove('bg-primary', 'text-white');
+        el.classList.add('bg-transparent');
+    });
+    
+    const currentPreview = document.getElementById(`preview-line-${index}`);
+    if (currentPreview) {
+        currentPreview.classList.remove('bg-transparent');
+        currentPreview.classList.add('bg-primary', 'text-white');
+        currentPreview.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    document.getElementById('current-line-num').textContent = index + 1;
+    updateProgress(((index + 1) / totalLines) * 100);
+}
+
+// Update progress bar
+function updateProgress(percent) {
+    document.getElementById('progress-bar').value = percent;
+}
+
+// Update status display
+function updateStatus(status) {
+    const badge = document.getElementById('status-badge');
+    const icon = badge.querySelector('i');
+    const text = badge.querySelector('span');
+    
+    badge.className = 'badge badge-lg';
+    
+    switch(status) {
+        case 'playing':
+            badge.classList.add('badge-success');
+            icon.className = 'fas fa-circle text-xs mr-1 animate-pulse';
+            text.textContent = '{% trans "Playing" %}';
+            break;
+        case 'paused':
+            badge.classList.add('badge-warning');
+            icon.className = 'fas fa-pause text-xs mr-1';
+            text.textContent = '{% trans "Paused" %}';
+            break;
+        case 'stopped':
+            badge.classList.add('badge-ghost');
+            icon.className = 'fas fa-stop text-xs mr-1';
+            text.textContent = '{% trans "Stopped" %}';
+            break;
+        default:
+            badge.classList.add('badge-ghost');
+            icon.className = 'fas fa-circle text-xs mr-1';
+            text.textContent = '{% trans "Ready" %}';
+    }
+}
+
+// Update play button icon
+function updatePlayButton() {
+    const btn = document.getElementById('btn-play-pause');
+    const icon = btn.querySelector('i');
+    
+    if (isPlaying) {
+        icon.className = 'fas fa-pause text-2xl';
+    } else {
+        icon.className = 'fas fa-play text-2xl';
+    }
+}
+
+// Update control buttons
+function updateControls() {
+    document.getElementById('btn-prev').disabled = !isPlaying && !isPaused;
+    document.getElementById('btn-next').disabled = !isPlaying && !isPaused;
+    document.getElementById('btn-stop').disabled = !isPlaying && !isPaused;
+}
+
+// Handle routine completion
+function routineCompleted() {
+    isPlaying = false;
+    isPaused = false;
+    updatePlayButton();
+    updateControls();
+    updateStatus('completed');
+    
+    document.getElementById('line-display').innerHTML = `
+        <p class="text-3xl md:text-4xl font-medium text-success">
+            <i class="fas fa-check-circle mr-2"></i>
+            {% trans "Routine completed!" %}
+        </p>
+    `;
+}
+
+// Toggle preview
+function togglePreview() {
+    const content = document.getElementById('preview-content');
+    const icon = document.getElementById('preview-icon');
+    
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.className = 'fas fa-chevron-up';
+    } else {
+        content.classList.add('hidden');
+        icon.className = 'fas fa-chevron-down';
+    }
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+    
+    switch(e.code) {
+        case 'Space':
+            e.preventDefault();
+            togglePlayPause();
+            break;
+        case 'ArrowLeft':
+            e.preventDefault();
+            prevLine();
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            nextLine();
+            break;
+        case 'Escape':
+            e.preventDefault();
+            stopRoutine();
+            break;
+    }
+});
+
+// Initialize
+initWebSocket();
+
+// Poll for status updates (fallback if WebSocket fails)
+setInterval(async function() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        try {
+            const response = await fetch('/plugins/edupi/routines/api/status/');
+            const data = await response.json();
+            if (data.success && data.has_active_session) {
+                updateUI(data.session);
+            }
+        } catch (error) {
+            // Silently ignore
+        }
+    }
+}, 1000);
+
+function updateUI(session) {
+    currentLineIndex = session.current_line_index;
+    isPlaying = session.status === 'playing';
+    isPaused = session.status === 'paused';
+    
+    updatePlayButton();
+    updateControls();
+    updateStatus(session.status);
+    
+    if (session.current_line) {
+        highlightLine(session.current_line_index, session.current_line);
+    }
+}
+</script>
+
+<style>
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}

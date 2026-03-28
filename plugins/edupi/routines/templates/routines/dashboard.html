@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold">{% trans "Routines" %}</h1>
+            <p class="text-gray-600 mt-2">
+                {% trans "Text-to-speech classroom routines for activities and transitions" %}
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'routines:category_list' %}" class="btn btn-outline">
+                <i class="fas fa-tags mr-2"></i>{% trans "Categories" %}
+            </a>
+            <a href="{% url 'routines:routine_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus mr-2"></i>{% trans "New Routine" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Session Status -->
+    {% if active_session %}
+    <div class="alert alert-info mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <span class="font-bold">{% trans "Active Routine:" %}</span>
+                {{ active_session.routine.title }}
+                <span class="badge badge-sm ml-2">{{ active_session.get_status_display }}</span>
+            </div>
+            <div class="flex gap-2">
+                <a href="{% url 'routines:routine_player' active_session.routine.id %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-play mr-1"></i>{% trans "Resume" %}
+                </a>
+                <button onclick="stopRoutine()" class="btn btn-sm btn-error">
+                    <i class="fas fa-stop mr-1"></i>{% trans "Stop" %}
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Presenter Status -->
+    <div class="card bg-base-200 mb-6">
+        <div class="card-body p-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-mouse-pointer text-gray-500"></i>
+                    <span class="text-sm text-gray-600">{% trans "USB Presenter:" %}</span>
+                    <span id="presenter-status" class="badge badge-ghost">
+                        {% trans "Checking..." %}
+                    </span>
+                </div>
+                <div class="text-xs text-gray-500">
+                    <span class="kbd kbd-sm">{% trans "Next" %}</span>
+                    <span class="kbd kbd-sm">{% trans "Prev" %}</span>
+                    <span class="kbd kbd-sm">{% trans "Play/Pause" %}</span>
+                    <span class="kbd kbd-sm">{% trans "Stop" %}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Routines by Category -->
+    {% if routines_by_category %}
+        {% for category, routines in routines_by_category.items %}
+        <div class="mb-8">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-4 h-4 rounded-full" style="background-color: {{ category.display_color }};"></div>
+                <h2 class="text-xl font-semibold">{{ category.name }}</h2>
+                {% if category.description %}
+                <span class="text-sm text-gray-500">- {{ category.description }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for routine in routines %}
+                <div class="card bg-base-100 shadow hover:shadow-lg transition-shadow">
+                    <div class="card-body p-4">
+                        <div class="flex justify-between items-start">
+                            <h3 class="card-title text-lg">{{ routine.title }}</h3>
+                            {% if routine.is_pre_built %}
+                            <span class="badge badge-sm badge-primary">{% trans "Built-in" %}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="text-sm text-gray-600 mt-2">
+                            <p>{{ routine.get_line_count }} {% trans "lines" %}</p>
+                            {% if routine.has_custom_audio %}
+                            <span class="badge badge-sm badge-success mt-1">
+                                <i class="fas fa-music mr-1"></i>{% trans "Audio file" %}
+                            </span>
+                            {% else %}
+                            <span class="badge badge-sm badge-info mt-1">
+                                <i class="fas fa-microphone mr-1"></i>{{ routine.get_tts_engine_display }}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="card-actions justify-end mt-4">
+                            <a href="{% url 'routines:routine_player' routine.id %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-play mr-1"></i>{% trans "Play" %}
+                            </a>
+                            {% if not routine.is_pre_built %}
+                            <a href="{% url 'routines:routine_update' routine.id %}" class="btn btn-ghost btn-sm">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-12">
+            <div class="text-6xl text-gray-300 mb-4">
+                <i class="fas fa-microphone-slash"></i>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">
+                {% trans "No Routines Yet" %}
+            </h3>
+            <p class="text-gray-500 mb-6">
+                {% trans "Create your first routine or wait for pre-built routines to load." %}
+            </p>
+            <a href="{% url 'routines:routine_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus mr-2"></i>{% trans "Create Routine" %}
+            </a>
+        </div>
+    {% endif %}
+
+    <!-- Uncategorized Routines -->
+    {% if uncategorized %}
+    <div class="mt-8">
+        <h2 class="text-xl font-semibold mb-4">{% trans "Uncategorized" %}</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for routine in uncategorized %}
+            <div class="card bg-base-100 shadow hover:shadow-lg transition-shadow">
+                <div class="card-body p-4">
+                    <h3 class="card-title text-lg">{{ routine.title }}</h3>
+                    <div class="text-sm text-gray-600 mt-2">
+                        {{ routine.get_line_count }} {% trans "lines" %}
+                    </div>
+                    <div class="card-actions justify-end mt-4">
+                        <a href="{% url 'routines:routine_player' routine.id %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-play mr-1"></i>{% trans "Play" %}
+                        </a>
+                        <a href="{% url 'routines:routine_update' routine.id %}" class="btn btn-ghost btn-sm">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Check presenter status
+async function checkPresenterStatus() {
+    try {
+        const response = await fetch('/plugins/edupi/routines/api/presenter-status/');
+        const data = await response.json();
+        
+        const statusEl = document.getElementById('presenter-status');
+        if (data.connected) {
+            statusEl.className = 'badge badge-success';
+            statusEl.textContent = data.device_name || '{% trans "Connected" %}';
+        } else if (data.available) {
+            statusEl.className = 'badge badge-warning';
+            statusEl.textContent = '{% trans "Disconnected" %}';
+        } else {
+            statusEl.className = 'badge badge-ghost';
+            statusEl.textContent = '{% trans "Not Available" %}';
+        }
+    } catch (error) {
+        console.error('Error checking presenter status:', error);
+    }
+}
+
+// Stop routine
+async function stopRoutine() {
+    try {
+        const response = await fetch('/plugins/edupi/routines/api/control/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ action: 'stop' })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || '{% trans "Error stopping routine" %}');
+        }
+    } catch (error) {
+        console.error('Error stopping routine:', error);
+    }
+}
+
+// Check status on load
+checkPresenterStatus();
+</script>
+{% endblock %}
