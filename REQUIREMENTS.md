@@ -348,6 +348,8 @@ Ready to write, nice and warm!"
 
 **Priority**: High
 
+**Status**: ✅ **COMPLETED**
+
 **User Stories**: 
 
 As a teacher, I want to see all settings in a Settings page. All the plugins should register settings 
@@ -361,10 +363,28 @@ As a teacher, I want to be able to change the robot's name, so I can adapt it to
 
 **Acceptance Criteria**:
 
-- [ ] Each plugin's registration class should expose a number of settings (if it has seettings) to the system
-- [ ] These settings will be displayed on the application main Settings page.
-- [ ] These settings will have custom keys, like `developer.plugin_name.setting_name` and can be read with a special model, which is defined at the plugin level (e.g. `[PluginName]Settings` or other unique class name) in the `plugin_settings.py` file.
-- [ ] Global settings and each plugin settings should be sepparated.
+- [x] Each plugin's registration class should expose a number of settings (if it has settings) to the system
+- [x] These settings will be displayed on the application main Settings page.
+- [x] These settings will have custom keys, like `tinko.global.setting_name` for global settings and `developer.plugin_name.setting_name` for plugin settings
+- [x] Settings can be read with a special model defined at the plugin level in the `plugin_settings.py` file
+- [x] Global settings and each plugin settings are separated in different tabs
+- [x] School name and logo can be configured in Global Settings
+- [x] Robot name can be customized in Global Settings
+- [x] Settings support nested sections using arrow notation (e.g., "Audio > TTS")
+- [x] Settings values are cached for performance with automatic cache invalidation
+- [x] Image uploads are automatically resized (max 400x400px) with thumbnails (200x200px)
+
+**Technical Implementation**:
+
+- **SiteSetting Model**: Stores global settings with namespace support (`tinko.global.*`)
+- **PluginSettings System**: OctoberCMS-inspired settings framework
+- **SettingsReader API**: `SiteSettings.get('tinko.global.school_name')` and `get_plugin_settings('edupi.routines')`
+- **Manual Form Classes**: Plugins define `SettingsForm` in `plugin_settings.py` with nested sections
+- **Settings Page**: `/settings/` with DaisyUI tabbed interface
+- **Image Processing**: Pillow-based resize and crop for school logo
+- **Auto-migration**: System automatically runs migrations on boot
+
+**Access**: http://localhost:8000/settings/
 
 
 ### Feature 7: Plugin System (OctoberCMS-style) ✅

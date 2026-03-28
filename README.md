@@ -22,6 +22,8 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
 - 🌍 **Multilingual**: English and Romanian support
 - 🎨 **Modern UI**: Clean, accessible interface for teachers
 - 🔍 **Auto-Discovery**: Plugins automatically discovered from `plugins/` directory
+- ⚙️ **Settings Area**: Centralized settings with global and plugin-specific configuration
+- 🏫 **Personalization**: Customizable school name, logo, and robot name
 
 ## ✨ Features
 
@@ -54,6 +56,7 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
 - [ ] **GPIO Explorer**: Interactive pin testing interface (planned)
 - [x] **Activity Timer**: Visual countdown with LED progress bar and configurable preset profiles
 - [x] **Routines**: Text-to-speech classroom routines with USB presenter control
+- [x] **Settings Area**: Centralized settings page with global and plugin-specific configuration
 
 #### Activity Timer Plugin ⏱️
 

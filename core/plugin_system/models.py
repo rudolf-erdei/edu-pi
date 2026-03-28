@@ -3,8 +3,14 @@ Django models for the plugin system.
 """
 
 import json
+import os
+from io import BytesIO
+
 from django.db import models
+from django.core.cache import cache
+from django.core.files.base import ContentFile
 from django.utils import timezone
+from PIL import Image
 
 
 class PluginStatus(models.Model):
@@ -200,3 +206,141 @@ class PluginDependency(models.Model):
     def __str__(self):
         optional = " (optional)" if self.is_optional else ""
         return f"{self.plugin.name} depends on {self.depends_on.name}{optional}"
+
+
+class SiteSetting(models.Model):
+    """
+    Stores global system settings with namespace support.
+
+    Keys use the format: tinko.global.<setting_name>
+    Example: tinko.global.school_name, tinko.global.robot_name
+    """
+
+    SETTING_TYPE_CHOICES = [
+        ("text", "Text"),
+        ("number", "Number"),
+        ("boolean", "Boolean"),
+        ("image", "Image"),
+        ("json", "JSON"),
+    ]
+
+    key = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text="Setting key (e.g., 'tinko.global.school_name')",
+    )
+
+    value = models.TextField(
+        blank=True,
+        help_text="Setting value (JSON encoded for non-text types)",
+    )
+
+    setting_type = models.CharField(
+        max_length=20,
+        choices=SETTING_TYPE_CHOICES,
+        default="text",
+        help_text="Data type of the setting",
+    )
+
+    label = models.CharField(
+        max_length=200,
+        help_text="Display label for the setting",
+    )
+
+    description = models.TextField(
+        blank=True,
+        help_text="Help text for this setting",
+    )
+
+    section = models.CharField(
+        max_length=100,
+        blank=True,
+        default="General",
+        help_text="Section/group for organizing settings (e.g., 'General > Display')",
+    )
+
+    is_system = models.BooleanField(
+        default=False,
+        help_text="System settings cannot be deleted",
+    )
+
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Display order within section",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Site Setting"
+        verbose_name_plural = "Site Settings"
+        ordering = ["section", "order", "key"]
+
+    def __str__(self):
+        return f"{self.key} = {self.get_display_value()}"
+
+    def get_display_value(self):
+        """Get a display-friendly value."""
+        if self.setting_type == "image":
+            return f"[Image] {self.value}" if self.value else "[No image]"
+        elif self.setting_type == "json":
+            return "[JSON data]"
+        elif len(str(self.value)) > 50:
+            return str(self.value)[:47] + "..."
+        return str(self.value)
+
+    def get_value(self):
+        """Get the setting value with proper type conversion."""
+        cache_key = f"site_setting:{self.key}"
+        cached_value = cache.get(cache_key)
+
+        if cached_value is not None:
+            return cached_value
+
+        if self.setting_type == "boolean":
+            result = self.value.lower() == "true"
+        elif self.setting_type == "number":
+            try:
+                result = float(self.value)
+                if result.is_integer():
+                    result = int(result)
+            except (ValueError, TypeError):
+                result = 0
+        elif self.setting_type == "json":
+            try:
+                result = json.loads(self.value) if self.value else {}
+            except json.JSONDecodeError:
+                result = {}
+        elif self.setting_type == "image":
+            result = self.value
+        else:
+            result = self.value
+
+        # Cache for 5 minutes
+        cache.set(cache_key, result, timeout=300)
+        return result
+
+    def set_value(self, value):
+        """Set the setting value with proper type conversion."""
+        if self.setting_type == "boolean":
+            self.value = "true" if value else "false"
+        elif self.setting_type == "json":
+            self.value = json.dumps(value)
+        else:
+            self.value = str(value) if value is not None else ""
+
+        # Invalidate cache
+        cache.delete(f"site_setting:{self.key}")
+
+    def save(self, *args, **kwargs):
+        """Save and invalidate cache."""
+        super().save(*args, **kwargs)
+        cache.delete(f"site_setting:{self.key}")
+
+    def delete(self, *args, **kwargs):
+        """Delete and invalidate cache."""
+        if self.is_system:
+            raise ValueError("Cannot delete system settings")
+        cache.delete(f"site_setting:{self.key}")
+        super().delete(*args, **kwargs)

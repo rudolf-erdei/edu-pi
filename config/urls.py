@@ -18,7 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
-from core.edupi_core.views import home_view
+from core.edupi_core.views import home_view, settings_view
 from core.plugin_system.views import (
     plugin_dashboard_view,
     enable_plugin_view,
@@ -44,6 +44,8 @@ urlpatterns = [
         disable_plugin_view,
         name="disable_plugin",
     ),
+    # Settings page
+    path("settings/", settings_view, name="settings"),
     # Django admin - catch-all must be last
     path("admin/", admin.site.urls),
 ]

@@ -1,0 +1,47 @@
+# Project Information
+site_name: Tinko Documentation # Change this to your robot's actual name
+site_description: Official documentation for the open-source educational robot.
+site_author: Erdei Rudolf/Holisun
+
+# Repository Integration (Shows a link to your GitHub in the top right)
+repo_name: rudolf-erdei/edu-pi
+repo_url: https://github.com/rudolf-erdei/edu-pi
+
+# Theme Configuration
+theme:
+  name: material
+  features:
+    - navigation.tabs # Creates top-level tabs for better organization
+    - navigation.top  # Adds a "back to top" button
+    - search.suggest  # Auto-suggests results as users type in the search bar
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+# Page Navigation Structure
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Overview: getting-started/overview.md
+    - Installation: getting-started/installation.md
+  - User Guide:
+    - Basic Usage: user-guide/usage.md
+    - Web Interface (Django): user-guide/django-interface.md
+  - Developer Guide:
+    - Hardware Setup (Raspberry Pi): developer/hardware.md
+    - Writing Plugins: developer/plugins.md
+    - Contributing: developer/contributing.md
