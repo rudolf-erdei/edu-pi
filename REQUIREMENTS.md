@@ -538,6 +538,7 @@ class Plugin(PluginBase):
 - Capacitive touch sensors (TTP223 modules)
 - LED strip (WS2812B) for timer
 - Buzzer module
+- **TFT LCD Display (2.8", ILI9341, SPI)** - Shows startup smiley face
 - Temperature/humidity sensor (DHT22)
 - Conductive materials (bananas, foil, copper tape)
 - USB wireless presenter (for Routines plugin)
@@ -545,20 +546,131 @@ class Plugin(PluginBase):
 ### GPIO Pin Assignments
 
 ```
-Pin 1 (3.3V): Power for sensors
-Pin 2 (5V): Power for LED strip
-Pin 6 (GND): Common ground
+# Power Pins
+Pin 1 (3.3V):     Power for sensors, LCD VCC
+Pin 2 (5V):       Power for LED strip
+Pin 6 (GND):      Common ground
+Pin 9 (GND):      Alternative ground
+Pin 17 (3.3V):    Alternative 3.3V power
+
+# Activity Timer - RGB LED
 Pin 11 (GPIO 17): RGB LED - Red
 Pin 13 (GPIO 27): RGB LED - Green
 Pin 15 (GPIO 22): RGB LED - Blue
-Pin 16 (GPIO 23): Touch sensor 1 / Piano key 1
-Pin 18 (GPIO 24): Touch sensor 2 / Piano key 2
-Pin 19 (GPIO 10): Touch sensor 3 / Piano key 3
-Pin 21 (GPIO 9): Touch sensor 4 / Piano key 4
-Pin 22 (GPIO 25): Touch sensor 5 / Piano key 5
-Pin 23 (GPIO 11): Touch sensor 6 / Piano key 6
-Pin 24 (GPIO 8): Buzzer / Additional output
+Pin 5  (GPIO 3):  Buzzer (optional)
+
+# Noise Monitor - 2x RGB LEDs
+Pin 29 (GPIO 5):  Instant LED - Red
+Pin 31 (GPIO 6):  Instant LED - Green
+Pin 33 (GPIO 13): Instant LED - Blue
+Pin 35 (GPIO 19): Session LED - Red
+Pin 37 (GPIO 26): Session LED - Green
+Pin 36 (GPIO 16): Session LED - Blue
+
+# Touch Piano - 6 capacitive keys
+Pin 7  (GPIO 4):  Piano key 1 (C/Do)
+Pin 26 (GPIO 7):  Piano key 2 (D/Re)
+Pin 38 (GPIO 20): Piano key 3 (E/Mi)
+Pin 40 (GPIO 21): Piano key 4 (F/Fa)
+Pin 32 (GPIO 12): Piano key 5 (G/Sol)
+Pin 3  (GPIO 2):  Piano key 6 (A/La)
+
+# LCD Display (ILI9341 TFT LCD) - Hardware SPI
+Pin 24 (GPIO 8):  SPI Chip Select (CE0)
+Pin 16 (GPIO 23): Data/Command (DC)
+Pin 22 (GPIO 25): Reset (RST)
+Pin 12 (GPIO 18): Backlight (BL) - PWM
+Pin 19 (GPIO 10): SPI MOSI (hardware)
+Pin 21 (GPIO 9):  SPI MISO (hardware)
+Pin 23 (GPIO 11): SPI SCLK (hardware)
 ```
+
+### TFT LCD Display Wiring (ILITek ILI9341)
+
+| TFT LCD Pin | RPi Physical Pin | RPi GPIO | Function |
+|-------------|------------------|----------|----------|
+| VCC | Pin 1 or 17 | - | 3.3V Power |
+| GND | Pin 6 or 9 | - | Ground |
+| CS | Pin 24 | GPIO 8 | SPI Chip Select (CE0) |
+| RST | Pin 22 | GPIO 25 | Reset signal |
+| DC | Pin 16 | GPIO 23 | Data/Command |
+| MOSI | Pin 19 | GPIO 10 | SPI Data In |
+| SCK | Pin 23 | GPIO 11 | SPI Clock |
+| LED/BL | Pin 12 | GPIO 18 | Backlight (PWM capable) |
+| MISO | Pin 21 | GPIO 9 | SPI Data Out (optional) |
+
+**Note**: SPI pins (9, 10, 11) are hardware-defined and cannot be changed. When using LCD Display plugin, Touch Piano cannot run simultaneously as it also requires SPI pins.
+
+### Pin Conflict Resolution
+
+When using the LCD Display plugin, avoid running these plugins simultaneously:
+- **Touch Piano**: Shares SPI pins (9, 10, 11) - disable Touch Piano when using LCD
+- **Activity Timer**: Buzzer moved to GPIO 3 (Pin 5)
+- **Noise Monitor**: No conflicts with LCD pins
+
+Disable conflicting plugins in the admin panel when using specific hardware combinations.
+
+### LCD Display Plugin Feature
+
+**Priority**: High
+
+**Status**: ✅ **COMPLETED**
+
+**User Story**: As a teacher, I want a TFT LCD display that shows a friendly smiling face when the system starts, so that the robot feels welcoming and personable to students.
+
+**Acceptance Criteria:**
+- [x] SPI TFT LCD support (2.8", 320x240, ILI9341 driver)
+- [x] Display smiling face (eyes and mouth) on startup
+- [x] Full-screen display with black background and white graphics
+- [x] Simple, friendly design suitable for children
+- [x] Web-based controls to show/hide smiley, display text, clear screen
+- [x] Backlight brightness control via web interface
+- [x] Mock mode for development on non-Pi systems
+
+**Technical Implementation:**
+- Uses luma.lcd library for ILI9341 driver
+- Hardware SPI for reliable communication (GPIO 9, 10, 11)
+- PWM backlight control (GPIO 18)
+- Software drawing using Pillow for smiley face
+- Singleton LCD service pattern (consistent with other plugins)
+- Web interface with DaisyUI for controls
+
+**LCD Service Features:**
+- Initialize display with configurable rotation (0°, 90°, 180°, 270°)
+- Show smiley face with simple eye and mouth graphics
+- Display custom text with auto-centering
+- Display custom images (resized to fit screen)
+- Adjustable backlight brightness (0-100%)
+- Clear screen (fill with black)
+- Automatic resource cleanup on shutdown
+
+**GPIO Pins Used:**
+- GPIO 8 (Pin 24): SPI Chip Select (CE0) - configurable
+- GPIO 10 (Pin 19): SPI MOSI (hardware) - fixed
+- GPIO 9 (Pin 21): SPI MISO (hardware) - fixed
+- GPIO 11 (Pin 23): SPI SCLK (hardware) - fixed
+- GPIO 23 (Pin 16): Data/Command (DC) - configurable
+- GPIO 25 (Pin 22): Reset (RST) - configurable
+- GPIO 18 (Pin 12): Backlight (BL) - PWM capable
+
+**Access URLs:**
+- Dashboard: `/plugins/edupi/lcd_display/`
+- API Endpoints:
+  - `POST /plugins/edupi/lcd_display/api/show-smile/` - Display smiley face
+  - `POST /plugins/edupi/lcd_display/api/show-text/` - Display text
+  - `POST /plugins/edupi/lcd_display/api/clear/` - Clear screen
+  - `POST /plugins/edupi/lcd_display/api/set-backlight/` - Set brightness
+
+**Dependencies:**
+- `luma.core>=2.4.0`
+- `luma.lcd>=2.11.0`
+- Install with: `uv sync --extra pi`
+
+**Hardware Notes:**
+- Display must be wired according to SPI wiring table above
+- SPI interface must be enabled in Raspberry Pi config
+- Backlight can be connected to GPIO 18 for PWM brightness control
+- Alternative: Connect backlight to 3.3V for always-on
 
 ## User Stories
 

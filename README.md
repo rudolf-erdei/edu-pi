@@ -57,6 +57,7 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
 - [x] **Activity Timer**: Visual countdown with LED progress bar and configurable preset profiles
 - [x] **Routines**: Text-to-speech classroom routines with USB presenter control
 - [x] **Settings Area**: Centralized settings page with global and plugin-specific configuration
+- [x] **LCD Display**: SPI TFT LCD support (ILI9341) with startup smiley face
 
 #### Activity Timer Plugin ⏱️
 
@@ -174,6 +175,20 @@ Real-time classroom noise visualization with dual RGB LED feedback:
 **Access**: http://localhost:8000/plugins/edupi/noise_monitor/
 
 **WebSocket**: `ws://localhost:8000/ws/noise-monitor/`
+
+#### LCD Display Plugin 📺
+
+SPI TFT LCD display support for ILI9341-based screens with startup smiley face:
+
+- **Display Support**: 2.8" ILI9341 TFT LCD (320x240) with SPI interface
+- **Startup Animation**: Shows smiling face on boot with simple eyes and mouth
+- **Web Controls**: Display text, show smiley, clear screen via web interface
+- **Backlight Control**: Adjustable brightness (0-100%) with PWM
+- **Hardware SPI**: Uses hardware SPI pins (GPIO 9, 10, 11) for reliability
+- **Pin Configuration**: Configurable DC, RST, and CS pins via settings
+- **Mock Mode**: Works without actual display on non-Pi systems for development
+
+**Access**: http://localhost:8000/plugins/edupi/lcd_display/
 
 #### Frontend
 
@@ -671,6 +686,7 @@ except ImportError:
 - Capacitive touch sensors (TTP223)
 - LED strip (WS2812B)
 - Buzzer module
+- **TFT LCD Display (2.8", ILI9341)** - SPI display for smiley face and text
 - Temperature/humidity sensor (DHT22)
 - Conductive materials (bananas, foil, copper tape)
 - USB wireless presenter (for Routines plugin)
@@ -678,20 +694,69 @@ except ImportError:
 ### GPIO Pin Assignments
 
 ```
-Pin 1 (3.3V):     Power for sensors
+# Power Pins
+Pin 1 (3.3V):     Power for sensors, LCD VCC
 Pin 2 (5V):       Power for LED strip
 Pin 6 (GND):      Common ground
+Pin 9 (GND):      Alternative ground
+Pin 17 (3.3V):    Alternative 3.3V power
+
+# Activity Timer - RGB LED
 Pin 11 (GPIO 17): RGB LED - Red
 Pin 13 (GPIO 27): RGB LED - Green
 Pin 15 (GPIO 22): RGB LED - Blue
-Pin 16 (GPIO 23): Touch sensor 1 / Piano key 1
-Pin 18 (GPIO 24): Touch sensor 2 / Piano key 2
-Pin 19 (GPIO 10): Touch sensor 3 / Piano key 3
-Pin 21 (GPIO 9):  Touch sensor 4 / Piano key 4
-Pin 22 (GPIO 25): Touch sensor 5 / Piano key 5
-Pin 23 (GPIO 11): Touch sensor 6 / Piano key 6
-Pin 24 (GPIO 8):  Buzzer / Additional output
+Pin 5  (GPIO 3):  Buzzer (optional)
+
+# Noise Monitor - 2x RGB LEDs
+Pin 29 (GPIO 5):  Instant LED - Red
+Pin 31 (GPIO 6):  Instant LED - Green
+Pin 33 (GPIO 13): Instant LED - Blue
+Pin 35 (GPIO 19): Session LED - Red
+Pin 37 (GPIO 26): Session LED - Green
+Pin 36 (GPIO 16): Session LED - Blue
+
+# Touch Piano - 6 capacitive keys
+Pin 7  (GPIO 4):  Piano key 1 (C/Do)
+Pin 26 (GPIO 7):  Piano key 2 (D/Re)
+Pin 38 (GPIO 20): Piano key 3 (E/Mi)
+Pin 40 (GPIO 21): Piano key 4 (F/Fa)
+Pin 32 (GPIO 12): Piano key 5 (G/Sol)
+Pin 3  (GPIO 2):  Piano key 6 (A/La)
+
+# LCD Display (ILI9341 TFT LCD) - Hardware SPI
+Pin 24 (GPIO 8):  SPI Chip Select (CE0)
+Pin 16 (GPIO 23): Data/Command (DC)
+Pin 22 (GPIO 25): Reset (RST)
+Pin 12 (GPIO 18): Backlight (BL) - PWM
+Pin 19 (GPIO 10): SPI MOSI (hardware)
+Pin 21 (GPIO 9):  SPI MISO (hardware)
+Pin 23 (GPIO 11): SPI SCLK (hardware)
 ```
+
+### TFT LCD Display Wiring (ILITek ILI9341)
+
+| TFT LCD Pin | RPi Physical Pin | RPi GPIO | Function |
+|-------------|------------------|----------|----------|
+| VCC | Pin 1 or 17 | - | 3.3V Power |
+| GND | Pin 6 or 9 | - | Ground |
+| CS | Pin 24 | GPIO 8 | SPI Chip Select (CE0) |
+| RST | Pin 22 | GPIO 25 | Reset signal |
+| DC | Pin 16 | GPIO 23 | Data/Command |
+| MOSI | Pin 19 | GPIO 10 | SPI Data In |
+| SCK | Pin 23 | GPIO 11 | SPI Clock |
+| LED/BL | Pin 12 | GPIO 18 | Backlight (PWM capable) |
+| MISO | Pin 21 | GPIO 9 | SPI Data Out (optional) |
+
+**Note**: SPI pins (9, 10, 11) are hardware-defined and cannot be changed. Other pins can be reassigned but must avoid conflicts with other plugins.
+
+### Pin Conflict Resolution
+
+When using the LCD Display plugin, avoid running these plugins simultaneously:
+- **Touch Piano**: Shares SPI pins (9, 10, 11) - disable Touch Piano when using LCD
+- **Activity Timer**: Buzzer moved to GPIO 3 (Pin 5)
+- **Noise Monitor**: No conflicts with LCD pins
+
+Disable conflicting plugins in the admin panel when using specific hardware combinations.
 
 ## 📚 Documentation
 

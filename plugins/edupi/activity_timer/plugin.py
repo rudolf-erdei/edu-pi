@@ -39,9 +39,10 @@ class Plugin(PluginBase):
         )
 
         # Register GPIO pin for buzzer (optional)
+        # Moved from GPIO 24 to GPIO 3 to avoid conflict with LCD display
         self.register_gpio_pins(
             {
-                "buzzer": 24,  # Pin 18
+                "buzzer": 3,  # Pin 5
             }
         )
 

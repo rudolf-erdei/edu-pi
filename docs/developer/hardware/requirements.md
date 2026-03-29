@@ -212,10 +212,52 @@ Features:
 
 For local display on the Pi:
 
-- 2.8" IPS LCD (240x320)
-- Touch screen optional
-- SPI interface
-- Example: ILI9341-based screens
+- **2.8" TFT LCD** (320x240 resolution)
+- **Driver**: ILI9341 (very common and well-supported)
+- **Interface**: SPI (4-wire: MOSI, SCLK, CS, DC)
+- **Touch**: Optional (not used in Tinko)
+- **Backlight**: Can be controlled via GPIO 18 (PWM) or always-on via 3.3V
+
+**Wiring for ILI9341 Display:**
+
+| LCD Pin | RPi Physical Pin | RPi GPIO | Function |
+|---------|------------------|----------|----------|
+| VCC | Pin 1 or 17 | - | 3.3V Power |
+| GND | Pin 6 or 9 | - | Ground |
+| CS | Pin 24 | GPIO 8 | SPI Chip Select (CE0) |
+| RST | Pin 22 | GPIO 25 | Reset signal |
+| DC | Pin 16 | GPIO 23 | Data/Command |
+| MOSI | Pin 19 | GPIO 10 | SPI Data In (hardware) |
+| SCK | Pin 23 | GPIO 11 | SPI Clock (hardware) |
+| LED/BL | Pin 12 | GPIO 18 | Backlight (PWM capable) |
+| MISO | Pin 21 | GPIO 9 | SPI Data Out (optional, read-only) |
+
+**Important Notes:**
+
+1. **Hardware SPI**: Pins 19 (MOSI), 21 (MISO), and 23 (SCLK) are hardware SPI pins and cannot be changed
+2. **SPI CE0**: GPIO 8 (Pin 24) is Chip Select 0 - used by default
+3. **Configurable pins**: DC (GPIO 23), RST (GPIO 25), and BL (GPIO 18) can be changed but must not conflict with other plugins
+4. **Touch Piano conflict**: Cannot use Touch Piano and LCD Display simultaneously (both use hardware SPI)
+5. **Display startup**: Shows a smiling face (simple eyes and mouth) on black background when app starts
+
+**Pin Conflicts:**
+- **Touch Piano**: Shares SPI pins - disable Touch Piano when using LCD
+- **Activity Timer**: Buzzer moved to GPIO 3 (Pin 5) to avoid conflict with LCD
+- **Noise Monitor**: No conflicts with LCD
+
+**Required Libraries:**
+- `luma.core>=2.4.0` - Core display framework
+- `luma.lcd>=2.11.0` - ILI9341 driver support
+
+**Installation:**
+```bash
+uv sync --extra pi  # Installs LCD libraries along with Pi-specific dependencies
+```
+
+**Where to Buy:**
+- [Optimus Digital (RO)](https://www.optimusdigital.ro/ro/optoelectronice-lcd-uri/12652-modul-ecran-2-ips-lcd-240x320.html)
+- [eMAG (RO)](https://www.emag.ro/display-tactil-tft-lcd-2-8-inch-320x240-touchscreen-spi-driver-ili9341-arduino-rx961/pd/DSFJ88YBM/)
+- Any ILI9341-based 2.8" SPI display will work
 
 ## GPIO Components Summary
 
@@ -223,7 +265,7 @@ For local display on the Pi:
 
 #### Activity Timer
 - 1x RGB LED (pins 17, 27, 22)
-- 1x Buzzer (pin 24) - Optional
+- 1x Buzzer (pin 5 / GPIO 3) - Optional
 
 #### Noise Monitor
 - 2x RGB LED (pins 5, 6, 13 and 19, 26, 16)
@@ -234,8 +276,13 @@ For local display on the Pi:
 - 1x USB Presenter - Optional
 
 #### Touch Piano
-- 6x Touch inputs (pins 23, 24, 10, 9, 25, 11)
+- 6x Touch inputs (pins 7, 26, 38, 40, 32, 3 / GPIO 4, 7, 20, 21, 12, 2)
 - 1x Speaker/Headphones
+
+#### LCD Display
+- 1x 2.8" TFT LCD with ILI9341 driver (320x240, SPI interface)
+- Pins: 16, 22, 24 (GPIO 23, 25, 8) + Hardware SPI (GPIO 9, 10, 11) + Backlight (GPIO 18)
+- Shows smiling face on startup with simple eyes and mouth
 
 ## Shopping List
 

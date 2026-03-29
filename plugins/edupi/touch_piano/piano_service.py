@@ -95,46 +95,47 @@ NOTE_FREQUENCIES = {
 }
 
 # Default piano key mapping
+# Pins updated to avoid SPI display conflicts (GPIO 8, 9, 10, 11 used by display)
 DEFAULT_KEY_MAPPING = {
     1: {
         "note": "C4",
         "frequency": 261.63,
-        "gpio_pin": 23,
+        "gpio_pin": 4,
         "label": "Do",
         "color": "#FF6B6B",
     },
     2: {
         "note": "D4",
         "frequency": 293.66,
-        "gpio_pin": 24,
+        "gpio_pin": 7,
         "label": "Re",
         "color": "#4ECDC4",
     },
     3: {
         "note": "E4",
         "frequency": 329.63,
-        "gpio_pin": 10,
+        "gpio_pin": 20,
         "label": "Mi",
         "color": "#45B7D1",
     },
     4: {
         "note": "F4",
         "frequency": 349.23,
-        "gpio_pin": 9,
+        "gpio_pin": 21,
         "label": "Fa",
         "color": "#96CEB4",
     },
     5: {
         "note": "G4",
         "frequency": 392.00,
-        "gpio_pin": 25,
+        "gpio_pin": 12,
         "label": "Sol",
         "color": "#FFEAA7",
     },
     6: {
         "note": "A4",
         "frequency": 440.00,
-        "gpio_pin": 11,
+        "gpio_pin": 2,
         "label": "La",
         "color": "#DDA0DD",
     },

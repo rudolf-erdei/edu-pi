@@ -33,14 +33,15 @@ class Plugin(PluginBase):
 
         # Register GPIO pins for 6 piano keys
         # Using capacitive touch sensing with pull-up resistors
+        # Pins updated to avoid SPI display conflicts (GPIO 8, 9, 10, 11 used by display)
         self.register_gpio_pins(
             {
-                "key_1": 23,  # Pin 16 - Note C
-                "key_2": 24,  # Pin 18 - Note D
-                "key_3": 10,  # Pin 19 - Note E
-                "key_4": 9,  # Pin 21 - Note F
-                "key_5": 25,  # Pin 22 - Note G
-                "key_6": 11,  # Pin 23 - Note A
+                "key_1": 4,  # Pin 7 - Note C
+                "key_2": 7,  # Pin 26 - Note D
+                "key_3": 20,  # Pin 38 - Note E
+                "key_4": 21,  # Pin 40 - Note F
+                "key_5": 12,  # Pin 32 - Note G
+                "key_6": 2,  # Pin 3 - Note A
             }
         )
 

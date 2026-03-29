@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "LCD Display" %} - Tinko{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-4">
+      <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+        <i class="fas fa-tv text-3xl text-primary"></i>
+      </div>
+      <div>
+        <h1 class="text-3xl font-bold">{% trans "LCD Display" %}</h1>
+        <p class="text-base-content/60">{% trans "Control your SPI TFT LCD display" %}</p>
+      </div>
+    </div>
+    <div class="badge badge-lg {% if is_initialized %}badge-success{% else %}badge-ghost{% endif %}">
+      {% if is_initialized %}
+        {% trans "Connected" %}
+      {% else %}
+        {% trans "Disconnected" %}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Display Info Card -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <h2 class="card-title">{% trans "Display Information" %}</h2>
+      <div class="grid grid-cols-2 gap-4 mt-4">
+        <div class="stat bg-base-200 rounded-lg p-4">
+          <div class="stat-title">{% trans "Resolution" %}</div>
+          <div class="stat-value text-2xl">{{ resolution.0 }}x{{ resolution.1 }}</div>
+          <div class="stat-desc">{% trans "pixels" %}</div>
+        </div>
+        <div class="stat bg-base-200 rounded-lg p-4">
+          <div class="stat-title">{% trans "Display Type" %}</div>
+          <div class="stat-value text-2xl">ILI9341</div>
+          <div class="stat-desc">{% trans "SPI TFT LCD" %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Control Buttons -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <h2 class="card-title">{% trans "Quick Controls" %}</h2>
+      <div class="flex flex-wrap gap-3 mt-4">
+        <button onclick="showSmile()" class="btn btn-primary btn-lg">
+          <i class="fas fa-smile mr-2"></i>
+          {% trans "Show Smiley" %}
+        </button>
+        <button onclick="clearScreen()" class="btn btn-ghost btn-lg">
+          <i class="fas fa-eraser mr-2"></i>
+          {% trans "Clear Screen" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Text Display Form -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <h2 class="card-title">{% trans "Display Text" %}</h2>
+      <form id="textForm" class="mt-4">
+        {% csrf_token %}
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">{% trans "Enter text to display:" %}</span>
+          </label>
+          {{ text_form.text }}
+        </div>
+        <div class="mt-4">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-font mr-2"></i>
+            {% trans "Display Text" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Backlight Control -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <h2 class="card-title">{% trans "Backlight Control" %}</h2>
+      <div class="form-control mt-4">
+        <label class="label">
+          <span class="label-text">{% trans "Brightness:" %}</span>
+          <span class="label-text-alt" id="brightnessValue">{{ config.backlight }}%</span>
+        </label>
+        <input type="range" id="backlightSlider" min="0" max="100" value="{{ config.backlight }}" 
+                class="range range-primary" onchange="updateBacklight(this.value)">
+        <div class="flex justify-between text-xs mt-2 text-base-content/50">
+          <span>{% trans "Off" %}</span>
+          <span>{% trans "100%" %}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuration Form -->
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <h2 class="card-title">{% trans "Display Settings" %}</h2>
+      <form method="post" action="" class="mt-4">
+        {% csrf_token %}
+        {{ config_form.as_p }}
+        <div class="card-actions justify-end mt-4">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save mr-2"></i>
+            {% trans "Save Settings" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast toast-end hidden">
+  <div class="alert alert-success">
+    <span id="toastMessage"></span>
+  </div>
+</div>
+
+<script>
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    const alert = toast.querySelector('.alert');
+    
+    toastMessage.textContent = message;
+    alert.className = `alert alert-${type}`;
+    toast.classList.remove('hidden');
+    
+    setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 3000);
+  }
+
+  function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+  }
+
+  function showSmile() {
+    fetch('/plugins/edupi/lcd_display/api/show-smile/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCsrfToken(),
+      },
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message);
+      } else {
+        showToast(data.error || 'Error', 'error');
+      }
+    })
+    .catch(error => {
+      showToast('Error: ' + error, 'error');
+    });
+  }
+
+  function clearScreen() {
+    fetch('/plugins/edupi/lcd_display/api/clear/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCsrfToken(),
+      },
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message);
+      } else {
+        showToast(data.error || 'Error', 'error');
+      }
+    })
+    .catch(error => {
+      showToast('Error: ' + error, 'error');
+    });
+  }
+
+  function updateBacklight(value) {
+    document.getElementById('brightnessValue').textContent = value + '%';
+    
+    const formData = new FormData();
+    formData.append('brightness', value);
+    
+    fetch('/plugins/edupi/lcd_display/api/set-backlight/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCsrfToken(),
+      },
+      body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message);
+      } else {
+        showToast(data.error || 'Error', 'error');
+      }
+    })
+    .catch(error => {
+      showToast('Error: ' + error, 'error');
+    });
+  }
+
+  document.getElementById('textForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/plugins/edupi/lcd_display/api/show-text/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCsrfToken(),
+      },
+      body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message);
+        document.getElementById('textForm').reset();
+      } else {
+        showToast(data.error || 'Error', 'error');
+      }
+    })
+    .catch(error => {
+      showToast('Error: ' + error, 'error');
+    });
+  });
+</script>
+{% endblock %}
