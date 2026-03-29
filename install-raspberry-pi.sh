@@ -95,6 +95,7 @@ update_system() {
 install_system_deps() {
     log_info "Installing system dependencies..."
     
+    # Install packages that are typically available
     sudo apt-get install -y \
         git \
         python3 \
@@ -102,7 +103,6 @@ install_system_deps() {
         python3-venv \
         python3-dev \
         libportaudio2 \
-        libatlas-base-dev \
         libsdl2-dev \
         libsdl2-mixer-2.0-0 \
         portaudio19-dev \
@@ -122,7 +122,15 @@ install_system_deps() {
         libharfbuzz-dev \
         libfribidi-dev \
         wireless-tools \
-        alsa-utils
+        alsa-utils || true
+    
+    # Try to install optional packages (some may not be available on certain systems)
+    log_info "Attempting to install optional packages..."
+    
+    # libatlas-base-dev is optional (for NumPy optimization, but not required)
+    sudo apt-get install -y libatlas-base-dev 2>/dev/null || {
+        log_warning "libatlas-base-dev not available (optional package, continuing...)"
+    }
     
     log_success "System dependencies installed"
 }
