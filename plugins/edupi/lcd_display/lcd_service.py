@@ -1,6 +1,6 @@
 """LCD service for LCD Display plugin.
 
-Manages SPI communication with ILI9341 TFT LCD display
+Manages SPI communication with ILI9341 TFT LCD display using Adafruit libraries.
 and handles drawing operations including the startup smiley face.
 """
 
@@ -8,44 +8,63 @@ import logging
 import threading
 import time
 from typing import Optional, Tuple
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 logger = logging.getLogger(__name__)
 
-# Try to import luma libraries for LCD control
+# Try to import Adafruit libraries for LCD control
 try:
-    from luma.core.interface.serial import spi
-    from luma.core.render import canvas
-    from luma.lcd.device import ili9341
+    import digitalio
+    import board
+    import adafruit_rgb_display.ili9341 as ili9341
     from gpiozero import PWMLED
 
     LCD_AVAILABLE = True
-except ImportError:
+    logger.info("Adafruit LCD libraries loaded successfully")
+except ImportError as e:
+    logger.warning(f"LCD libraries not available: {e}")
     LCD_AVAILABLE = False
 
     # Mock classes for development
-    class MockSPIDevice:
-        """Mock SPI device for development on non-Pi systems."""
+    class MockDigitalInOut:
+        """Mock digital input/output for development."""
 
-        def __init__(self, port, device, gpio_DC, gpio_RST):
-            self.port = port
-            self.device = device
-            self.gpio_DC = gpio_DC
-            self.gpio_RST = gpio_RST
-            logger.info(f"Mock SPI device initialized (port={port}, device={device})")
+        def __init__(self, pin):
+            self.pin = pin
+            self.value = False
+            logger.info(f"Mock DigitalInOut initialized on pin {pin}")
+
+    class MockSPI:
+        """Mock SPI bus for development."""
+
+        def __init__(self):
+            logger.info("Mock SPI bus initialized")
+
+    class MockBoard:
+        """Mock board pins."""
+
+        D22 = 22
+        D23 = 23
+        D24 = 24
+        SPI = MockSPI()
 
     class MockILI9341:
         """Mock ILI9341 device for development."""
 
-        def __init__(self, serial_interface, width=320, height=240, rotate=0):
-            self.serial_interface = serial_interface
-            self.width = width
-            self.height = height
-            self.rotate = rotate
-            self.backlight = None
-            logger.info(f"Mock ILI9341 display initialized ({width}x{height})")
+        def __init__(self, spi, rotation, cs, dc, rst, baudrate):
+            self.spi = spi
+            self.rotation = rotation
+            self.cs = cs
+            self.dc = dc
+            self.rst = rst
+            self.baudrate = baudrate
+            self.width = 240
+            self.height = 320
+            logger.info(
+                f"Mock ILI9341 display initialized ({self.width}x{self.height})"
+            )
 
-        def display(self, image):
+        def image(self, img):
             logger.debug("Mock display updated")
 
         def cleanup(self):
@@ -71,9 +90,9 @@ except ImportError:
         def close(self):
             logger.info(f"Mock backlight on pin {self.pin} closed")
 
-    spi = MockSPIDevice
+    digitalio = None
+    board = MockBoard()
     ili9341 = MockILI9341
-    canvas = None
     PWMLED = MockPWMLED
 
 
@@ -89,16 +108,15 @@ class LCDService:
     _lock = threading.Lock()
 
     # Display dimensions (240x320 portrait by default for ILI9341)
-    # Note: ILI9341 is natively 240x320, rotation 0 = portrait
     DEFAULT_WIDTH = 240
     DEFAULT_HEIGHT = 320
 
-    # Pin assignments
+    # Pin assignments (using your working configuration)
     DEFAULT_PINS = {
-        "cs": 8,  # GPIO 8 - SPI Chip Select (CE0)
-        "dc": 23,  # GPIO 23 - Data/Command
-        "rst": 25,  # GPIO 25 - Reset
-        "bl": 18,  # GPIO 18 - Backlight (PWM)
+        "cs": 22,  # GPIO 22 - Pin 15 (was Pin 24/GPIO 8)
+        "dc": 24,  # GPIO 24 - Pin 18
+        "rst": 23,  # GPIO 23 - Pin 16
+        "bl": 18,  # GPIO 18 - Pin 12 - Backlight (PWM capable)
     }
 
     def __new__(cls):
@@ -117,11 +135,14 @@ class LCDService:
 
         self._initialized = True
         self._device = None
-        self._serial = None
+        self._cs_pin = None
+        self._dc_pin = None
+        self._rst_pin = None
+        self._spi = None
         self._backlight = None
         self._width = self.DEFAULT_WIDTH
         self._height = self.DEFAULT_HEIGHT
-        self._rotation = 0
+        self._rotation = 90  # Default to landscape mode
         self._is_initialized = False
         self._pins = self.DEFAULT_PINS.copy()
 
@@ -129,7 +150,7 @@ class LCDService:
 
     def initialize(
         self,
-        rotation: int = 0,
+        rotation: int = 90,
         backlight: int = 100,
         contrast: float = 1.0,
         pins: Optional[dict] = None,
@@ -173,37 +194,49 @@ class LCDService:
         try:
             logger.info(f"Initializing LCD with pins: {self._pins}")
 
-            # Initialize SPI interface
-            logger.debug("Creating SPI interface...")
-            self._serial = spi(
-                port=0,
-                device=0,
-                gpio_DC=self._pins["dc"],
-                gpio_RST=self._pins["rst"],
+            # Setup GPIO pins using digitalio
+            logger.debug("Setting up GPIO pins...")
+            self._cs_pin = digitalio.DigitalInOut(
+                getattr(board, f"D{self._pins['cs']}")
             )
-            logger.debug("SPI interface created successfully")
+            self._dc_pin = digitalio.DigitalInOut(
+                getattr(board, f"D{self._pins['dc']}")
+            )
+            self._rst_pin = digitalio.DigitalInOut(
+                getattr(board, f"D{self._pins['rst']}")
+            )
+            logger.debug("GPIO pins setup complete")
+
+            # Initialize SPI bus
+            logger.debug("Initializing SPI bus...")
+            self._spi = board.SPI()
+            logger.debug("SPI bus initialized")
 
             # Initialize ILI9341 device
             logger.debug("Creating ILI9341 device...")
-            self._device = ili9341(
-                self._serial,
-                width=self._width,
-                height=self._height,
-                rotate=rotation,
+            self._device = ili9341.ILI9341(
+                self._spi,
+                rotation=rotation,
+                cs=self._cs_pin,
+                dc=self._dc_pin,
+                rst=self._rst_pin,
+                baudrate=16000000,  # 16MHz baudrate
             )
             logger.debug("ILI9341 device created successfully")
 
-            # Small delay to let display stabilize
-            time.sleep(0.5)
+            # Update dimensions based on rotation
+            if rotation in [0, 180]:
+                self._width = 240
+                self._height = 320
+            else:
+                self._width = 320
+                self._height = 240
 
             # Initialize backlight with PWM
             logger.debug(f"Initializing backlight on GPIO {self._pins['bl']}...")
             self._backlight = PWMLED(self._pins["bl"])
             self.set_backlight(backlight)
             logger.debug("Backlight initialized successfully")
-
-            # Small delay
-            time.sleep(0.2)
 
             self._rotation = rotation
             self._is_initialized = True
@@ -213,19 +246,7 @@ class LCDService:
             # Clear screen first to ensure display is ready
             logger.debug("Clearing screen...")
             self.clear_screen()
-            time.sleep(0.2)  # Small delay to ensure display is ready
-
-            # Test display with colors to verify it's working
-            logger.debug("Testing display colors...")
-            test_colors = ["red", "green", "blue"]
-            for color in test_colors:
-                test_img = Image.new("RGB", (self._width, self._height), color)
-                self._device.display(test_img)
-                time.sleep(0.3)
-
-            # Clear to black
-            self.clear_screen()
-            time.sleep(0.1)
+            time.sleep(0.2)
 
             # Show startup smiley face
             logger.debug("About to show smiley face...")
@@ -239,12 +260,17 @@ class LCDService:
 
     def _setup_mock_device(self, rotation: int, backlight: int):
         """Setup mock device for development."""
-        self._serial = spi(0, 0, self._pins["dc"], self._pins["rst"])
-        self._device = ili9341(
-            self._serial,
-            width=self._width,
-            height=self._height,
-            rotate=rotation,
+        self._cs_pin = digitalio.DigitalInOut(board.D22)
+        self._dc_pin = digitalio.DigitalInOut(board.D24)
+        self._rst_pin = digitalio.DigitalInOut(board.D23)
+        self._spi = board.SPI()
+        self._device = ili9341.ILI9341(
+            self._spi,
+            rotation=rotation,
+            cs=self._cs_pin,
+            dc=self._dc_pin,
+            rst=self._rst_pin,
+            baudrate=16000000,
         )
         self._backlight = PWMLED(self._pins["bl"])
         self.set_backlight(backlight)
@@ -287,35 +313,14 @@ class LCDService:
             draw = ImageDraw.Draw(img)
             logger.debug(f"Image created: {self._width}x{self._height}")
 
-            # First test: Fill with red to see if display works
-            logger.debug("Testing display with red fill...")
-            test_img = Image.new("RGB", (self._width, self._height), "red")
-            self._device.display(test_img)
-            logger.debug("Red screen displayed")
-            time.sleep(0.5)  # Brief pause
-
-            # Test with green
-            logger.debug("Testing display with green fill...")
-            test_img2 = Image.new("RGB", (self._width, self._height), "green")
-            self._device.display(test_img2)
-            logger.debug("Green screen displayed")
-            time.sleep(0.5)  # Brief pause
-
-            # Test with blue
-            logger.debug("Testing display with blue fill...")
-            test_img3 = Image.new("RGB", (self._width, self._height), "blue")
-            self._device.display(test_img3)
-            logger.debug("Blue screen displayed")
-            time.sleep(0.5)  # Brief pause
-
-            # Now draw the smiley face
+            # Draw the smiley face
             logger.debug("Drawing smiley face...")
             self._draw_smiley_face(draw, self._width, self._height)
             logger.debug("Smiley face drawn")
 
             # Display the image
             logger.debug("Displaying image on LCD...")
-            self._device.display(img)
+            self._device.image(img)
             logger.info("Smiley face displayed on LCD")
 
         except Exception as e:
@@ -443,7 +448,7 @@ class LCDService:
                 x, y = position
 
             draw.text((x, y), text, fill="white")
-            self._device.display(img)
+            self._device.image(img)
             logger.debug(f"Text displayed: {text}")
 
         except Exception as e:
@@ -457,7 +462,7 @@ class LCDService:
 
         try:
             img = Image.new("RGB", (self._width, self._height), "black")
-            self._device.display(img)
+            self._device.image(img)
             logger.info("LCD screen cleared")
         except Exception as e:
             logger.error(f"Failed to clear screen: {e}")
@@ -480,7 +485,7 @@ class LCDService:
             img = Image.open(image_path)
             # Resize to fit display
             img = img.resize((self._width, self._height), Image.Resampling.LANCZOS)
-            self._device.display(img)
+            self._device.image(img)
             logger.info(f"Image displayed: {image_path}")
             return True
         except Exception as e:
@@ -506,13 +511,22 @@ class LCDService:
 
         if self._device:
             try:
-                self._device.cleanup()
+                # Cleanup digitalio pins
+                if self._cs_pin:
+                    self._cs_pin.deinit()
+                if self._dc_pin:
+                    self._dc_pin.deinit()
+                if self._rst_pin:
+                    self._rst_pin.deinit()
                 logger.debug("LCD device cleaned up")
             except Exception as e:
                 logger.error(f"Error cleaning up LCD device: {e}")
 
         self._device = None
-        self._serial = None
+        self._cs_pin = None
+        self._dc_pin = None
+        self._rst_pin = None
+        self._spi = None
         self._backlight = None
         self._is_initialized = False
 

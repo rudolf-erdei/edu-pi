@@ -300,11 +300,17 @@ compile_translations() {
 setup_gpio() {
     log_info "Setting up GPIO permissions..."
     
-    # Add user to gpio group
+    # Add user to gpio and spi groups
     sudo usermod -a -G gpio $USER
+    sudo usermod -a -G spi $USER
     
-    log_success "User '$USER' added to gpio group"
+    # Add www-data to gpio and spi groups for web server access
+    sudo usermod -a -G gpio www-data
+    sudo usermod -a -G spi www-data
+    
+    log_success "User '$USER' and www-data added to gpio and spi groups"
     log_warning "You may need to log out and back in for GPIO permissions to take effect"
+    log_warning "SPI access requires www-data to be in spi group for web interface"
 }
 
 # Configure audio
