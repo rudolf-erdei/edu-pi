@@ -373,19 +373,20 @@ class LCDService:
             fill="white",
         )
 
-        # Mouth - simple upward curve (smile)
+        # Mouth - simple upward curve (happy smile!)
         mouth_y = center_y + (face_height // 8)
         mouth_width = face_width // 3
         mouth_height = face_height // 8
 
         # Draw smile as a filled arc/ellipse segment
-        # Using a series of ellipses to create a thick line
+        # Using a series of points to create an upward-curving smile
         mouth_points = []
         for i in range(11):
             t = i / 10.0  # 0 to 1
-            # Parabolic curve for smile (upward arc)
+            # Inverted parabolic curve for smile (upward curve - happy!)
+            # The smile curves UP at the corners and DOWN in the middle
             x = (center_x - mouth_width // 2) + (mouth_width * t)
-            y = mouth_y + (mouth_height * (t - 0.5) ** 2 * 4 * 0.3)
+            y = mouth_y + (mouth_height * (1 - ((t - 0.5) ** 2) * 4))
             mouth_points.append((x, y))
 
         # Draw thick smile line
