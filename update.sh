@@ -152,7 +152,7 @@ compile_translations() {
     
     # Compile plugin translations
     if [[ -f scripts/compile_translations.py ]]; then
-        python3 scripts/compile_translations.py
+        uv run python scripts/compile_translations.py
     fi
     
     log_success "Translations compiled"
