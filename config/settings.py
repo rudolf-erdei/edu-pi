@@ -210,6 +210,10 @@ LOCALE_PATHS = [
     BASE_DIR / "locale",
 ]
 
+# Ensure logs directory exists
+LOGS_DIR = BASE_DIR / "logs"
+LOGS_DIR.mkdir(exist_ok=True)
+
 # Logging configuration
 LOGGING = {
     "version": 1,
@@ -231,13 +235,15 @@ LOGGING = {
         },
         "file": {
             "class": "logging.FileHandler",
-            "filename": BASE_DIR / "logs" / "django.log",
+            "filename": str(LOGS_DIR / "django.log"),
             "formatter": "verbose",
+            "delay": True,  # Delay opening file until first log
         },
         "lcd_file": {
             "class": "logging.FileHandler",
-            "filename": BASE_DIR / "logs" / "lcd_display.log",
+            "filename": str(LOGS_DIR / "lcd_display.log"),
             "formatter": "verbose",
+            "delay": True,  # Delay opening file until first log
         },
     },
     "root": {
