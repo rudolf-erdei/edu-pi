@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Translation compiler for Tinko plugins.
 
@@ -57,8 +56,13 @@ def compile_translations(plugin_path: Path) -> dict:
     """Compile translations for a single plugin."""
     try:
         import polib
-    except ImportError:
-        print("Error: polib is not installed. Install it with: uv add polib")
+    except ImportError as e:
+        import sys
+
+        print(f"Error: polib is not installed. Python: {sys.executable}")
+        print(f"Python path: {sys.path}")
+        print(f"Import error: {e}")
+        print("Install it with: uv add polib")
         return {"success": False, "error": "polib not installed"}
 
     results = {"success": True, "compiled": [], "errors": []}
