@@ -145,39 +145,58 @@ class LCDService:
         Returns:
             True if initialization was successful
         """
+        logger.debug(
+            f"LCD initialize called - rotation={rotation}, backlight={backlight}"
+        )
+        logger.debug(
+            f"LCD_AVAILABLE={LCD_AVAILABLE}, _is_initialized={self._is_initialized}"
+        )
+
         if self._is_initialized:
             logger.warning("LCD already initialized")
             return True
 
         if not LCD_AVAILABLE:
             logger.warning("LCD libraries not available, using mock mode")
-            self._setup_mock_device(rotation, backlight)
-            return True
+            try:
+                self._setup_mock_device(rotation, backlight)
+                return True
+            except Exception as e:
+                logger.exception("Failed to setup mock device")
+                return False
 
         # Update pin assignments if provided
         if pins:
             self._pins.update(pins)
 
         try:
+            logger.info(f"Initializing LCD with pins: {self._pins}")
+
             # Initialize SPI interface
+            logger.debug("Creating SPI interface...")
             self._serial = spi(
                 port=0,
                 device=0,
                 gpio_DC=self._pins["dc"],
                 gpio_RST=self._pins["rst"],
             )
+            logger.debug("SPI interface created successfully")
 
             # Initialize ILI9341 device
+            logger.debug("Creating ILI9341 device...")
             self._device = ili9341(
                 self._serial,
                 width=self._width,
                 height=self._height,
                 rotate=rotation,
             )
+            logger.debug("ILI9341 device created successfully")
 
             # Initialize backlight with PWM
+            logger.debug(f"Initializing backlight on GPIO {self._pins['bl']}...")
             self._backlight = PWMLED(self._pins["bl"])
             self.set_backlight(backlight)
+            logger.debug("Backlight initialized successfully")
 
             self._rotation = rotation
             self._is_initialized = True
@@ -190,7 +209,7 @@ class LCDService:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to initialize LCD: {e}")
+            logger.exception(f"Failed to initialize LCD: {e}")
             return False
 
     def _setup_mock_device(self, rotation: int, backlight: int):
@@ -217,31 +236,44 @@ class LCDService:
         Args:
             brightness: Brightness level (0-100)
         """
+        logger.debug(
+            f"set_backlight called with brightness={brightness}, _backlight={self._backlight}"
+        )
         if self._backlight:
             value = max(0, min(100, brightness)) / 100.0
             self._backlight.value = value
             logger.debug(f"Backlight set to {brightness}%")
+        else:
+            logger.warning("Cannot set backlight - _backlight is None")
 
     def show_smiley_face(self) -> None:
         """Display a simple smiling face on the LCD."""
+        logger.debug(
+            f"show_smiley_face called - _device={self._device}, _is_initialized={self._is_initialized}"
+        )
         if not self._device:
             logger.warning("LCD not initialized, cannot show smiley face")
             return
 
         try:
+            logger.debug("Creating image for smiley face...")
             # Create image with black background
             img = Image.new("RGB", (self._width, self._height), "black")
             draw = ImageDraw.Draw(img)
+            logger.debug(f"Image created: {self._width}x{self._height}")
 
             # Draw smiling face
+            logger.debug("Drawing smiley face...")
             self._draw_smiley_face(draw, self._width, self._height)
+            logger.debug("Smiley face drawn")
 
             # Display the image
+            logger.debug("Displaying image on LCD...")
             self._device.display(img)
             logger.info("Smiley face displayed on LCD")
 
         except Exception as e:
-            logger.error(f"Failed to display smiley face: {e}")
+            logger.exception(f"Failed to display smiley face: {e}")
 
     def _draw_smiley_face(self, draw: ImageDraw.Draw, width: int, height: int):
         """

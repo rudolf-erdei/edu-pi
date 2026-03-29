@@ -214,13 +214,46 @@ LOCALE_PATHS = [
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "logs" / "django.log",
+            "formatter": "verbose",
+        },
+        "lcd_file": {
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "logs" / "lcd_display.log",
+            "formatter": "verbose",
         },
     },
     "root": {
-        "handlers": ["console"],
+        "handlers": ["console", "file"],
         "level": "INFO",
+    },
+    "loggers": {
+        "plugins.edupi.lcd_display": {
+            "handlers": ["console", "lcd_file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "plugins.edupi.lcd_display.lcd_service": {
+            "handlers": ["console", "lcd_file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
     },
 }
