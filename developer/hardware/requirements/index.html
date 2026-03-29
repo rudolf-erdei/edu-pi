@@ -1408,10 +1408,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mini-lcd-screen" class="md-nav__link">
+  <a href="#tft-lcd-display-28" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mini LCD Screen
+        TFT LCD Display (2.8")
       
     </span>
   </a>
@@ -1485,6 +1485,17 @@
     <span class="md-ellipsis">
       
         Touch Piano
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lcd-display" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LCD Display
       
     </span>
   </a>
@@ -2468,10 +2479,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mini-lcd-screen" class="md-nav__link">
+  <a href="#tft-lcd-display-28" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mini LCD Screen
+        TFT LCD Display (2.8")
       
     </span>
   </a>
@@ -2545,6 +2556,17 @@
     <span class="md-ellipsis">
       
         Touch Piano
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lcd-display" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LCD Display
       
     </span>
   </a>
@@ -3077,20 +3099,121 @@
 - Play/Pause button
 - Stop button
 - Plug and play on Linux</p>
-<h3 id="mini-lcd-screen">Mini LCD Screen<a class="headerlink" href="#mini-lcd-screen" title="Permanent link">&para;</a></h3>
-<p>For local display on the Pi:</p>
+<h3 id="tft-lcd-display-28">TFT LCD Display (2.8")<a class="headerlink" href="#tft-lcd-display-28" title="Permanent link">&para;</a></h3>
+<p>For local display on the Pi showing the robot's face and status:</p>
 <ul>
-<li>2.8" IPS LCD (240x320)</li>
-<li>Touch screen optional</li>
-<li>SPI interface</li>
-<li>Example: ILI9341-based screens</li>
+<li><strong>2.8" TFT LCD</strong> (320x240 resolution)</li>
+<li><strong>Driver</strong>: ILI9341 (very common and well-supported)</li>
+<li><strong>Interface</strong>: SPI (4-wire: MOSI, SCLK, CS, DC)</li>
+<li><strong>Touch</strong>: Optional (not used in Tinko)</li>
+<li><strong>Backlight</strong>: Controlled via GPIO 18 (PWM) for brightness control</li>
+<li><strong>Animation</strong>: Shows mood-based animated faces (:), :D, :|, :(, :D, etc.)</li>
 </ul>
+<p><strong>Working Wiring Configuration (Verified):</strong></p>
+<table>
+<thead>
+<tr>
+<th>LCD Pin</th>
+<th>RPi Physical Pin</th>
+<th>RPi GPIO</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VCC</td>
+<td>Pin 1 or 17</td>
+<td>-</td>
+<td>3.3V Power</td>
+</tr>
+<tr>
+<td>GND</td>
+<td>Pin 6 or 9</td>
+<td>-</td>
+<td>Ground</td>
+</tr>
+<tr>
+<td>CS</td>
+<td>Pin 15</td>
+<td>GPIO 22</td>
+<td>SPI Chip Select (custom)</td>
+</tr>
+<tr>
+<td>RST</td>
+<td>Pin 16</td>
+<td>GPIO 23</td>
+<td>Reset signal</td>
+</tr>
+<tr>
+<td>DC</td>
+<td>Pin 18</td>
+<td>GPIO 24</td>
+<td>Data/Command</td>
+</tr>
+<tr>
+<td>MOSI</td>
+<td>Pin 19</td>
+<td>GPIO 10</td>
+<td>SPI Data In (hardware - fixed)</td>
+</tr>
+<tr>
+<td>SCK</td>
+<td>Pin 23</td>
+<td>GPIO 11</td>
+<td>SPI Clock (hardware - fixed)</td>
+</tr>
+<tr>
+<td>LED/BL</td>
+<td>Pin 12</td>
+<td>GPIO 18</td>
+<td>Backlight (PWM capable)</td>
+</tr>
+<tr>
+<td>MISO</td>
+<td>Pin 21</td>
+<td>GPIO 9</td>
+<td>SPI Data Out (optional, read-only)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CRITICAL: CS Pin Change</strong></p>
+<p>The CS pin must be moved from the default GPIO 8 (Pin 24) to <strong>GPIO 22 (Pin 15)</strong>. This is required for the Adafruit libraries to work correctly with this display.</p>
+<p><strong>Important Notes:</strong></p>
+<ol>
+<li><strong>Hardware SPI Pins (Fixed)</strong>: Pins 19 (MOSI), 21 (MISO), and 23 (SCLK) cannot be changed</li>
+<li><strong>CS Pin</strong>: Must use GPIO 22 (Pin 15), not the default GPIO 8</li>
+<li><strong>SPI Interface</strong>: Must be enabled via <code>sudo raspi-config</code> → Interface Options → SPI</li>
+<li><strong>Permissions</strong>: Web server needs SPI/GPIO access: <code>sudo usermod -a -G spi,gpio www-data</code></li>
+<li><strong>Libraries</strong>: Uses Adafruit CircuitPython libraries (not luma)</li>
+</ol>
+<p><strong>Pin Conflicts:</strong>
+- <strong>Touch Piano</strong>: Shares SPI pins - disable Touch Piano when using LCD
+- <strong>Activity Timer</strong>: Buzzer moved to GPIO 3 (Pin 5) to avoid conflicts
+- <strong>Noise Monitor</strong>: No conflicts with LCD pins</p>
+<p><strong>Required Dependencies:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>add<span class="w"> </span>adafruit-circuitpython-rgb-display<span class="w"> </span>adafruit-blinka
+</code></pre></div></p>
+<p><strong>Required System Permissions:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Add user to groups</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sudo<span class="w"> </span>usermod<span class="w"> </span>-a<span class="w"> </span>-G<span class="w"> </span>gpio,spi<span class="w"> </span><span class="nv">$USER</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>sudo<span class="w"> </span>usermod<span class="w"> </span>-a<span class="w"> </span>-G<span class="w"> </span>gpio,spi<span class="w"> </span>www-data
+</code></pre></div></p>
+<p><strong>Features:</strong>
+- Animated robot faces with 6 moods (Happy, Neutral, Sad, Angry, Laughing, Concentrated)
+- Each mood has 2 face variations (5s + 2s animation cycle)
+- Web interface mood controls
+- Brightness control via PWM
+- Auto-initializes on startup with Happy mood</p>
+<p><strong>Where to Buy:</strong>
+- <a href="https://www.optimusdigital.ro/ro/optoelectronice-lcd-uri/12652-modul-ecran-2-ips-lcd-240x320.html">Optimus Digital (RO)</a>
+- <a href="https://www.emag.ro/display-tactil-tft-lcd-2-8-inch-320x240-touchscreen-spi-driver-ili9341-arduino-rx961/pd/DSFJ88YBM/">eMAG (RO)</a>
+- Any ILI9341-based 2.8" SPI display will work</p>
 <h2 id="gpio-components-summary">GPIO Components Summary<a class="headerlink" href="#gpio-components-summary" title="Permanent link">&para;</a></h2>
 <h3 id="by-plugin">By Plugin<a class="headerlink" href="#by-plugin" title="Permanent link">&para;</a></h3>
 <h4 id="activity-timer">Activity Timer<a class="headerlink" href="#activity-timer" title="Permanent link">&para;</a></h4>
 <ul>
 <li>1x RGB LED (pins 17, 27, 22)</li>
-<li>1x Buzzer (pin 24) - Optional</li>
+<li>1x Buzzer (pin 5 / GPIO 3) - Optional</li>
 </ul>
 <h4 id="noise-monitor">Noise Monitor<a class="headerlink" href="#noise-monitor" title="Permanent link">&para;</a></h4>
 <ul>
@@ -3104,8 +3227,14 @@
 </ul>
 <h4 id="touch-piano">Touch Piano<a class="headerlink" href="#touch-piano" title="Permanent link">&para;</a></h4>
 <ul>
-<li>6x Touch inputs (pins 23, 24, 10, 9, 25, 11)</li>
+<li>6x Touch inputs (pins 7, 26, 38, 40, 32, 3 / GPIO 4, 7, 20, 21, 12, 2)</li>
 <li>1x Speaker/Headphones</li>
+</ul>
+<h4 id="lcd-display">LCD Display<a class="headerlink" href="#lcd-display" title="Permanent link">&para;</a></h4>
+<ul>
+<li>1x 2.8" TFT LCD with ILI9341 driver (320x240, SPI interface)</li>
+<li>Pins: 16, 22, 24 (GPIO 23, 25, 8) + Hardware SPI (GPIO 9, 10, 11) + Backlight (GPIO 18)</li>
+<li>Shows smiling face on startup with simple eyes and mouth</li>
 </ul>
 <h2 id="shopping-list">Shopping List<a class="headerlink" href="#shopping-list" title="Permanent link">&para;</a></h2>
 <h3 id="essential-50-80">Essential (~$50-80)<a class="headerlink" href="#essential-50-80" title="Permanent link">&para;</a></h3>
