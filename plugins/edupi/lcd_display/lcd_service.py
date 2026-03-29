@@ -555,6 +555,36 @@ class LCDService:
                 ],
                 fill="white",
             )
+
+            # Draw straight line at bottom to complete the "D" shape
+            # Line from left corner to right corner at the bottom
+            left_corner = mouth_points[0]
+            right_corner = mouth_points[-1]
+            bottom_y = max(left_corner[1], right_corner[1]) + line_width // 2
+            draw.line(
+                [(left_corner[0], bottom_y), (right_corner[0], bottom_y)],
+                fill="white",
+                width=line_width,
+            )
+            # Add rounded caps at the bottom corners
+            draw.ellipse(
+                [
+                    left_corner[0] - cap_radius,
+                    bottom_y - cap_radius,
+                    left_corner[0] + cap_radius,
+                    bottom_y + cap_radius,
+                ],
+                fill="white",
+            )
+            draw.ellipse(
+                [
+                    right_corner[0] - cap_radius,
+                    bottom_y - cap_radius,
+                    right_corner[0] + cap_radius,
+                    bottom_y + cap_radius,
+                ],
+                fill="white",
+            )
         else:
             # Normal smile (:) style) - upward curve
             mouth_width = face_width // 3
