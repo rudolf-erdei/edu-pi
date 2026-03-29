@@ -454,19 +454,11 @@ class LCDService:
         # Left eye
         left_eye_x = center_x - (face_width // 6)
         if big_grin:
-            # Squinted eyes for big grin - draw as lines/arcs
-            draw.arc(
-                [
-                    left_eye_x - eye_width // 2,
-                    eye_y - eye_y_offset,
-                    left_eye_x + eye_width // 2,
-                    eye_y + eye_y_offset,
-                ],
-                start=0,
-                end=180,
-                fill="white",
-                width=4,
-            )
+            # Happy closed eyes - simple horizontal lines
+            eye_line_width = 6
+            left_start = (left_eye_x - eye_width // 2, eye_y)
+            left_end = (left_eye_x + eye_width // 2, eye_y)
+            draw.line([left_start, left_end], fill="white", width=eye_line_width)
         else:
             # Normal eyes - filled ellipses
             draw.ellipse(
@@ -482,19 +474,11 @@ class LCDService:
         # Right eye
         right_eye_x = center_x + (face_width // 6)
         if big_grin:
-            # Squinted eyes for big grin
-            draw.arc(
-                [
-                    right_eye_x - eye_width // 2,
-                    eye_y - eye_y_offset,
-                    right_eye_x + eye_width // 2,
-                    eye_y + eye_y_offset,
-                ],
-                start=0,
-                end=180,
-                fill="white",
-                width=4,
-            )
+            # Happy closed eyes - simple horizontal lines
+            eye_line_width = 6
+            right_start = (right_eye_x - eye_width // 2, eye_y)
+            right_end = (right_eye_x + eye_width // 2, eye_y)
+            draw.line([right_start, right_end], fill="white", width=eye_line_width)
         else:
             # Normal eyes
             draw.ellipse(
@@ -529,32 +513,47 @@ class LCDService:
         mouth_y = center_y + (face_height // 8)
 
         if big_grin:
-            # Big open mouth (:D style) - larger and more open
+            # Big happy grin (:D style) - wider, thicker smile
             mouth_width = face_width // 2
             mouth_height = face_height // 5
 
-            # Draw open mouth as an ellipse
+            # Draw smile as a wider, more pronounced curve
+            mouth_points = []
+            for i in range(11):
+                t = i / 10.0
+                x = (center_x - mouth_width // 2) + (mouth_width * t)
+                # More pronounced upward curve
+                y = mouth_y + (mouth_height * (1 - ((t - 0.5) ** 2) * 4.5))
+                mouth_points.append((x, y))
+
+            # Thicker line for big grin
+            line_width = 12
+            for i in range(len(mouth_points) - 1):
+                draw.line(
+                    [mouth_points[i], mouth_points[i + 1]],
+                    fill="white",
+                    width=line_width,
+                )
+
+            # Add rounded caps at ends (bigger for big grin)
+            cap_radius = line_width // 2
             draw.ellipse(
                 [
-                    center_x - mouth_width // 2,
-                    mouth_y - mouth_height // 3,
-                    center_x + mouth_width // 2,
-                    mouth_y + mouth_height,
+                    mouth_points[0][0] - cap_radius,
+                    mouth_points[0][1] - cap_radius,
+                    mouth_points[0][0] + cap_radius,
+                    mouth_points[0][1] + cap_radius,
                 ],
                 fill="white",
             )
-
-            # Add a smaller black ellipse inside for depth
-            inner_width = mouth_width // 2
-            inner_height = mouth_height // 2
             draw.ellipse(
                 [
-                    center_x - inner_width // 2,
-                    mouth_y + mouth_height // 4,
-                    center_x + inner_width // 2,
-                    mouth_y + mouth_height - mouth_height // 4,
+                    mouth_points[-1][0] - cap_radius,
+                    mouth_points[-1][1] - cap_radius,
+                    mouth_points[-1][0] + cap_radius,
+                    mouth_points[-1][1] + cap_radius,
                 ],
-                fill="black",
+                fill="white",
             )
         else:
             # Normal smile (:) style) - upward curve
