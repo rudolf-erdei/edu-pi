@@ -52,6 +52,7 @@ class Plugin(PluginBase):
         from django.urls import include, path
 
         from .models import LCDConfig, DisplaySession
+        from .lcd_service import lcd_service
 
         # Register models
         self.register_model(LCDConfig)
@@ -66,6 +67,26 @@ class Plugin(PluginBase):
         self.register_admin_menu(
             "LCD Display", "/plugins/edupi/lcd_display/", icon="tv"
         )
+
+        # Auto-initialize LCD display on startup
+        try:
+            if not lcd_service.is_initialized():
+                # Get config for rotation and backlight settings
+                config = LCDConfig.objects.filter(name="Default").first()
+                if config:
+                    logger.info("Auto-initializing LCD display from config...")
+                    lcd_service.initialize(
+                        rotation=config.rotation,
+                        backlight=config.backlight,
+                    )
+                else:
+                    logger.info("Auto-initializing LCD display with defaults...")
+                    lcd_service.initialize()
+                self._lcd_service = lcd_service
+                logger.info(f"{self.name} LCD auto-initialized successfully")
+        except Exception as e:
+            logger.warning(f"Could not auto-initialize LCD display: {e}")
+            logger.info("LCD can still be initialized manually via web interface")
 
         # Register settings
         self.register_setting(
