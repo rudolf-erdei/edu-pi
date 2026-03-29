@@ -208,51 +208,66 @@ Features:
 - Stop button
 - Plug and play on Linux
 
-### Mini LCD Screen
+### TFT LCD Display (2.8")
 
-For local display on the Pi:
+For local display on the Pi showing the robot's face and status:
 
 - **2.8" TFT LCD** (320x240 resolution)
 - **Driver**: ILI9341 (very common and well-supported)
 - **Interface**: SPI (4-wire: MOSI, SCLK, CS, DC)
 - **Touch**: Optional (not used in Tinko)
-- **Backlight**: Can be controlled via GPIO 18 (PWM) or always-on via 3.3V
+- **Backlight**: Controlled via GPIO 18 (PWM) for brightness control
+- **Animation**: Shows mood-based animated faces (:), :D, :|, :(, :D, etc.)
 
-**Wiring for ILI9341 Display:**
+**Working Wiring Configuration (Verified):**
 
 | LCD Pin | RPi Physical Pin | RPi GPIO | Function |
 |---------|------------------|----------|----------|
 | VCC | Pin 1 or 17 | - | 3.3V Power |
 | GND | Pin 6 or 9 | - | Ground |
-| CS | Pin 24 | GPIO 8 | SPI Chip Select (CE0) |
-| RST | Pin 22 | GPIO 25 | Reset signal |
-| DC | Pin 16 | GPIO 23 | Data/Command |
-| MOSI | Pin 19 | GPIO 10 | SPI Data In (hardware) |
-| SCK | Pin 23 | GPIO 11 | SPI Clock (hardware) |
+| CS | Pin 15 | GPIO 22 | SPI Chip Select (custom) |
+| RST | Pin 16 | GPIO 23 | Reset signal |
+| DC | Pin 18 | GPIO 24 | Data/Command |
+| MOSI | Pin 19 | GPIO 10 | SPI Data In (hardware - fixed) |
+| SCK | Pin 23 | GPIO 11 | SPI Clock (hardware - fixed) |
 | LED/BL | Pin 12 | GPIO 18 | Backlight (PWM capable) |
 | MISO | Pin 21 | GPIO 9 | SPI Data Out (optional, read-only) |
 
+**CRITICAL: CS Pin Change**
+
+The CS pin must be moved from the default GPIO 8 (Pin 24) to **GPIO 22 (Pin 15)**. This is required for the Adafruit libraries to work correctly with this display.
+
 **Important Notes:**
 
-1. **Hardware SPI**: Pins 19 (MOSI), 21 (MISO), and 23 (SCLK) are hardware SPI pins and cannot be changed
-2. **SPI CE0**: GPIO 8 (Pin 24) is Chip Select 0 - used by default
-3. **Configurable pins**: DC (GPIO 23), RST (GPIO 25), and BL (GPIO 18) can be changed but must not conflict with other plugins
-4. **Touch Piano conflict**: Cannot use Touch Piano and LCD Display simultaneously (both use hardware SPI)
-5. **Display startup**: Shows a smiling face (simple eyes and mouth) on black background when app starts
+1. **Hardware SPI Pins (Fixed)**: Pins 19 (MOSI), 21 (MISO), and 23 (SCLK) cannot be changed
+2. **CS Pin**: Must use GPIO 22 (Pin 15), not the default GPIO 8
+3. **SPI Interface**: Must be enabled via `sudo raspi-config` → Interface Options → SPI
+4. **Permissions**: Web server needs SPI/GPIO access: `sudo usermod -a -G spi,gpio www-data`
+5. **Libraries**: Uses Adafruit CircuitPython libraries (not luma)
 
 **Pin Conflicts:**
 - **Touch Piano**: Shares SPI pins - disable Touch Piano when using LCD
-- **Activity Timer**: Buzzer moved to GPIO 3 (Pin 5) to avoid conflict with LCD
-- **Noise Monitor**: No conflicts with LCD
+- **Activity Timer**: Buzzer moved to GPIO 3 (Pin 5) to avoid conflicts
+- **Noise Monitor**: No conflicts with LCD pins
 
-**Required Libraries:**
-- `luma.core>=2.4.0` - Core display framework
-- `luma.lcd>=2.11.0` - ILI9341 driver support
-
-**Installation:**
+**Required Dependencies:**
 ```bash
-uv sync --extra pi  # Installs LCD libraries along with Pi-specific dependencies
+uv add adafruit-circuitpython-rgb-display adafruit-blinka
 ```
+
+**Required System Permissions:**
+```bash
+# Add user to groups
+sudo usermod -a -G gpio,spi $USER
+sudo usermod -a -G gpio,spi www-data
+```
+
+**Features:**
+- Animated robot faces with 6 moods (Happy, Neutral, Sad, Angry, Laughing, Concentrated)
+- Each mood has 2 face variations (5s + 2s animation cycle)
+- Web interface mood controls
+- Brightness control via PWM
+- Auto-initializes on startup with Happy mood
 
 **Where to Buy:**
 - [Optimus Digital (RO)](https://www.optimusdigital.ro/ro/optoelectronice-lcd-uri/12652-modul-ecran-2-ips-lcd-240x320.html)
