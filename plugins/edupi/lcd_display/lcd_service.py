@@ -146,6 +146,13 @@ class LCDService:
         self._is_initialized = False
         self._pins = self.DEFAULT_PINS.copy()
 
+        # Animation loop attributes
+        self._animation_thread = None
+        self._animation_running = False
+        self._animation_paused = False
+        self._current_face = "smile"  # "smile" (:)) or "big_grin" (:D)
+        self._animation_lock = threading.Lock()
+
         logger.info("LCDService initialized")
 
     def initialize(
@@ -248,9 +255,10 @@ class LCDService:
             self.clear_screen()
             time.sleep(0.2)
 
-            # Show startup smiley face
-            logger.debug("About to show smiley face...")
+            # Show startup smiley face and start animation
+            logger.debug("About to show smiley face and start animation...")
             self.show_smiley_face()
+            self.start_face_animation()
 
             return True
 
@@ -418,6 +426,287 @@ class LCDService:
             fill="white",
         )
 
+    def _draw_eyes(
+        self, draw: ImageDraw.Draw, width: int, height: int, big_grin: bool = False
+    ):
+        """
+        Draw eyes for the face.
+
+        Args:
+            draw: ImageDraw object
+            width: Display width
+            height: Display height
+            big_grin: If True, draw squinted eyes for big grin (:D)
+        """
+        margin = 20
+        face_width = width - (margin * 2)
+        face_height = height - (margin * 2)
+
+        center_x = width // 2
+        center_y = height // 2
+
+        # Eye dimensions
+        eye_width = face_width // 10
+        eye_height = face_height // 6
+        eye_y = center_y - (face_height // 5)
+        eye_y_offset = eye_height // 3  # Define here to avoid unbound error
+
+        # Left eye
+        left_eye_x = center_x - (face_width // 6)
+        if big_grin:
+            # Squinted eyes for big grin - draw as lines/arcs
+            draw.arc(
+                [
+                    left_eye_x - eye_width // 2,
+                    eye_y - eye_y_offset,
+                    left_eye_x + eye_width // 2,
+                    eye_y + eye_y_offset,
+                ],
+                start=0,
+                end=180,
+                fill="white",
+                width=4,
+            )
+        else:
+            # Normal eyes - filled ellipses
+            draw.ellipse(
+                [
+                    left_eye_x - eye_width // 2,
+                    eye_y - eye_height // 2,
+                    left_eye_x + eye_width // 2,
+                    eye_y + eye_height // 2,
+                ],
+                fill="white",
+            )
+
+        # Right eye
+        right_eye_x = center_x + (face_width // 6)
+        if big_grin:
+            # Squinted eyes for big grin
+            draw.arc(
+                [
+                    right_eye_x - eye_width // 2,
+                    eye_y - eye_y_offset,
+                    right_eye_x + eye_width // 2,
+                    eye_y + eye_y_offset,
+                ],
+                start=0,
+                end=180,
+                fill="white",
+                width=4,
+            )
+        else:
+            # Normal eyes
+            draw.ellipse(
+                [
+                    right_eye_x - eye_width // 2,
+                    eye_y - eye_height // 2,
+                    right_eye_x + eye_width // 2,
+                    eye_y + eye_height // 2,
+                ],
+                fill="white",
+            )
+
+    def _draw_mouth(
+        self, draw: ImageDraw.Draw, width: int, height: int, big_grin: bool = False
+    ):
+        """
+        Draw mouth for the face.
+
+        Args:
+            draw: ImageDraw object
+            width: Display width
+            height: Display height
+            big_grin: If True, draw bigger open mouth
+        """
+        margin = 20
+        face_width = width - (margin * 2)
+        face_height = height - (margin * 2)
+
+        center_x = width // 2
+        center_y = height // 2
+
+        mouth_y = center_y + (face_height // 8)
+
+        if big_grin:
+            # Big open mouth (:D style) - larger and more open
+            mouth_width = face_width // 2
+            mouth_height = face_height // 5
+
+            # Draw open mouth as an ellipse
+            draw.ellipse(
+                [
+                    center_x - mouth_width // 2,
+                    mouth_y - mouth_height // 3,
+                    center_x + mouth_width // 2,
+                    mouth_y + mouth_height,
+                ],
+                fill="white",
+            )
+
+            # Add a smaller black ellipse inside for depth
+            inner_width = mouth_width // 2
+            inner_height = mouth_height // 2
+            draw.ellipse(
+                [
+                    center_x - inner_width // 2,
+                    mouth_y + mouth_height // 4,
+                    center_x + inner_width // 2,
+                    mouth_y + mouth_height - mouth_height // 4,
+                ],
+                fill="black",
+            )
+        else:
+            # Normal smile (:) style) - upward curve
+            mouth_width = face_width // 3
+            mouth_height = face_height // 8
+
+            # Draw smile as a curve
+            mouth_points = []
+            for i in range(11):
+                t = i / 10.0
+                x = (center_x - mouth_width // 2) + (mouth_width * t)
+                y = mouth_y + (mouth_height * (1 - ((t - 0.5) ** 2) * 4))
+                mouth_points.append((x, y))
+
+            # Draw thick smile line
+            line_width = 8
+            for i in range(len(mouth_points) - 1):
+                draw.line(
+                    [mouth_points[i], mouth_points[i + 1]],
+                    fill="white",
+                    width=line_width,
+                )
+
+            # Add rounded caps at ends
+            draw.ellipse(
+                [
+                    mouth_points[0][0] - line_width // 2,
+                    mouth_points[0][1] - line_width // 2,
+                    mouth_points[0][0] + line_width // 2,
+                    mouth_points[0][1] + line_width // 2,
+                ],
+                fill="white",
+            )
+            draw.ellipse(
+                [
+                    mouth_points[-1][0] - line_width // 2,
+                    mouth_points[-1][1] - line_width // 2,
+                    mouth_points[-1][0] + line_width // 2,
+                    mouth_points[-1][1] + line_width // 2,
+                ],
+                fill="white",
+            )
+
+    def show_face(self, big_grin: bool = False) -> None:
+        """Display a face (:) or :D) on the LCD."""
+        logger.debug(f"show_face called - big_grin={big_grin}, _device={self._device}")
+        if not self._device:
+            logger.warning("LCD not initialized, cannot show face")
+            return
+
+        try:
+            # Create image with black background
+            img = Image.new("RGB", (self._width, self._height), "black")
+            draw = ImageDraw.Draw(img)
+
+            # Draw eyes
+            self._draw_eyes(draw, self._width, self._height, big_grin=big_grin)
+
+            # Draw mouth
+            self._draw_mouth(draw, self._width, self._height, big_grin=big_grin)
+
+            # Display the image
+            self._device.image(img)
+            face_type = "big_grin (:D)" if big_grin else "smile (:))"
+            logger.info(f"Face displayed: {face_type}")
+
+        except Exception as e:
+            logger.exception(f"Failed to display face: {e}")
+
+    def _animation_loop(self):
+        """Animation loop that alternates between :) and :D."""
+        logger.info("Face animation loop started")
+
+        while self._animation_running:
+            with self._animation_lock:
+                if self._animation_paused:
+                    time.sleep(0.1)
+                    continue
+
+                if not self._is_initialized:
+                    logger.warning("LCD not initialized, stopping animation")
+                    break
+
+                # Show normal smile (:)) for 5 seconds
+                self._current_face = "smile"
+                self.show_face(big_grin=False)
+
+            # Wait 5 seconds (outside lock)
+            for _ in range(50):  # 5 seconds in 0.1s increments
+                if not self._animation_running:
+                    break
+                time.sleep(0.1)
+
+            with self._animation_lock:
+                if self._animation_paused or not self._animation_running:
+                    continue
+
+                # Show big grin (:D) for 2 seconds
+                self._current_face = "big_grin"
+                self.show_face(big_grin=True)
+
+            # Wait 2 seconds (outside lock)
+            for _ in range(20):  # 2 seconds in 0.1s increments
+                if not self._animation_running:
+                    break
+                time.sleep(0.1)
+
+        logger.info("Face animation loop stopped")
+
+    def start_face_animation(self) -> None:
+        """Start the face animation loop."""
+        if self._animation_running:
+            logger.warning("Animation already running")
+            return
+
+        if not self._is_initialized:
+            logger.warning("LCD not initialized, cannot start animation")
+            return
+
+        self._animation_running = True
+        self._animation_thread = threading.Thread(
+            target=self._animation_loop, daemon=True
+        )
+        self._animation_thread.start()
+        logger.info("Face animation started (5s :) / 2s :D)")
+
+    def stop_face_animation(self) -> None:
+        """Stop the face animation loop."""
+        if not self._animation_running:
+            return
+
+        self._animation_running = False
+        if self._animation_thread:
+            self._animation_thread.join(timeout=2.0)
+        logger.info("Face animation stopped")
+
+    def pause_face_animation(self) -> None:
+        """Pause the face animation (for when displaying other content)."""
+        with self._animation_lock:
+            self._animation_paused = True
+        logger.info("Face animation paused")
+
+    def resume_face_animation(self) -> None:
+        """Resume the face animation."""
+        with self._animation_lock:
+            self._animation_paused = False
+        logger.info("Face animation resumed")
+
+    def is_animation_running(self) -> bool:
+        """Check if animation is running."""
+        return self._animation_running
+
     def show_text(
         self, text: str, position: Optional[Tuple[int, int]] = None, font_size: int = 20
     ) -> None:
@@ -434,6 +723,11 @@ class LCDService:
             return
 
         try:
+            # Pause animation while displaying text
+            was_running = self._animation_running and not self._animation_paused
+            if was_running:
+                self.pause_face_animation()
+
             img = Image.new("RGB", (self._width, self._height), "black")
             draw = ImageDraw.Draw(img)
 
@@ -451,6 +745,9 @@ class LCDService:
             draw.text((x, y), text, fill="white")
             self._device.image(img)
             logger.debug(f"Text displayed: {text}")
+
+            # Keep animation paused - user must click "Show Smiley" to resume
+            # Don't automatically resume
 
         except Exception as e:
             logger.error(f"Failed to display text: {e}")

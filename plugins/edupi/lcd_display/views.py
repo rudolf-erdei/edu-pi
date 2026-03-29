@@ -47,7 +47,7 @@ class ShowSmileView(View):
     """API view to display smiley face on LCD."""
 
     def post(self, request):
-        """Display smiley face."""
+        """Display smiley face and resume animation."""
         try:
             # Initialize LCD if not already done
             if not lcd_service.is_initialized():
@@ -60,8 +60,11 @@ class ShowSmileView(View):
                 else:
                     lcd_service.initialize()
 
-            # Show smiley face
-            lcd_service.show_smiley_face()
+            # Resume animation if it was paused
+            if not lcd_service.is_animation_running():
+                lcd_service.start_face_animation()
+            else:
+                lcd_service.resume_face_animation()
 
             # Create session record
             DisplaySession.objects.create(
@@ -72,7 +75,7 @@ class ShowSmileView(View):
             return JsonResponse(
                 {
                     "success": True,
-                    "message": _("Smiley face displayed"),
+                    "message": _("Smiley face animation started"),
                 }
             )
         except Exception as e:
