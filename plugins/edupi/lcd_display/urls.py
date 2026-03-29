@@ -11,4 +11,6 @@ urlpatterns = [
     path("api/show-text/", views.ShowTextView.as_view(), name="show_text"),
     path("api/clear/", views.ClearScreenView.as_view(), name="clear_screen"),
     path("api/set-backlight/", views.SetBacklightView.as_view(), name="set_backlight"),
+    path("api/set-mood/", views.SetMoodView.as_view(), name="set_mood"),
+    path("api/get-mood/", views.GetMoodView.as_view(), name="get_mood"),
 ]

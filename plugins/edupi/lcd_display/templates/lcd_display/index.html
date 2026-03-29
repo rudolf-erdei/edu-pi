@@ -61,6 +61,57 @@
     </div>
   </div>
 
+  <!-- Mood Control -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <h2 class="card-title">{% trans "Robot Mood" %}</h2>
+      <p class="text-base-content/60 mb-4">
+        {% trans "Current mood:" %} <span id="currentMood" class="font-bold">{{ current_mood }}</span>
+        <span class="text-sm text-base-content/50 ml-2">({{ mood_description }})</span>
+      </p>
+      
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
+        <button onclick="setMood('happy')" 
+                class="btn btn-outline btn-success {% if current_mood == 'happy' %}btn-active{% endif %}">
+          <span class="text-2xl">:)</span>
+          <span class="text-xs mt-1">{% trans "Happy" %}</span>
+        </button>
+        <button onclick="setMood('neutral')" 
+                class="btn btn-outline {% if current_mood == 'neutral' %}btn-active{% endif %}">
+          <span class="text-2xl">:|</span>
+          <span class="text-xs mt-1">{% trans "Neutral" %}</span>
+        </button>
+        <button onclick="setMood('sad')" 
+                class="btn btn-outline btn-info {% if current_mood == 'sad' %}btn-active{% endif %}">
+          <span class="text-2xl">:(</span>
+          <span class="text-xs mt-1">{% trans "Sad" %}</span>
+        </button>
+        <button onclick="setMood('angry')" 
+                class="btn btn-outline btn-error {% if current_mood == 'angry' %}btn-active{% endif %}">
+          <span class="text-2xl">>:|</span>
+          <span class="text-xs mt-1">{% trans "Angry" %}</span>
+        </button>
+        <button onclick="setMood('laughing')" 
+                class="btn btn-outline btn-warning {% if current_mood == 'laughing' %}btn-active{% endif %}">
+          <span class="text-2xl">:D</span>
+          <span class="text-xs mt-1">{% trans "Laughing" %}</span>
+        </button>
+        <button onclick="setMood('concentrated')" 
+                class="btn btn-outline btn-primary {% if current_mood == 'concentrated' %}btn-active{% endif %}">
+          <span class="text-2xl">:?</span>
+          <span class="text-xs mt-1">{% trans "Learning" %}</span>
+        </button>
+      </div>
+      
+      {% if is_misbehaving %}
+      <div class="alert alert-warning mt-4">
+        <i class="fas fa-exclamation-triangle"></i>
+        {% trans "The robot is detecting classroom misbehavior. Consider addressing the students." %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
   <!-- Text Display Form -->
   <div class="card bg-base-100 shadow-xl mb-6">
     <div class="card-body">
@@ -203,6 +254,34 @@
     .then(data => {
       if (data.success) {
         showToast(data.message);
+      } else {
+        showToast(data.error || 'Error', 'error');
+      }
+    })
+    .catch(error => {
+      showToast('Error: ' + error, 'error');
+    });
+  }
+
+  function setMood(mood) {
+    const formData = new FormData();
+    formData.append('mood', mood);
+    
+    fetch('/plugins/edupi/lcd_display/api/set-mood/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCsrfToken(),
+      },
+      body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message);
+        // Update the displayed mood text
+        document.getElementById('currentMood').textContent = data.mood;
+        // Reload page after a short delay to update active state
+        setTimeout(() => location.reload(), 1500);
       } else {
         showToast(data.error || 'Error', 'error');
       }

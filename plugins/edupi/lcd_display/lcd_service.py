@@ -1,7 +1,7 @@
 """LCD service for LCD Display plugin.
 
 Manages SPI communication with ILI9341 TFT LCD display using Adafruit libraries.
-and handles drawing operations including the startup smiley face.
+and handles drawing operations including mood-based face animations.
 """
 
 import logging
@@ -9,6 +9,8 @@ import threading
 import time
 from typing import Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
+
+from .mood import Mood, MoodManager
 
 logger = logging.getLogger(__name__)
 
@@ -150,8 +152,11 @@ class LCDService:
         self._animation_thread = None
         self._animation_running = False
         self._animation_paused = False
-        self._current_face = "smile"  # "smile" (:)) or "big_grin" (:D)
         self._animation_lock = threading.Lock()
+
+        # Mood management
+        self._mood_manager = MoodManager()
+        self._face_durations = (5.0, 2.0)  # 5s for main face, 2s for variation
 
         logger.info("LCDService initialized")
 
@@ -653,9 +658,647 @@ class LCDService:
         except Exception as e:
             logger.exception(f"Failed to display face: {e}")
 
+    def show_face_for_mood(self, mood: Mood, face_variant: int = 0) -> None:
+        """Display a face based on mood and variant.
+
+        Args:
+            mood: The current mood
+            face_variant: 0 for main face, 1 for variation
+        """
+        logger.debug(
+            f"show_face_for_mood called - mood={mood.value}, variant={face_variant}"
+        )
+        if not self._device:
+            logger.warning("LCD not initialized, cannot show face")
+            return
+
+        try:
+            # Create image with black background
+            img = Image.new("RGB", (self._width, self._height), "black")
+            draw = ImageDraw.Draw(img)
+
+            # Draw face based on mood
+            self._draw_mood_face(draw, self._width, self._height, mood, face_variant)
+
+            # Display the image
+            self._device.image(img)
+            face_names = mood.get_face_names()
+            face_name = face_names[face_variant]
+            logger.info(f"Face displayed: {mood.value} - {face_name}")
+
+        except Exception as e:
+            logger.exception(f"Failed to display face: {e}")
+
+    def _draw_mood_face(
+        self,
+        draw: ImageDraw.Draw,
+        width: int,
+        height: int,
+        mood: Mood,
+        variant: int = 0,
+    ):
+        """Draw a face based on mood and variant.
+
+        Args:
+            draw: ImageDraw object
+            width: Display width
+            height: Display height
+            mood: The current mood
+            variant: 0 for main face, 1 for variation
+        """
+        # Calculate dimensions
+        margin = 20
+        face_width = width - (margin * 2)
+        face_height = height - (margin * 2)
+        center_x = width // 2
+        center_y = height // 2
+
+        # Eye dimensions
+        eye_width = face_width // 10
+        eye_height = face_height // 6
+        eye_y = center_y - (face_height // 5)
+        left_eye_x = center_x - (face_width // 6)
+        right_eye_x = center_x + (face_width // 6)
+
+        if mood == Mood.HAPPY:
+            self._draw_happy_face(
+                draw,
+                width,
+                height,
+                variant,
+                left_eye_x,
+                right_eye_x,
+                eye_y,
+                eye_width,
+                eye_height,
+                face_width,
+                face_height,
+                center_x,
+                center_y,
+            )
+        elif mood == Mood.NEUTRAL:
+            self._draw_neutral_face(
+                draw,
+                width,
+                height,
+                variant,
+                left_eye_x,
+                right_eye_x,
+                eye_y,
+                eye_width,
+                eye_height,
+                face_width,
+                face_height,
+                center_x,
+                center_y,
+            )
+        elif mood == Mood.SAD:
+            self._draw_sad_face(
+                draw,
+                width,
+                height,
+                variant,
+                left_eye_x,
+                right_eye_x,
+                eye_y,
+                eye_width,
+                eye_height,
+                face_width,
+                face_height,
+                center_x,
+                center_y,
+            )
+        elif mood == Mood.ANGRY:
+            self._draw_angry_face(
+                draw,
+                width,
+                height,
+                variant,
+                left_eye_x,
+                right_eye_x,
+                eye_y,
+                eye_width,
+                eye_height,
+                face_width,
+                face_height,
+                center_x,
+                center_y,
+            )
+        elif mood == Mood.LAUGHING:
+            self._draw_laughing_face(
+                draw,
+                width,
+                height,
+                variant,
+                left_eye_x,
+                right_eye_x,
+                eye_y,
+                eye_width,
+                eye_height,
+                face_width,
+                face_height,
+                center_x,
+                center_y,
+            )
+        elif mood == Mood.CONCENTRATED:
+            self._draw_concentrated_face(
+                draw,
+                width,
+                height,
+                variant,
+                left_eye_x,
+                right_eye_x,
+                eye_y,
+                eye_width,
+                eye_height,
+                face_width,
+                face_height,
+                center_x,
+                center_y,
+            )
+
+    def _draw_happy_face(
+        self,
+        draw,
+        width,
+        height,
+        variant,
+        left_eye_x,
+        right_eye_x,
+        eye_y,
+        eye_width,
+        eye_height,
+        face_width,
+        face_height,
+        center_x,
+        center_y,
+    ):
+        """Draw happy mood faces."""
+        if variant == 0:
+            # Smile (:)) - open round eyes
+            for eye_x in [left_eye_x, right_eye_x]:
+                draw.ellipse(
+                    [
+                        eye_x - eye_width // 2,
+                        eye_y - eye_height // 2,
+                        eye_x + eye_width // 2,
+                        eye_y + eye_height // 2,
+                    ],
+                    fill="white",
+                )
+            # Happy smile
+            self._draw_smile(
+                draw, center_x, center_y, face_width, face_height, big=False
+            )
+        else:
+            # Big grin (:D) - closed happy eyes
+            line_width = 6
+            for eye_x in [left_eye_x, right_eye_x]:
+                draw.line(
+                    [(eye_x - eye_width // 2, eye_y), (eye_x + eye_width // 2, eye_y)],
+                    fill="white",
+                    width=line_width,
+                )
+            # Big smile
+            self._draw_smile(
+                draw, center_x, center_y, face_width, face_height, big=True
+            )
+
+    def _draw_neutral_face(
+        self,
+        draw,
+        width,
+        height,
+        variant,
+        left_eye_x,
+        right_eye_x,
+        eye_y,
+        eye_width,
+        eye_height,
+        face_width,
+        face_height,
+        center_x,
+        center_y,
+    ):
+        """Draw neutral/straight face mood."""
+        if variant == 0:
+            # Straight face (:|) - open neutral eyes
+            for eye_x in [left_eye_x, right_eye_x]:
+                draw.ellipse(
+                    [
+                        eye_x - eye_width // 2,
+                        eye_y - eye_height // 2,
+                        eye_x + eye_width // 2,
+                        eye_y + eye_height // 2,
+                    ],
+                    fill="white",
+                )
+            # Straight line mouth
+            mouth_y = center_y + (face_height // 8)
+            mouth_width = face_width // 3
+            draw.line(
+                [
+                    (center_x - mouth_width // 2, mouth_y),
+                    (center_x + mouth_width // 2, mouth_y),
+                ],
+                fill="white",
+                width=6,
+            )
+        else:
+            # Blinking - closed eyes
+            line_width = 4
+            for eye_x in [left_eye_x, right_eye_x]:
+                draw.line(
+                    [(eye_x - eye_width // 2, eye_y), (eye_x + eye_width // 2, eye_y)],
+                    fill="white",
+                    width=line_width,
+                )
+            # Straight mouth
+            mouth_y = center_y + (face_height // 8)
+            mouth_width = face_width // 3
+            draw.line(
+                [
+                    (center_x - mouth_width // 2, mouth_y),
+                    (center_x + mouth_width // 2, mouth_y),
+                ],
+                fill="white",
+                width=6,
+            )
+
+    def _draw_sad_face(
+        self,
+        draw,
+        width,
+        height,
+        variant,
+        left_eye_x,
+        right_eye_x,
+        eye_y,
+        eye_width,
+        eye_height,
+        face_width,
+        face_height,
+        center_x,
+        center_y,
+    ):
+        """Draw sad mood faces."""
+        if variant == 0:
+            # Sad face - droopy eyes
+            for eye_x in [left_eye_x, right_eye_x]:
+                # Draw droopy eye arcs (sad eyes)
+                draw.arc(
+                    [
+                        eye_x - eye_width // 2,
+                        eye_y - eye_height // 3,
+                        eye_x + eye_width // 2,
+                        eye_y + eye_height // 3,
+                    ],
+                    start=0,
+                    end=180,
+                    fill="white",
+                    width=3,
+                )
+            # Sad downward curve mouth
+            mouth_y = center_y + (face_height // 6)
+            mouth_width = face_width // 3
+            mouth_points = []
+            for i in range(11):
+                t = i / 10.0
+                x = (center_x - mouth_width // 2) + (mouth_width * t)
+                # Downward curve (sad)
+                y = mouth_y + (20 * ((t - 0.5) ** 2) * 4)
+                mouth_points.append((x, y))
+            line_width = 6
+            for i in range(len(mouth_points) - 1):
+                draw.line(
+                    [mouth_points[i], mouth_points[i + 1]],
+                    fill="white",
+                    width=line_width,
+                )
+        else:
+            # Sadder - tears or more droopy
+            for eye_x in [left_eye_x, right_eye_x]:
+                draw.arc(
+                    [
+                        eye_x - eye_width // 2,
+                        eye_y - eye_height // 3,
+                        eye_x + eye_width // 2,
+                        eye_y + eye_height // 3,
+                    ],
+                    start=0,
+                    end=180,
+                    fill="white",
+                    width=3,
+                )
+            # More pronounced sad mouth
+            mouth_y = center_y + (face_height // 6)
+            mouth_width = face_width // 3
+            mouth_points = []
+            for i in range(11):
+                t = i / 10.0
+                x = (center_x - mouth_width // 2) + (mouth_width * t)
+                # Deeper downward curve
+                y = mouth_y + (30 * ((t - 0.5) ** 2) * 4)
+                mouth_points.append((x, y))
+            line_width = 6
+            for i in range(len(mouth_points) - 1):
+                draw.line(
+                    [mouth_points[i], mouth_points[i + 1]],
+                    fill="white",
+                    width=line_width,
+                )
+
+    def _draw_angry_face(
+        self,
+        draw,
+        width,
+        height,
+        variant,
+        left_eye_x,
+        right_eye_x,
+        eye_y,
+        eye_width,
+        eye_height,
+        face_width,
+        face_height,
+        center_x,
+        center_y,
+    ):
+        """Draw angry mood faces."""
+        if variant == 0:
+            # Angry - slanted eyebrows, tight mouth
+            for i, eye_x in enumerate([left_eye_x, right_eye_x]):
+                # Angry slanted eyes
+                slant = (
+                    -8 if i == 0 else 8
+                )  # Left eye slants down-right, right down-left
+                draw.line(
+                    [
+                        (eye_x - eye_width // 2, eye_y - 5),
+                        (eye_x + eye_width // 2, eye_y + slant),
+                    ],
+                    fill="white",
+                    width=5,
+                )
+            # Tight angry mouth (small straight line)
+            mouth_y = center_y + (face_height // 6)
+            mouth_width = face_width // 4
+            draw.line(
+                [
+                    (center_x - mouth_width // 2, mouth_y),
+                    (center_x + mouth_width // 2, mouth_y),
+                ],
+                fill="white",
+                width=8,
+            )
+        else:
+            # Furious - more angry expression
+            for i, eye_x in enumerate([left_eye_x, right_eye_x]):
+                slant = -12 if i == 0 else 12
+                draw.line(
+                    [
+                        (eye_x - eye_width // 2, eye_y - 8),
+                        (eye_x + eye_width // 2, eye_y + slant),
+                    ],
+                    fill="white",
+                    width=6,
+                )
+            # Very tight mouth
+            mouth_y = center_y + (face_height // 6)
+            mouth_width = face_width // 5
+            draw.line(
+                [
+                    (center_x - mouth_width // 2, mouth_y),
+                    (center_x + mouth_width // 2, mouth_y),
+                ],
+                fill="white",
+                width=10,
+            )
+
+    def _draw_laughing_face(
+        self,
+        draw,
+        width,
+        height,
+        variant,
+        left_eye_x,
+        right_eye_x,
+        eye_y,
+        eye_width,
+        eye_height,
+        face_width,
+        face_height,
+        center_x,
+        center_y,
+    ):
+        """Draw laughing mood faces."""
+        if variant == 0:
+            # Laugh - happy closed eyes
+            line_width = 6
+            for eye_x in [left_eye_x, right_eye_x]:
+                # Curved happy eyes
+                draw.arc(
+                    [
+                        eye_x - eye_width // 2,
+                        eye_y - 5,
+                        eye_x + eye_width // 2,
+                        eye_y + 5,
+                    ],
+                    start=0,
+                    end=180,
+                    fill="white",
+                    width=4,
+                )
+            # Open laughing mouth (big D shape)
+            mouth_y = center_y + (face_height // 8)
+            mouth_width = face_width // 2
+            mouth_height = face_height // 4
+            draw.ellipse(
+                [
+                    center_x - mouth_width // 2,
+                    mouth_y - mouth_height // 4,
+                    center_x + mouth_width // 2,
+                    mouth_y + mouth_height,
+                ],
+                fill="white",
+            )
+        else:
+            # Big laugh
+            line_width = 6
+            for eye_x in [left_eye_x, right_eye_x]:
+                draw.arc(
+                    [
+                        eye_x - eye_width // 2,
+                        eye_y - 8,
+                        eye_x + eye_width // 2,
+                        eye_y + 8,
+                    ],
+                    start=0,
+                    end=180,
+                    fill="white",
+                    width=5,
+                )
+            # Very open mouth
+            mouth_y = center_y + (face_height // 8)
+            mouth_width = face_width // 2
+            mouth_height = face_height // 3
+            draw.ellipse(
+                [
+                    center_x - mouth_width // 2,
+                    mouth_y - mouth_height // 4,
+                    center_x + mouth_width // 2,
+                    mouth_y + mouth_height,
+                ],
+                fill="white",
+            )
+
+    def _draw_concentrated_face(
+        self,
+        draw,
+        width,
+        height,
+        variant,
+        left_eye_x,
+        right_eye_x,
+        eye_y,
+        eye_width,
+        eye_height,
+        face_width,
+        face_height,
+        center_x,
+        center_y,
+    ):
+        """Draw concentrated/learning mood faces."""
+        if variant == 0:
+            # Focused - narrowed eyes
+            for eye_x in [left_eye_x, right_eye_x]:
+                # Narrow focused eyes
+                draw.ellipse(
+                    [
+                        eye_x - eye_width // 3,
+                        eye_y - eye_height // 4,
+                        eye_x + eye_width // 3,
+                        eye_y + eye_height // 4,
+                    ],
+                    fill="white",
+                )
+            # Small concentrated mouth
+            mouth_y = center_y + (face_height // 6)
+            mouth_width = face_width // 4
+            draw.ellipse(
+                [
+                    center_x - mouth_width // 2,
+                    mouth_y - 5,
+                    center_x + mouth_width // 2,
+                    mouth_y + 5,
+                ],
+                fill="white",
+            )
+        else:
+            # Thinking - one eye closed/raised eyebrow
+            for eye_x in [left_eye_x, right_eye_x]:
+                draw.ellipse(
+                    [
+                        eye_x - eye_width // 3,
+                        eye_y - eye_height // 4,
+                        eye_x + eye_width // 3,
+                        eye_y + eye_height // 4,
+                    ],
+                    fill="white",
+                )
+            # Slight smile (thinking)
+            mouth_y = center_y + (face_height // 6)
+            mouth_width = face_width // 4
+            mouth_points = []
+            for i in range(11):
+                t = i / 10.0
+                x = (center_x - mouth_width // 2) + (mouth_width * t)
+                y = mouth_y + (10 * (1 - ((t - 0.5) ** 2) * 4))
+                mouth_points.append((x, y))
+            line_width = 4
+            for i in range(len(mouth_points) - 1):
+                draw.line(
+                    [mouth_points[i], mouth_points[i + 1]],
+                    fill="white",
+                    width=line_width,
+                )
+
+    def _draw_smile(self, draw, center_x, center_y, face_width, face_height, big=False):
+        """Helper method to draw a smile (normal or big)."""
+        mouth_y = center_y + (face_height // 8)
+        mouth_width = face_width // 2 if big else face_width // 3
+        mouth_height = face_height // 5 if big else face_height // 8
+
+        mouth_points = []
+        curve_factor = 4.5 if big else 4.0
+
+        for i in range(11):
+            t = i / 10.0
+            x = (center_x - mouth_width // 2) + (mouth_width * t)
+            y = mouth_y + (mouth_height * (1 - ((t - 0.5) ** 2) * curve_factor))
+            mouth_points.append((x, y))
+
+        line_width = 12 if big else 8
+        for i in range(len(mouth_points) - 1):
+            draw.line(
+                [mouth_points[i], mouth_points[i + 1]], fill="white", width=line_width
+            )
+
+        # Add rounded caps
+        cap_radius = line_width // 2
+        draw.ellipse(
+            [
+                mouth_points[0][0] - cap_radius,
+                mouth_points[0][1] - cap_radius,
+                mouth_points[0][0] + cap_radius,
+                mouth_points[0][1] + cap_radius,
+            ],
+            fill="white",
+        )
+        draw.ellipse(
+            [
+                mouth_points[-1][0] - cap_radius,
+                mouth_points[-1][1] - cap_radius,
+                mouth_points[-1][0] + cap_radius,
+                mouth_points[-1][1] + cap_radius,
+            ],
+            fill="white",
+        )
+
+        if big:
+            # Add straight bottom line for D shape
+            left_corner = mouth_points[0]
+            right_corner = mouth_points[-1]
+            bottom_y = max(left_corner[1], right_corner[1]) + line_width // 2
+            draw.line(
+                [(left_corner[0], bottom_y), (right_corner[0], bottom_y)],
+                fill="white",
+                width=line_width,
+            )
+            draw.ellipse(
+                [
+                    left_corner[0] - cap_radius,
+                    bottom_y - cap_radius,
+                    left_corner[0] + cap_radius,
+                    bottom_y + cap_radius,
+                ],
+                fill="white",
+            )
+            draw.ellipse(
+                [
+                    right_corner[0] - cap_radius,
+                    bottom_y - cap_radius,
+                    right_corner[0] + cap_radius,
+                    bottom_y + cap_radius,
+                ],
+                fill="white",
+            )
+
     def _animation_loop(self):
-        """Animation loop that alternates between :) and :D."""
-        logger.info("Face animation loop started")
+        """Animation loop that alternates between mood faces (5s main / 2s variation)."""
+        logger.info(
+            f"Mood animation loop started - current mood: {self._mood_manager.current_mood.value}"
+        )
 
         while self._animation_running:
             with self._animation_lock:
@@ -667,11 +1310,13 @@ class LCDService:
                     logger.warning("LCD not initialized, stopping animation")
                     break
 
-                # Show normal smile (:)) for 5 seconds
-                self._current_face = "smile"
-                self.show_face(big_grin=False)
+                current_mood = self._mood_manager.current_mood
 
-            # Wait 5 seconds (outside lock)
+                # Show main face (5 seconds)
+                self._mood_manager._current_face_index = 0
+                self.show_face_for_mood(current_mood, face_variant=0)
+
+            # Wait 5 seconds
             for _ in range(50):  # 5 seconds in 0.1s increments
                 if not self._animation_running:
                     break
@@ -681,11 +1326,11 @@ class LCDService:
                 if self._animation_paused or not self._animation_running:
                     continue
 
-                # Show big grin (:D) for 2 seconds
-                self._current_face = "big_grin"
-                self.show_face(big_grin=True)
+                # Show variation face (2 seconds)
+                self._mood_manager._current_face_index = 1
+                self.show_face_for_mood(current_mood, face_variant=1)
 
-            # Wait 2 seconds (outside lock)
+            # Wait 2 seconds
             for _ in range(20):  # 2 seconds in 0.1s increments
                 if not self._animation_running:
                     break
@@ -735,6 +1380,60 @@ class LCDService:
     def is_animation_running(self) -> bool:
         """Check if animation is running."""
         return self._animation_running
+
+    def set_mood(self, mood: Mood) -> bool:
+        """Set the current mood for the robot face.
+
+        Args:
+            mood: The new mood to set
+
+        Returns:
+            True if mood was set successfully
+        """
+        if not self._is_initialized:
+            logger.warning("LCD not initialized, cannot set mood")
+            return False
+
+        old_mood = self._mood_manager.current_mood
+        self._mood_manager.current_mood = mood
+
+        # Immediately display the new mood face
+        self.show_face_for_mood(mood, face_variant=0)
+
+        logger.info(f"Mood changed from {old_mood.value} to {mood.value}")
+        return True
+
+    def set_mood_by_name(self, mood_name: str) -> bool:
+        """Set mood by name string.
+
+        Args:
+            mood_name: Name of the mood (happy, neutral, sad, angry, laughing, concentrated)
+
+        Returns:
+            True if mood was set successfully
+        """
+        try:
+            mood = Mood(mood_name)
+            return self.set_mood(mood)
+        except ValueError:
+            logger.error(f"Invalid mood name: {mood_name}")
+            return False
+
+    def get_current_mood(self) -> Mood:
+        """Get the current mood."""
+        return self._mood_manager.current_mood
+
+    def get_mood_description(self) -> str:
+        """Get human-readable description of current mood."""
+        return self._mood_manager.current_mood.get_description()
+
+    def is_misbehaving(self) -> bool:
+        """Check if current mood indicates classroom misbehavior."""
+        return self._mood_manager.is_misbehaving_mood()
+
+    def get_available_moods(self) -> list:
+        """Get list of all available mood names."""
+        return Mood.get_all_moods()
 
     def show_text(
         self, text: str, position: Optional[Tuple[int, int]] = None, font_size: int = 20

@@ -40,6 +40,12 @@ class LCDDisplayView(TemplateView):
         context["config_form"] = LCDConfigForm(instance=config)
         context["text_form"] = ShowTextForm()
 
+        # Add mood information
+        context["current_mood"] = lcd_service.get_current_mood()
+        context["mood_description"] = lcd_service.get_mood_description()
+        context["available_moods"] = lcd_service.get_available_moods()
+        context["is_misbehaving"] = lcd_service.is_misbehaving()
+
         return context
 
 
@@ -206,6 +212,93 @@ class SetBacklightView(View):
             )
         except Exception as e:
             logger.error(f"Error setting backlight: {e}")
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": str(e),
+                },
+                status=500,
+            )
+
+
+class SetMoodView(View):
+    """API view to set robot mood."""
+
+    def post(self, request):
+        """Set the robot's mood."""
+        try:
+            mood_name = request.POST.get("mood", "happy")
+
+            # Set the mood
+            if lcd_service.is_initialized():
+                success = lcd_service.set_mood_by_name(mood_name)
+                if success:
+                    current_mood = lcd_service.get_current_mood()
+                    mood_desc = lcd_service.get_mood_description()
+
+                    return JsonResponse(
+                        {
+                            "success": True,
+                            "message": _("Mood set to: %(mood)s") % {"mood": mood_desc},
+                            "mood": current_mood.value,
+                            "is_misbehaving": lcd_service.is_misbehaving(),
+                        }
+                    )
+                else:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": _("Invalid mood: %(mood)s") % {"mood": mood_name},
+                            "available_moods": lcd_service.get_available_moods(),
+                        },
+                        status=400,
+                    )
+            else:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": _("LCD not initialized"),
+                    },
+                    status=400,
+                )
+        except Exception as e:
+            logger.error(f"Error setting mood: {e}")
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": str(e),
+                },
+                status=500,
+            )
+
+
+class GetMoodView(View):
+    """API view to get current mood status."""
+
+    def get(self, request):
+        """Get current mood information."""
+        try:
+            if lcd_service.is_initialized():
+                current_mood = lcd_service.get_current_mood()
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "mood": current_mood.value,
+                        "description": lcd_service.get_mood_description(),
+                        "is_misbehaving": lcd_service.is_misbehaving(),
+                        "available_moods": lcd_service.get_available_moods(),
+                    }
+                )
+            else:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": _("LCD not initialized"),
+                    },
+                    status=400,
+                )
+        except Exception as e:
+            logger.error(f"Error getting mood: {e}")
             return JsonResponse(
                 {
                     "success": False,
