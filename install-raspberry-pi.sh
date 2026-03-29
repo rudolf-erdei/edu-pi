@@ -524,6 +524,78 @@ print_summary() {
     echo
 }
 
+# Check if Tinko is already installed and handle update
+handle_existing_installation() {
+    log_info "Checking for existing Tinko installation..."
+    
+    # Check if service exists
+    if systemctl list-unit-files | grep -q "${SERVICE_NAME}.service"; then
+        log_warning "Tinko service already exists!"
+        
+        # Check if service is running
+        SERVICE_WAS_RUNNING=false
+        if sudo systemctl is-active --quiet ${SERVICE_NAME} 2>/dev/null; then
+            SERVICE_WAS_RUNNING=true
+            log_info "Service is currently running"
+            
+            log_info "Stopping Tinko service for update..."
+            sudo systemctl stop ${SERVICE_NAME}
+            sleep 2
+            
+            if sudo systemctl is-active --quiet ${SERVICE_NAME} 2>/dev/null; then
+                log_error "Failed to stop service. Please stop it manually:"
+                log_info "  sudo systemctl stop ${SERVICE_NAME}"
+                exit 1
+            fi
+            log_success "Service stopped successfully"
+        else
+            log_info "Service is not running"
+        fi
+        
+        # Store the fact that we're updating
+        export TINKO_UPDATE_MODE=true
+        export TINKO_SERVICE_WAS_RUNNING=$SERVICE_WAS_RUNNING
+        
+        log_info "Update mode activated - will restart service after installation"
+    else
+        log_info "No existing Tinko installation found"
+        export TINKO_UPDATE_MODE=false
+        export TINKO_SERVICE_WAS_RUNNING=false
+    fi
+}
+
+# Restart service after update if it was running
+restart_service_after_update() {
+    if [[ "$TINKO_UPDATE_MODE" == "true" && "$TINKO_SERVICE_WAS_RUNNING" == "true" ]]; then
+        log_info "Restarting Tinko service after update..."
+        
+        # Reload systemd in case service file changed
+        sudo systemctl daemon-reload
+        
+        sudo systemctl start ${SERVICE_NAME}
+        sleep 2
+        
+        if sudo systemctl is-active --quiet ${SERVICE_NAME}; then
+            log_success "Service restarted successfully!"
+            
+            # Verify network binding
+            log_info "Verifying network binding..."
+            sleep 2
+            
+            if sudo netstat -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
+                log_success "Service is accessible from other devices on port 8000"
+            elif sudo ss -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
+                log_success "Service is accessible from other devices on port 8000"
+            elif sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:8000"; then
+                log_warning "Service is only listening on localhost (127.0.0.1:8000)"
+            fi
+        else
+            log_error "Service failed to restart. Check logs with:"
+            log_info "  sudo journalctl -u ${SERVICE_NAME} -f"
+        fi
+    fi
+}
+
 # Main installation function
 main() {
     echo
@@ -553,6 +625,7 @@ main() {
     check_root
     check_platform
     check_internet
+    handle_existing_installation
     
     log_info "Starting installation..."
     
@@ -569,6 +642,7 @@ main() {
     configure_audio
     test_installation
     setup_systemd_service
+    restart_service_after_update
     
     print_summary
 }
