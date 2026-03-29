@@ -108,13 +108,14 @@ update_dependencies() {
     
     cd "$INSTALL_DIR"
     
-    # Sync dependencies
-    uv sync
-    
-    # Install Pi-specific dependencies if on Raspberry Pi
+    # Sync all dependencies including extras
+    # Use --all-extras to ensure all optional dependencies are installed
     if [[ -f /proc/device-tree/model ]] && grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
-        log_info "Installing Raspberry Pi specific dependencies..."
-        uv sync --extra pi
+        log_info "Installing all dependencies including Pi-specific extras..."
+        uv sync --all-extras
+    else
+        log_info "Installing dependencies..."
+        uv sync
     fi
     
     log_success "Dependencies updated"
