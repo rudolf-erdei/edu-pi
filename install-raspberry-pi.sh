@@ -209,7 +209,7 @@ setup_environment() {
 # Security
 DEBUG=False
 SECRET_KEY=${SECRET_KEY}
-ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,${PI_IP}
+ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,${PI_IP},tinko.local
 
 # Localization
 TIME_ZONE=${CURRENT_TZ}
@@ -389,6 +389,39 @@ EOF
         
         if sudo systemctl is-active --quiet ${SERVICE_NAME}; then
             log_success "Tinko service is running!"
+            
+            # Verify network binding
+            log_info "Verifying network binding..."
+            sleep 2
+            
+            # Check if listening on all interfaces
+            if sudo netstat -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
+                log_success "Service is accessible from other devices on port 8000"
+            elif sudo ss -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
+                log_success "Service is accessible from other devices on port 8000"
+            elif sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:8000"; then
+                log_error "Service is only listening on localhost (127.0.0.1:8000)"
+                log_warning "This means the service is NOT accessible from other devices!"
+                log_info "Checking service file configuration..."
+                
+                # Check if the service file has the correct binding
+                if sudo grep -q "daphne.*-b 0.0.0.0" /etc/systemd/system/${SERVICE_NAME}.service 2>/dev/null; then
+                    log_info "Service file has correct -b 0.0.0.0 flag"
+                    log_info "Try restarting the service:"
+                    log_info "  sudo systemctl restart ${SERVICE_NAME}"
+                else
+                    log_error "Service file is missing -b 0.0.0.0 flag"
+                    log_info "To fix, edit the service file:"
+                    log_info "  sudo systemctl stop ${SERVICE_NAME}"
+                    log_info "  sudo nano /etc/systemd/system/${SERVICE_NAME}.service"
+                    log_info "Ensure ExecStart line contains: -b 0.0.0.0 -p 8000"
+                    log_info "  sudo systemctl daemon-reload"
+                    log_info "  sudo systemctl start ${SERVICE_NAME}"
+                fi
+            else
+                log_warning "Could not verify port binding. Please check manually:"
+                log_info "  sudo netstat -tlnp | grep 8000"
+            fi
         else
             log_error "Service failed to start. Check logs with:"
             log_info "  sudo journalctl -u ${SERVICE_NAME} -f"
@@ -476,6 +509,18 @@ print_summary() {
     
     log_warning "IMPORTANT: Log out and log back in for GPIO permissions to take effect"
     log_info "After logging back in, verify audio with: speaker-test -t wav"
+    echo
+    echo "Troubleshooting Network Access:"
+    echo "  If you cannot access from other devices:"
+    echo "  1. Verify port binding: sudo netstat -tlnp | grep 8000"
+    echo "     Should show: 0.0.0.0:8000 (not 127.0.0.1:8000)"
+    echo "  2. Check firewall: sudo ufw status"
+    echo "  3. Check service logs: sudo journalctl -u ${SERVICE_NAME} -f"
+    echo "  4. Verify ALLOWED_HOSTS in .env file includes your IP/hostname"
+    echo
+    echo "To manually start for testing:"
+    echo "  cd ${INSTALL_DIR}"
+    echo "  uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application"
     echo
 }
 
