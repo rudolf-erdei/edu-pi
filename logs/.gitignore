@@ -1,0 +1,9 @@
+# Ignore all log files
+*.log
+
+# Ignore log archives
+*.log.*
+*.gz
+
+# Keep the directory but ignore contents
+# This file is needed to track the logs directory in git

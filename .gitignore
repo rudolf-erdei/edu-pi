@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Database
+db.sqlite3
+db.sqlite3-journal
