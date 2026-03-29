@@ -27,6 +27,7 @@ dependencies = [
 pi = [
     "RPi.GPIO>=0.7.1",
     "lgpio>=0.2",
+    "spidev>=3.5",
     "luma.core>=2.4.0",
     "luma.lcd>=2.11.0",
 ]
