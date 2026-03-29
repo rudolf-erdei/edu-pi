@@ -88,9 +88,10 @@ class LCDService:
     _instance = None
     _lock = threading.Lock()
 
-    # Display dimensions (320x240 landscape by default)
-    DEFAULT_WIDTH = 320
-    DEFAULT_HEIGHT = 240
+    # Display dimensions (240x320 portrait by default for ILI9341)
+    # Note: ILI9341 is natively 240x320, rotation 0 = portrait
+    DEFAULT_WIDTH = 240
+    DEFAULT_HEIGHT = 320
 
     # Pin assignments
     DEFAULT_PINS = {
@@ -192,18 +193,42 @@ class LCDService:
             )
             logger.debug("ILI9341 device created successfully")
 
+            # Small delay to let display stabilize
+            time.sleep(0.5)
+
             # Initialize backlight with PWM
             logger.debug(f"Initializing backlight on GPIO {self._pins['bl']}...")
             self._backlight = PWMLED(self._pins["bl"])
             self.set_backlight(backlight)
             logger.debug("Backlight initialized successfully")
 
+            # Small delay
+            time.sleep(0.2)
+
             self._rotation = rotation
             self._is_initialized = True
 
             logger.info(f"LCD initialized: {self._width}x{self._height} @ {rotation}°")
 
+            # Clear screen first to ensure display is ready
+            logger.debug("Clearing screen...")
+            self.clear_screen()
+            time.sleep(0.2)  # Small delay to ensure display is ready
+
+            # Test display with colors to verify it's working
+            logger.debug("Testing display colors...")
+            test_colors = ["red", "green", "blue"]
+            for color in test_colors:
+                test_img = Image.new("RGB", (self._width, self._height), color)
+                self._device.display(test_img)
+                time.sleep(0.3)
+
+            # Clear to black
+            self.clear_screen()
+            time.sleep(0.1)
+
             # Show startup smiley face
+            logger.debug("About to show smiley face...")
             self.show_smiley_face()
 
             return True
@@ -262,7 +287,28 @@ class LCDService:
             draw = ImageDraw.Draw(img)
             logger.debug(f"Image created: {self._width}x{self._height}")
 
-            # Draw smiling face
+            # First test: Fill with red to see if display works
+            logger.debug("Testing display with red fill...")
+            test_img = Image.new("RGB", (self._width, self._height), "red")
+            self._device.display(test_img)
+            logger.debug("Red screen displayed")
+            time.sleep(0.5)  # Brief pause
+
+            # Test with green
+            logger.debug("Testing display with green fill...")
+            test_img2 = Image.new("RGB", (self._width, self._height), "green")
+            self._device.display(test_img2)
+            logger.debug("Green screen displayed")
+            time.sleep(0.5)  # Brief pause
+
+            # Test with blue
+            logger.debug("Testing display with blue fill...")
+            test_img3 = Image.new("RGB", (self._width, self._height), "blue")
+            self._device.display(test_img3)
+            logger.debug("Blue screen displayed")
+            time.sleep(0.5)  # Brief pause
+
+            # Now draw the smiley face
             logger.debug("Drawing smiley face...")
             self._draw_smiley_face(draw, self._width, self._height)
             logger.debug("Smiley face drawn")
