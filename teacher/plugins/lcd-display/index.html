@@ -1966,6 +1966,67 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#calling-plugins-from-other-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calling Plugins from Other Plugins
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calling Plugins from Other Plugins">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#complete-example-noise-based-mood-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Example: Noise-Based Mood Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#available-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Available Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#important-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Important Considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#activity-timer" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2380,18 +2441,86 @@
 <li><strong>Resume</strong>: Click "Show Smiley" to restart animation</li>
 </ul>
 <h2 id="integration-with-other-plugins">Integration with Other Plugins<a class="headerlink" href="#integration-with-other-plugins" title="Permanent link">&para;</a></h2>
+<h3 id="calling-plugins-from-other-plugins">Calling Plugins from Other Plugins<a class="headerlink" href="#calling-plugins-from-other-plugins" title="Permanent link">&para;</a></h3>
+<p>All plugins can call the LCD Display plugin to control the robot's mood and display. This is done by importing the LCD service singleton.</p>
+<h4 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">plugins.edupi.lcd_display.lcd_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">lcd_service</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">plugins.edupi.lcd_display.mood</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mood</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Always check if LCD is initialized before using</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">if</span> <span class="n">lcd_service</span><span class="o">.</span><span class="n">is_initialized</span><span class="p">():</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="c1"># Set mood by enum</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood</span><span class="p">(</span><span class="n">Mood</span><span class="o">.</span><span class="n">HAPPY</span><span class="p">)</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="c1"># Or by name</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood_by_name</span><span class="p">(</span><span class="s2">&quot;concentrated&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="c1"># Display custom text</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    <span class="n">lcd_service</span><span class="o">.</span><span class="n">show_text</span><span class="p">(</span><span class="s2">&quot;Time&#39;s up!&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>    <span class="c1"># Adjust backlight</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>    <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_backlight</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>  <span class="c1"># 50% brightness</span>
+</code></pre></div>
+<h4 id="complete-example-noise-based-mood-changes">Complete Example: Noise-Based Mood Changes<a class="headerlink" href="#complete-example-noise-based-mood-changes" title="Permanent link">&para;</a></h4>
+<p>Here's how to change the robot's mood based on classroom noise levels:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">plugins.edupi.lcd_display.lcd_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">lcd_service</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">plugins.edupi.lcd_display.mood</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mood</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">update_robot_mood</span><span class="p">(</span><span class="n">noise_level</span><span class="p">):</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Update LCD mood based on noise level.</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="sd">    Args:</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="sd">        noise_level: Current noise level (0-100)</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">lcd_service</span><span class="o">.</span><span class="n">is_initialized</span><span class="p">():</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>        <span class="k">return</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>    <span class="k">if</span> <span class="n">noise_level</span> <span class="o">&gt;</span> <span class="mi">80</span><span class="p">:</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>        <span class="c1"># Very noisy - robot is angry</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>        <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood</span><span class="p">(</span><span class="n">Mood</span><span class="o">.</span><span class="n">ANGRY</span><span class="p">)</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>    <span class="k">elif</span> <span class="n">noise_level</span> <span class="o">&gt;</span> <span class="mi">60</span><span class="p">:</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>        <span class="c1"># Quite noisy - robot is sad</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>        <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood</span><span class="p">(</span><span class="n">Mood</span><span class="o">.</span><span class="n">SAD</span><span class="p">)</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>    <span class="k">elif</span> <span class="n">noise_level</span> <span class="o">&gt;</span> <span class="mi">40</span><span class="p">:</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>        <span class="c1"># Moderate noise - robot is neutral</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>        <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood</span><span class="p">(</span><span class="n">Mood</span><span class="o">.</span><span class="n">NEUTRAL</span><span class="p">)</span>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a>    <span class="k">elif</span> <span class="n">noise_level</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="p">:</span>
+<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a>        <span class="c1"># Quiet - robot is happy</span>
+<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a>        <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood</span><span class="p">(</span><span class="n">Mood</span><span class="o">.</span><span class="n">HAPPY</span><span class="p">)</span>
+<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a>        <span class="c1"># Very quiet - robot is concentrated</span>
+<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a>        <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood</span><span class="p">(</span><span class="n">Mood</span><span class="o">.</span><span class="n">CONCENTRATED</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="available-methods">Available Methods<a class="headerlink" href="#available-methods" title="Permanent link">&para;</a></h4>
+<p><strong>Mood Control:</strong>
+- <code>lcd_service.set_mood(mood: Mood)</code> - Set mood using Mood enum
+- <code>lcd_service.set_mood_by_name(name: str)</code> - Set mood by string name
+- <code>lcd_service.get_current_mood()</code> - Get current mood
+- <code>lcd_service.get_available_moods()</code> - List all available moods
+- <code>lcd_service.is_misbehaving()</code> - Check if mood indicates misbehavior</p>
+<p><strong>Display Control:</strong>
+- <code>lcd_service.show_text(text, position, font_size)</code> - Display text
+- <code>lcd_service.clear_screen()</code> - Clear display
+- <code>lcd_service.set_backlight(brightness)</code> - Set backlight (0-100)</p>
+<p><strong>Animation:</strong>
+- <code>lcd_service.start_face_animation()</code> - Start mood animation
+- <code>lcd_service.stop_face_animation()</code> - Stop animation
+- <code>lcd_service.pause_face_animation()</code> - Pause animation
+- <code>lcd_service.resume_face_animation()</code> - Resume animation</p>
+<h4 id="important-considerations">Important Considerations<a class="headerlink" href="#important-considerations" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Check Initialization</strong>: Always call <code>lcd_service.is_initialized()</code> before using</li>
+<li><strong>SPI Conflict</strong>: Touch Piano cannot be used simultaneously with LCD due to SPI conflicts</li>
+<li><strong>Dependencies</strong>: All plugins automatically declare LCD Display as a dependency</li>
+<li><strong>Thread Safety</strong>: LCD service is thread-safe for concurrent access</li>
+</ol>
 <h3 id="activity-timer">Activity Timer<a class="headerlink" href="#activity-timer" title="Permanent link">&para;</a></h3>
 <p>When countdown is running:
 - LCD pauses mood animation
 - Shows countdown timer
 - Returns to mood animation after completion</p>
 <h3 id="noise-monitor">Noise Monitor<a class="headerlink" href="#noise-monitor" title="Permanent link">&para;</a></h3>
-<p>Can trigger mood changes based on noise levels:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">if</span> <span class="n">noise_level</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">:</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood</span><span class="p">(</span><span class="n">Mood</span><span class="o">.</span><span class="n">NEUTRAL</span><span class="p">)</span>  <span class="c1"># First warning</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">elif</span> <span class="n">noise_level</span> <span class="o">&gt;</span> <span class="n">higher_threshold</span><span class="p">:</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood</span><span class="p">(</span><span class="n">Mood</span><span class="o">.</span><span class="n">SAD</span><span class="p">)</span>    <span class="c1"># Second warning</span>
-</code></pre></div></p>
+<p>Can trigger mood changes based on noise levels - see example above.</p>
 <h3 id="touch-piano">Touch Piano<a class="headerlink" href="#touch-piano" title="Permanent link">&para;</a></h3>
 <p>Cannot use simultaneously with LCD Display (SPI conflict).
 Disable Touch Piano plugin when using LCD.</p>
@@ -2400,8 +2529,8 @@ Disable Touch Piano plugin when using LCD.</p>
 <ol>
 <li>
 <p><strong>Check SPI enabled</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ls<span class="w"> </span>/dev/spi*
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="c1"># Should show /dev/spidev0.0 and /dev/spidev0.1</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ls<span class="w"> </span>/dev/spi*
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1"># Should show /dev/spidev0.0 and /dev/spidev0.1</span>
 </code></pre></div></p>
 </li>
 <li>
@@ -2412,17 +2541,17 @@ Disable Touch Piano plugin when using LCD.</p>
 </li>
 <li>
 <p><strong>Check permissions</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>groups<span class="w"> </span><span class="nv">$USER</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1"># Should include: gpio, spi</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>groups<span class="w"> </span><span class="nv">$USER</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># Should include: gpio, spi</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Test display</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="s2">from plugins.edupi.lcd_display.lcd_service import lcd_service</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="s2">lcd_service.initialize()</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="s2">lcd_service.show_smiley_face()</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="s2">&quot;</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="s2">from plugins.edupi.lcd_display.lcd_service import lcd_service</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="s2">lcd_service.initialize()</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="s2">lcd_service.show_smiley_face()</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="s2">&quot;</span>
 </code></pre></div></p>
 </li>
 </ol>
