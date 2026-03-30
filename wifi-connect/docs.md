@@ -31,19 +31,19 @@ Install Flask
 pip install Flask
 ```
 
-## Make the robot-wifi.service
+## Make the tinko-wifi.service
 
 Create the following file using SUDO, on the py:
 
 ```bash
-sudo nano /etc/systemd/system/robot-wifi.service
+sudo nano /etc/systemd/system/tinko-wifi.service
 ```
 
 With the following content:
 
 ```ini
 [Unit]
-Description=Robot Wi-Fi Captive Portal Check
+Description=Tinko Wi-Fi Captive Portal Check
 # Wait to run this until the NetworkManager service is up and running
 After=NetworkManager.service
 
@@ -69,14 +69,14 @@ After that run the following commands sequentially:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable robot-wifi.service
-sudo systemctl start robot-wifi.service
+sudo systemctl enable tinko-wifi.service
+sudo systemctl start tinko-wifi.service
 ```
 
 Whenever you want to see what is happening, or if the hotspot doesn't appear, run this command:
 
 ```bash
-sudo journalctl -u robot-wifi.service -f
+sudo journalctl -u tinko-wifi.service -f
 ```
 
 ## Modify Django Service:

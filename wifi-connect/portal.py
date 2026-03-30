@@ -1,7 +1,26 @@
 from flask import Flask, request, render_template_string
 import subprocess
+import shlex
+import os
 
 app = Flask(__name__)
+
+# Path to the wifi worker script - can be overridden via environment variable
+WIFI_WORKER_SCRIPT = os.environ.get('WIFI_WORKER_SCRIPT', '/home/pi/wifi_worker.sh')
+
+
+def validate_wifi_input(ssid: str, password: str) -> bool:
+    """Validate SSID and password to prevent command injection."""
+    if not ssid or not password:
+        return False
+    if len(ssid) > 32 or len(password) > 64:
+        return False
+    # SSID can contain most printable characters but we should block control chars
+    invalid_chars = '\x00-\x1f\x7f'
+    for char in invalid_chars:
+        if char in ssid or char in password:
+            return False
+    return True
 
 # Helper function to ask NetworkManager for nearby Wi-Fi networks
 def get_available_ssids():
@@ -13,7 +32,7 @@ def get_available_ssids():
         ssids = result.split('\n')
         
         # Clean up the list: remove blanks, remove duplicates, and remove our own hotspot
-        clean_ssids = list(set([s.strip() for s in ssids if s.strip() and s.strip() != 'Robot-Setup']))
+        clean_ssids = list(set([s.strip() for s in ssids if s.strip() and s.strip() != 'Tinko-Setup']))
         
         # Sort them alphabetically for a better user experience
         clean_ssids.sort()
@@ -29,6 +48,9 @@ HTML_FORM = """
 <head><title>Tinko Setup</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="font-family: Arial; text-align: center; margin-top: 50px;">
     <h2>Connect Tinko to Wi-Fi</h2>
+    {% if error %}
+    <div style="color: red; margin-bottom: 15px;">{{ error }}</div>
+    {% endif %}
     <form action="/connect" method="POST">
         <input list="network-list" type="text" name="ssid" placeholder="Wi-Fi Name (SSID)" required style="padding: 10px; margin: 10px; width: 80%;"><br>
         <input type="password" name="password" placeholder="Password" required style="padding: 10px; margin: 10px; width: 80%;"><br>
@@ -64,13 +86,16 @@ def index(path):
 
 @app.route('/connect', methods=['POST'])
 def connect():
-    ssid = request.form['ssid']
-    password = request.form['password']
-    
-    # Spawn the worker script in the background. 
-    # We pass the SSID and Password as arguments.
-    subprocess.Popen(['sudo', 'bash', '/home/pi/wifi_worker.sh', ssid, password])
-    
+    ssid = request.form.get('ssid', '').strip()
+    password = request.form.get('password', '')
+
+    # Validate inputs to prevent command injection
+    if not validate_wifi_input(ssid, password):
+        return render_template_string(HTML_FORM, ssids=get_available_ssids(), error="Invalid input provided."), 400
+
+    # Spawn the worker script safely using list args (no shell injection)
+    subprocess.Popen(['sudo', 'bash', WIFI_WORKER_SCRIPT, ssid, password])
+
     # Immediately return the wait page BEFORE the Wi-Fi radio resets
     return render_template_string(WAIT_PAGE, ssid=ssid)
 
