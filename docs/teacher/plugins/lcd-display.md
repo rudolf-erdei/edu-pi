@@ -174,6 +174,92 @@ Each mood displays 2 faces that alternate:
 
 ## Integration with Other Plugins
 
+### Calling Plugins from Other Plugins
+
+All plugins can call the LCD Display plugin to control the robot's mood and display. This is done by importing the LCD service singleton.
+
+#### Basic Usage
+
+```python
+from plugins.edupi.lcd_display.lcd_service import lcd_service
+from plugins.edupi.lcd_display.mood import Mood
+
+# Always check if LCD is initialized before using
+if lcd_service.is_initialized():
+    # Set mood by enum
+    lcd_service.set_mood(Mood.HAPPY)
+    
+    # Or by name
+    lcd_service.set_mood_by_name("concentrated")
+    
+    # Display custom text
+    lcd_service.show_text("Time's up!")
+    
+    # Adjust backlight
+    lcd_service.set_backlight(50)  # 50% brightness
+```
+
+#### Complete Example: Noise-Based Mood Changes
+
+Here's how to change the robot's mood based on classroom noise levels:
+
+```python
+from plugins.edupi.lcd_display.lcd_service import lcd_service
+from plugins.edupi.lcd_display.mood import Mood
+
+def update_robot_mood(noise_level):
+    """Update LCD mood based on noise level.
+    
+    Args:
+        noise_level: Current noise level (0-100)
+    """
+    if not lcd_service.is_initialized():
+        return
+    
+    if noise_level > 80:
+        # Very noisy - robot is angry
+        lcd_service.set_mood(Mood.ANGRY)
+    elif noise_level > 60:
+        # Quite noisy - robot is sad
+        lcd_service.set_mood(Mood.SAD)
+    elif noise_level > 40:
+        # Moderate noise - robot is neutral
+        lcd_service.set_mood(Mood.NEUTRAL)
+    elif noise_level > 20:
+        # Quiet - robot is happy
+        lcd_service.set_mood(Mood.HAPPY)
+    else:
+        # Very quiet - robot is concentrated
+        lcd_service.set_mood(Mood.CONCENTRATED)
+```
+
+#### Available Methods
+
+**Mood Control:**
+- `lcd_service.set_mood(mood: Mood)` - Set mood using Mood enum
+- `lcd_service.set_mood_by_name(name: str)` - Set mood by string name
+- `lcd_service.get_current_mood()` - Get current mood
+- `lcd_service.get_available_moods()` - List all available moods
+- `lcd_service.is_misbehaving()` - Check if mood indicates misbehavior
+
+**Display Control:**
+- `lcd_service.show_text(text, position, font_size)` - Display text
+- `lcd_service.clear_screen()` - Clear display
+- `lcd_service.set_backlight(brightness)` - Set backlight (0-100)
+
+**Animation:**
+- `lcd_service.start_face_animation()` - Start mood animation
+- `lcd_service.stop_face_animation()` - Stop animation
+- `lcd_service.pause_face_animation()` - Pause animation
+- `lcd_service.resume_face_animation()` - Resume animation
+
+#### Important Considerations
+
+1. **Check Initialization**: Always call `lcd_service.is_initialized()` before using
+2. **SPI Conflict**: Touch Piano cannot be used simultaneously with LCD due to SPI conflicts
+3. **Dependencies**: All plugins automatically declare LCD Display as a dependency
+4. **Thread Safety**: LCD service is thread-safe for concurrent access
+
 ### Activity Timer
 When countdown is running:
 - LCD pauses mood animation
@@ -181,13 +267,7 @@ When countdown is running:
 - Returns to mood animation after completion
 
 ### Noise Monitor
-Can trigger mood changes based on noise levels:
-```python
-if noise_level > threshold:
-    lcd_service.set_mood(Mood.NEUTRAL)  # First warning
-elif noise_level > higher_threshold:
-    lcd_service.set_mood(Mood.SAD)    # Second warning
-```
+Can trigger mood changes based on noise levels - see example above.
 
 ### Touch Piano
 Cannot use simultaneously with LCD Display (SPI conflict).

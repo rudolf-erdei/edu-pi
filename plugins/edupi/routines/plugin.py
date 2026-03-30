@@ -21,6 +21,7 @@ class Plugin(PluginBase):
     author = "Tinko Team"
     version = "1.0.0"
     icon = "microphone"
+    requires = ["plugins.edupi.lcd_display"]
 
     def __init__(self, plugin_path: str, enabled: bool = True):
         super().__init__(plugin_path, enabled)

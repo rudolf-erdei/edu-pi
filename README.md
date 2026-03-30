@@ -471,40 +471,59 @@ Tinko uses an OctoberCMS-inspired plugin system with **automatic discovery**. Pl
    from core.plugin_system.base import PluginBase
    from .models import MyModel
 
-   class Plugin(PluginBase):
-       name = "My Plugin"
-       description = "A sample plugin"
-       author = "Acme Corp"
-       version = "1.0.0"
-       icon = "star"  # Font Awesome icon name
+    class Plugin(PluginBase):
+        name = "My Plugin"
+        description = "A sample plugin"
+        author = "Acme Corp"
+        version = "1.0.0"
+        icon = "star"  # Font Awesome icon name
+        requires = ["plugins.edupi.lcd_display"]  # Optional: depend on other plugins
 
-       def boot(self):
-           # Register GPIO pins
-           self.register_gpio_pins({
-               'led': 17,
-               'sensor': 18
-           })
+        def boot(self):
+            # Register GPIO pins
+            self.register_gpio_pins({
+                'led': 17,
+                'sensor': 18
+            })
 
-           # Start background services
-           self.start_background_service()
+            # Start background services
+            self.start_background_service()
 
-       def register(self):
-           # Register models and URLs
-           self.register_model(MyModel)
-           self.register_url_pattern('myplugin/', include('plugins.acme.myplugin.urls'))
-           self.register_admin_menu('My Plugin', '/plugins/acme/myplugin/')
-           
-           # Register settings
-           self.register_setting(
-               'my_setting',
-               'My Setting',
-               default='value',
-               field_type='text'
-           )
+        def register(self):
+            # Register models and URLs
+            self.register_model(MyModel)
+            self.register_url_pattern('myplugin/', include('plugins.acme.myplugin.urls'))
+            self.register_admin_menu('My Plugin', '/plugins/acme/myplugin/')
+            
+            # Register settings
+            self.register_setting(
+                'my_setting',
+                'My Setting',
+                default='value',
+                field_type='text'
+            )
 
-       def uninstall(self):
-           # Cleanup
-           self.cleanup_gpio_pins()
+        def uninstall(self):
+            # Cleanup
+            self.cleanup_gpio_pins()
+
+   **Calling Other Plugins:**
+
+   Plugins can call other plugins' services to integrate functionality. For example, to control the LCD display:
+
+   ```python
+   def update_lcd_mood(self, noise_level):
+       from plugins.edupi.lcd_display.lcd_service import lcd_service
+       from plugins.edupi.lcd_display.mood import Mood
+
+       if lcd_service.is_initialized():
+           if noise_level > 70:
+               lcd_service.set_mood(Mood.ANGRY)
+           elif noise_level > 40:
+               lcd_service.set_mood(Mood.NEUTRAL)
+           else:
+               lcd_service.set_mood(Mood.HAPPY)
+   ```
    ```
 
 4. **Access the plugin**

@@ -488,10 +488,40 @@ class Plugin(PluginBase):
 
 **Built-in Plugins** (as examples):
 
-- `noise_monitor`: The noise monitoring feature as a plugin
-- `touch_piano`: The piano feature as a plugin
-- `activity_timer`: Countdown for various activities
-- `routines`: TTS classroom routines with USB presenter support
+- `noise_monitor`: The noise monitoring feature as a plugin (depends on lcd_display)
+- `touch_piano`: The piano feature as a plugin (depends on lcd_display)
+- `activity_timer`: Countdown for various activities (depends on lcd_display)
+- `routines`: TTS classroom routines with USB presenter support (depends on lcd_display)
+- `lcd_display`: SPI TFT LCD display with mood-based animated faces
+
+**Plugin Dependencies:**
+
+All plugins can declare dependencies on other plugins using the `requires` attribute:
+
+```python
+class Plugin(PluginBase):
+    name = "My Plugin"
+    requires = ["plugins.edupi.lcd_display"]
+```
+
+**Inter-Plugin Communication:**
+
+Plugins can call other plugins' services directly:
+
+```python
+# In any plugin, call the LCD display service
+from plugins.edupi.lcd_display.lcd_service import lcd_service
+from plugins.edupi.lcd_display.mood import Mood
+
+if lcd_service.is_initialized():
+    lcd_service.set_mood(Mood.HAPPY)
+    lcd_service.show_text("Hello from my plugin!")
+```
+
+**All built-in plugins automatically depend on lcd_display** and can use its services to:
+- Display animated faces with different moods (happy, sad, angry, etc.)
+- Show text messages
+- Control the robot's visual feedback
 
 ## Non-Functional Requirements
 
@@ -638,11 +668,23 @@ Disable conflicting plugins in the admin panel when using specific hardware comb
 **LCD Service Features:**
 - Initialize display with configurable rotation (0°, 90°, 180°, 270°)
 - Show smiley face with simple eye and mouth graphics
+- **6 Animated Moods**: Happy, Neutral, Sad, Angry, Laughing, Concentrated (auto-animate with 2 faces per mood)
 - Display custom text with auto-centering
 - Display custom images (resized to fit screen)
 - Adjustable backlight brightness (0-100%)
 - Clear screen (fill with black)
+- **Inter-Plugin API**: Other plugins can call LCD service to change moods and display text
 - Automatic resource cleanup on shutdown
+
+**Inter-Plugin Usage:**
+```python
+from plugins.edupi.lcd_display.lcd_service import lcd_service
+from plugins.edupi.lcd_display.mood import Mood
+
+if lcd_service.is_initialized():
+    lcd_service.set_mood(Mood.HAPPY)
+    lcd_service.show_text("Hello from plugin!")
+```
 
 **GPIO Pins Used:**
 - GPIO 8 (Pin 24): SPI Chip Select (CE0) - configurable

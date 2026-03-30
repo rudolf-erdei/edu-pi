@@ -32,7 +32,40 @@ class Plugin(PluginBase):
 | `author` | str | Yes | Plugin author |
 | `version` | str | Yes | Semantic version (x.y.z) |
 | `icon` | str | No | Font Awesome icon name |
-| `requires` | list | No | Plugin dependencies |
+| `requires` | list | No | Plugin dependencies (see below) |
+
+### Plugin Dependencies
+
+Use the `requires` attribute to declare dependencies on other plugins. This ensures that dependent plugins are loaded first.
+
+```python
+class Plugin(PluginBase):
+    name = "My Plugin"
+    description = "A plugin that uses LCD display"
+    author = "Developer"
+    version = "1.0.0"
+    icon = "star"
+    requires = ["plugins.edupi.lcd_display"]
+```
+
+**Calling Other Plugins:**
+
+Once a dependency is declared, you can import and use the other plugin's services:
+
+```python
+def some_method(self):
+    from plugins.edupi.lcd_display.lcd_service import lcd_service
+    from plugins.edupi.lcd_display.mood import Mood
+    
+    if lcd_service.is_initialized():
+        lcd_service.set_mood(Mood.HAPPY)
+        lcd_service.show_text("Hello from My Plugin!")
+```
+
+**Best Practices:**
+- Always check `lcd_service.is_initialized()` before calling LCD methods
+- Handle import errors gracefully in case the dependency is not available
+- Document which plugins you depend on in your plugin's README
 
 ## Lifecycle Methods
 
