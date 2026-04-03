@@ -22,12 +22,12 @@ The Touch Piano transforms everyday conductive materials into musical keys. Stud
 
 | Key | Note | GPIO Pin | Physical Pin | Wire Color |
 |-----|------|----------|--------------|------------|
-| Key 1 | C (Do) | 23 | 16 | Red |
-| Key 2 | D (Re) | 24 | 18 | Orange |
-| Key 3 | E (Mi) | 10 | 19 | Yellow |
-| Key 4 | F (Fa) | 9 | 21 | Green |
-| Key 5 | G (Sol) | 25 | 22 | Blue |
-| Key 6 | A (La) | 11 | 23 | Purple |
+| Key 1 | C (Do) | 4 | 7 | Red |
+| Key 2 | D (Re) | 7 | 26 | Orange |
+| Key 3 | E (Mi) | 20 | 38 | Yellow |
+| Key 4 | F (Fa) | 21 | 40 | Green |
+| Key 5 | G (Sol) | 12 | 32 | Blue |
+| Key 6 | A (La) | 2 | 3 | Purple |
 
 ## How It Works
 
@@ -100,11 +100,17 @@ Play using your computer keyboard:
 ### Wiring Diagram
 
 ```
-GPIO 23 (Pin 16) ----[10kΩ]---- 3.3V (Pin 1)
+GPIO 4 (Pin 7) ----[10kΩ]---- 3.3V (Pin 1)
      |
      +---- Wire to banana/foil
 
-Repeat for all 6 keys
+Repeat for all 6 keys:
+- GPIO 4 (Pin 7) for Key 1 (C)
+- GPIO 7 (Pin 26) for Key 2 (D)
+- GPIO 20 (Pin 38) for Key 3 (E)
+- GPIO 21 (Pin 40) for Key 4 (F)
+- GPIO 12 (Pin 32) for Key 5 (G)
+- GPIO 2 (Pin 3) for Key 6 (A)
 ```
 
 !!! warning "Safety"

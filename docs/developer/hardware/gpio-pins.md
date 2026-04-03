@@ -69,28 +69,28 @@ Tinko uses **BCM (Broadcom SOC channel)** pin numbering by default (gpiozero def
 
 | Key | Note | BCM Pin | Physical | Description |
 |-----|------|---------|----------|-------------|
-| Key 1 | C (Do) | 4 | 7 | Piano key 1 (moved from GPIO 23) |
-| Key 2 | D (Re) | 7 | 26 | Piano key 2 (moved from GPIO 24) |
-| Key 3 | E (Mi) | 20 | 38 | Piano key 3 (moved from GPIO 10) |
-| Key 4 | F (Fa) | 21 | 40 | Piano key 4 (moved from GPIO 9) |
-| Key 5 | G (Sol)| 12 | 32 | Piano key 5 (moved from GPIO 25) |
-| Key 6 | A (La) | 2 | 3 | Piano key 6 (moved from GPIO 11) |
+| Key 1 | C (Do) | 4 | 7 | Piano key 1 |
+| Key 2 | D (Re) | 7 | 26 | Piano key 2 |
+| Key 3 | E (Mi) | 20 | 38 | Piano key 3 |
+| Key 4 | F (Fa) | 21 | 40 | Piano key 4 |
+| Key 5 | G (Sol)| 12 | 32 | Piano key 5 |
+| Key 6 | A (La) | 2 | 3 | Piano key 6 |
 
-**Note**: Touch Piano pins were reassigned to avoid SPI conflicts with LCD Display.
+**Note**: Touch Piano pins use standard GPIO pins with no SPI conflicts.
 
 ### LCD Display
 
 | Function | BCM Pin | Physical | Description |
 |----------|---------|----------|-------------|
-| CS | 22 | 15 | Chip Select (moved from GPIO 8) |
-| DC | 24 | 18 | Data/Command |
-| RST | 23 | 16 | Reset signal |
+| CS | 8 | 24 | Chip Select |
+| DC | 23 | 16 | Data/Command |
+| RST | 25 | 22 | Reset signal |
 | LED/BL | 18 | 12 | Backlight (PWM control) |
 | MOSI | 10 | 19 | SPI Data In (hardware SPI - fixed) |
 | MISO | 9 | 21 | SPI Data Out (hardware SPI - fixed) |
 | SCK | 11 | 23 | SPI Clock (hardware SPI - fixed) |
 
-**Important**: LCD Display uses hardware SPI pins (9, 10, 11) which cannot be changed. CS was moved to GPIO 22 to avoid conflicts and work with Adafruit libraries.
+**Important**: LCD Display uses hardware SPI pins (9, 10, 11) which cannot be changed.
 
 ### Routines
 
@@ -103,47 +103,46 @@ The Routines plugin does not use GPIO pins:
 
 This table shows which pins are used by each plugin:
 
-| Pin | Activity Timer | Noise Monitor | Touch Piano | LCD Display | Status |
-|-----|----------------|---------------|-------------|-------------|--------|
-| 2 | | | Key 6 | | **In Use** |
-| 3 | Buzzer | | | | **In Use** |
-| 4 | | | Key 1 | | **In Use** |
-| 5 | | Instant R | | | **In Use** |
-| 6 | | Instant G | | | **In Use** |
-| 7 | | | Key 2 | | **In Use** |
-| 9 | | | | SPI MISO | **In Use** |
-| 10 | | | | SPI MOSI | **In Use** |
-| 11 | | | | SPI SCLK | **In Use** |
-| 12 | | | Key 5 | Backlight | **Conflict!** |
-| 13 | | Instant B | | | **In Use** |
-| 16 | | Session B | | | **In Use** |
-| 17 | LED R | | | | **In Use** |
-| 18 | | | | Backlight | **In Use** |
-| 19 | | Session R | | | **In Use** |
-| 20 | | | Key 3 | | **In Use** |
-| 21 | | | Key 4 | | **In Use** |
-| 22 | LED B | | | CS | **Conflict!** |
-| 23 | | | | RST | **In Use** |
-| 24 | | | | DC | **In Use** |
-| 25 | | | | | **Available** |
-| 26 | | Session G | | | **In Use** |
-| 27 | LED G | | | | **In Use** |
+| BCM | Physical | Activity Timer | Noise Monitor | Touch Piano | LCD Display | Status |
+|-----|----------|----------------|---------------|-------------|-------------|--------|
+| 2 | 3 | | | Key 6 | | **In Use** |
+| 3 | 5 | Buzzer | | | | **In Use** |
+| 4 | 7 | | | Key 1 | | **In Use** |
+| 5 | 29 | | Instant R | | | **In Use** |
+| 6 | 31 | | Instant G | | | **In Use** |
+| 7 | 26 | | | Key 2 | | **In Use** |
+| 8 | 24 | | | | CS | **In Use** |
+| 9 | 21 | | | | SPI MISO | **In Use** |
+| 10 | 19 | | | | SPI MOSI | **In Use** |
+| 11 | 23 | | | | SPI SCLK | **In Use** |
+| 12 | 32 | | | Key 5 | | **In Use** |
+| 13 | 33 | | Instant B | | | **In Use** |
+| 16 | 36 | | Session B | | | **In Use** |
+| 17 | 11 | LED R | | | | **In Use** |
+| 18 | 12 | | | | Backlight | **In Use** |
+| 19 | 35 | | Session R | | | **In Use** |
+| 20 | 38 | | | Key 3 | | **In Use** |
+| 21 | 40 | | | Key 4 | | **In Use** |
+| 22 | 15 | LED B | | | | **In Use** |
+| 23 | 16 | | | | RST | **In Use** |
+| 25 | 22 | | | | | **Available** |
+| 26 | 37 | | Session G | | | **In Use** |
+| 27 | 13 | LED G | | | | **In Use** |
 
-### Conflict Notes
+### Analysis
 
-**Pin 12 (GPIO 12)**: Used by:
-- Touch Piano (key 5)
-- LCD Display (backlight)
+**No conflicts detected** between plugins. Each plugin uses different GPIO pins:
 
-**Pin 15 (GPIO 22)**: Used by:
-- Activity Timer (LED Blue)
-- LCD Display (CS)
+- **Touch Piano**: Uses GPIO 4, 7, 20, 21, 12, 2 (all non-SPI, non-conflicting pins)
+- **LCD Display**: Uses GPIO 8, 23, 25, 18 (CS, DC, RST, Backlight)
+- **Activity Timer**: Uses GPIO 17, 27, 22, 3 (RGB LED + Buzzer)
+- **Noise Monitor**: Uses GPIO 5, 6, 13, 19, 26, 16 (2x RGB LEDs)
 
-**Resolution**: These plugins should not be used simultaneously. Enable/disable as needed in the admin panel.
+All plugins can run simultaneously without GPIO conflicts.
 
-## Critical: LCD Display Pin Changes
+## LCD Display Pin Configuration
 
-The LCD Display plugin requires specific pin assignments to work with Adafruit libraries:
+The LCD Display plugin uses the following pin assignments:
 
 ### Working Configuration
 
@@ -152,17 +151,17 @@ LCD Pin -> RPi Physical Pin -> RPi GPIO
 ----------------------------------------
 VCC     -> Pin 1 or 17      -> 3.3V
 GND     -> Pin 6 or 9      -> Ground
-CS      -> Pin 15          -> GPIO 22 (was GPIO 8)
-RST     -> Pin 16          -> GPIO 23
-DC      -> Pin 18          -> GPIO 24
+CS      -> Pin 24          -> GPIO 8
+RST     -> Pin 22          -> GPIO 25
+DC      -> Pin 16          -> GPIO 23
 MOSI    -> Pin 19          -> GPIO 10 (hardware SPI - fixed)
 SCK     -> Pin 23          -> GPIO 11 (hardware SPI - fixed)
 LED/BL  -> Pin 12          -> GPIO 18 (PWM capable)
 MISO    -> Pin 21          -> GPIO 9 (optional)
 ```
 
-**Must Do:**
-1. Move CS from Pin 24 (GPIO 8) to **Pin 15 (GPIO 22)**
+**Setup:**
+1. Connect pins according to the table above
 2. Enable SPI: `sudo raspi-config` → Interface Options → SPI → Enable
 3. Add permissions: `sudo usermod -a -G spi,gpio www-data`
 4. Reboot after wiring changes
@@ -254,7 +253,7 @@ For an RGB LED with all colors on:
 2. Verify BCM vs BOARD numbering
 3. Test with simple LED script
 4. Check for permission errors (add user to gpio group)
-5. For LCD: Verify CS is on Pin 15 (GPIO 22), not Pin 24
+5. For LCD: Verify CS is on Pin 24 (GPIO 8)
 
 ### Permission Denied
 
@@ -269,10 +268,10 @@ sudo usermod -a -G gpio,spi www-data
 ### LCD Display Not Working
 
 1. **Check SPI enabled**: `ls /dev/spi*` should show devices
-2. **Verify CS pin**: Must be on Pin 15 (GPIO 22), not Pin 24
-3. **Check permissions**: `groups $USER` should include gpio, spi
-4. **Test wiring**: All connections secure, 3.3V power
-5. **Install dependencies**: `uv sync` to get adafruit libraries
+2. **Check permissions**: `groups $USER` should include gpio, spi
+3. **Test wiring**: All connections secure, 3.3V power
+4. **Install dependencies**: `uv sync` to get adafruit libraries
+5. **Verify pin connections**: CS (GPIO 8), DC (GPIO 23), RST (GPIO 25), BL (GPIO 18)
 
 ### Incorrect Pin Behavior
 

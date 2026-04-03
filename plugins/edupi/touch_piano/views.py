@@ -59,7 +59,7 @@ class PianoDashboardView(View):
             "current_session": current_session,
             "key_mapping": DEFAULT_KEY_MAPPING,
             "quick_form": QuickPlayForm(),
-            "gpio_pins": [23, 24, 10, 9, 25, 11],  # Display pin numbers
+            "gpio_pins": [4, 7, 20, 21, 12, 2],  # Piano key GPIO pins
         }
 
         return render(request, "touch_piano/dashboard.html", context)
@@ -521,12 +521,12 @@ class PianoInstructionsView(View):
         context = {
             "title": _("Piano Setup Instructions"),
             "gpio_pins": [
-                {"key": 1, "note": "C4", "pin": 23, "pin_physical": "Pin 16"},
-                {"key": 2, "note": "D4", "pin": 24, "pin_physical": "Pin 18"},
-                {"key": 3, "note": "E4", "pin": 10, "pin_physical": "Pin 19"},
-                {"key": 4, "note": "F4", "pin": 9, "pin_physical": "Pin 21"},
-                {"key": 5, "note": "G4", "pin": 25, "pin_physical": "Pin 22"},
-                {"key": 6, "note": "A4", "pin": 11, "pin_physical": "Pin 23"},
+                {"key": 1, "note": "C4", "pin": 4, "pin_physical": "Pin 7"},
+                {"key": 2, "note": "D4", "pin": 7, "pin_physical": "Pin 26"},
+                {"key": 3, "note": "E4", "pin": 20, "pin_physical": "Pin 38"},
+                {"key": 4, "note": "F4", "pin": 21, "pin_physical": "Pin 40"},
+                {"key": 5, "note": "G4", "pin": 12, "pin_physical": "Pin 32"},
+                {"key": 6, "note": "A4", "pin": 2, "pin_physical": "Pin 3"},
             ],
             "materials": [
                 _("6 bananas or other conductive fruits"),

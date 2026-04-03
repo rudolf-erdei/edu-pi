@@ -23,15 +23,13 @@ The LCD Display turns your Raspberry Pi into an expressive robot with:
 
 ### Wiring Configuration
 
-**CRITICAL: CS Pin Must Be Pin 15 (GPIO 22)**
-
 | LCD Pin | RPi Physical Pin | RPi GPIO | Function |
 |---------|------------------|----------|----------|
 | VCC | Pin 1 or 17 | - | 3.3V Power |
 | GND | Pin 6 or 9 | - | Ground |
-| **CS** | **Pin 15** | **GPIO 22** | Chip Select |
-| RST | Pin 16 | GPIO 23 | Reset |
-| DC | Pin 18 | GPIO 24 | Data/Command |
+| **CS** | **Pin 24** | **GPIO 8** | Chip Select |
+| RST | Pin 22 | GPIO 25 | Reset |
+| DC | Pin 16 | GPIO 23 | Data/Command |
 | MOSI | Pin 19 | GPIO 10 | SPI Data In |
 | SCK | Pin 23 | GPIO 11 | SPI Clock |
 | LED/BL | Pin 12 | GPIO 18 | Backlight (PWM) |
