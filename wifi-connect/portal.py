@@ -15,10 +15,9 @@ def validate_wifi_input(ssid: str, password: str) -> bool:
         return False
     if len(ssid) > 32 or len(password) > 64:
         return False
-    # SSID can contain most printable characters but we should block control chars
-    invalid_chars = '\x00-\x1f\x7f'
-    for char in invalid_chars:
-        if char in ssid or char in password:
+    # Block control characters (0x00-0x1f and 0x7f)
+    for c in ssid + password:
+        if ord(c) < 32 or ord(c) == 127:
             return False
     return True
 
