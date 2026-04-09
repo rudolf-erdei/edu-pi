@@ -123,6 +123,19 @@ class NoiseMonitorConfig(models.Model):
         help_text=_("Use this as the default configuration"),
     )
 
+    audio_input_device = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=_("Name of the selected audio input device"),
+    )
+
+    audio_input_device_index = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text=_("System index of the audio input device"),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
