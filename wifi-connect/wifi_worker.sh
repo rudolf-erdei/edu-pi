@@ -22,6 +22,11 @@ if sudo nmcli --wait 15 dev wifi connect "$SSID" password "$PASSWORD"; then
     # Kill the Flask portal since we don't need it taking up memory anymore
     sudo pkill -f portal.py
     log "Flask portal stopped"
+
+    # Start the Django application
+    log "Starting Django application..."
+    sudo systemctl start tinko
+    log "Django started successfully"
 else
     log "Connection to '$SSID' failed (wrong password or out of range). Reverting to hotspot..."
     # The connection failed. Bring the hotspot profile back up so the teacher can try again.

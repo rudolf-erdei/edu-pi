@@ -282,18 +282,109 @@ collect_static() {
 # Compile translations
 compile_translations() {
     log_info "Compiling translations..."
-    
+
     cd "$INSTALL_DIR"
-    
+
     # Compile project translations
     uv run django-admin compilemessages 2>/dev/null || log_warning "No project translations to compile"
-    
+
     # Compile plugin translations
     if [[ -f scripts/compile_translations.py ]]; then
         python3 scripts/compile_translations.py
     fi
-    
+
     log_success "Translations compiled"
+}
+
+# Setup wifi-connect (captive portal for headless WiFi configuration)
+setup_wifi_connect() {
+    log_info "Setting up wifi-connect..."
+
+    WIFI_DIR="$HOME"
+
+    # Check if wifi-connect directory exists in the repo
+    if [[ ! -d "$INSTALL_DIR/wifi-connect" ]]; then
+        log_warning "wifi-connect directory not found in repo, skipping"
+        return
+    fi
+
+    # Install dnsmasq for captive portal DNS redirection
+    log_info "Installing dnsmasq..."
+    sudo apt-get install -y dnsmasq
+
+    # Configure dnsmasq for captive portal
+    if [[ ! -f /etc/dnsmasq.conf.backup ]]; then
+        sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
+    fi
+
+    # Add captive portal configuration if not already present
+    if ! grep -q "address=/#/10.42.0.1" /etc/dnsmasq.conf 2>/dev/null; then
+        log_info "Configuring dnsmasq for captive portal..."
+        cat << 'EOF' | sudo tee -a /etc/dnsmasq.conf > /dev/null
+
+# Tinko Captive Portal Configuration
+address=/#/10.42.0.1
+interface=wlan0
+EOF
+    fi
+
+    # Copy wifi-connect files to home directory
+    log_info "Copying wifi-connect files..."
+    sudo cp "$INSTALL_DIR/wifi-connect/portal.py" "$WIFI_DIR/"
+    sudo cp "$INSTALL_DIR/wifi-connect/startup_check.sh" "$WIFI_DIR/"
+    sudo cp "$INSTALL_DIR/wifi-connect/wifi_worker.sh" "$WIFI_DIR/"
+
+    # Make shell scripts executable
+    sudo chmod +x "$WIFI_DIR/startup_check.sh"
+    sudo chmod +x "$WIFI_DIR/wifi_worker.sh"
+
+    # Set ownership to current user
+    sudo chown $USER:$USER "$WIFI_DIR/portal.py"
+    sudo chown $USER:$USER "$WIFI_DIR/startup_check.sh"
+    sudo chown $USER:$USER "$WIFI_DIR/wifi_worker.sh"
+
+    # Create systemd service for wifi captive portal
+    log_info "Creating tinko-wifi systemd service..."
+    sudo tee /etc/systemd/system/tinko-wifi.service > /dev/null << EOF
+[Unit]
+Description=Tinko Wi-Fi Captive Portal Check
+After=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash $WIFI_DIR/startup_check.sh
+User=root
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Reload systemd and enable service
+    sudo systemctl daemon-reload
+    sudo systemctl enable tinko-wifi.service
+
+    # Install Flask for the captive portal
+    log_info "Installing Flask for captive portal..."
+    sudo apt-get install -y python3-flask || pip3 install Flask
+
+    # Modify Django service to wait for network
+    if [[ -f /etc/systemd/system/tinko.service ]]; then
+        log_info "Configuring Django service to wait for network..."
+        # Check if already configured
+        if ! grep -q "Wants=network-online.target" /etc/systemd/system/tinko.service 2>/dev/null; then
+            # Add network dependency
+            sudo sed -i '/^\[Unit\]/a Wants=network-online.target\nAfter=network-online.target' /etc/systemd/system/tinko.service
+            sudo systemctl daemon-reload
+        fi
+    fi
+
+    log_success "wifi-connect setup complete"
+    log_info "Hotspot credentials: SSID='Tinko-Setup', Password='tinko1234'"
+    log_info "To check wifi service: sudo journalctl -u tinko-wifi.service -f"
 }
 
 # Setup GPIO permissions
@@ -512,6 +603,12 @@ print_summary() {
     echo
     echo "See docs/developer/hardware/wiring.md for detailed wiring instructions"
     echo
+    echo "WiFi Captive Portal (for headless setup):"
+    echo "  Hotspot SSID: Tinko-Setup"
+    echo "  Hotspot Password: tinko1234"
+    echo "  Service: sudo systemctl status tinko-wifi.service"
+    echo "  Logs: sudo journalctl -u tinko-wifi.service -f"
+    echo
     
     log_warning "IMPORTANT: Log out and log back in for GPIO permissions to take effect"
     log_info "After logging back in, verify audio with: speaker-test -t wav"
@@ -646,6 +743,7 @@ main() {
     compile_translations
     setup_gpio
     configure_audio
+    setup_wifi_connect
     test_installation
     setup_systemd_service
     restart_service_after_update

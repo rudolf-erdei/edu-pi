@@ -33,35 +33,29 @@ pip install Flask
 
 ## Make the tinko-wifi.service
 
-Create the following file using SUDO, on the py:
+Create the following file using SUDO, on the Pi:
 
 ```bash
 sudo nano /etc/systemd/system/tinko-wifi.service
 ```
 
-With the following content:
+With the following content (replace `/home/YOURUSER` with your actual home directory):
 
 ```ini
 [Unit]
 Description=Tinko Wi-Fi Captive Portal Check
-# Wait to run this until the NetworkManager service is up and running
 After=NetworkManager.service
 
 [Service]
 Type=simple
-# The absolute path to your boot checker script
-ExecStart=/bin/bash /home/pi/startup_check.sh
-# We run this as root so it has permission to run nmcli and start hotspots
+ExecStart=/bin/bash /home/YOURUSER/startup_check.sh
 User=root
-# If the script crashes for some reason, try again after 10 seconds
 Restart=on-failure
 RestartSec=10
-# Standardize the log output
 StandardOutput=journal
 StandardError=journal
 
 [Install]
-# This tells the Pi to run the service during the normal boot sequence
 WantedBy=multi-user.target
 ```
 
@@ -82,14 +76,14 @@ sudo journalctl -u tinko-wifi.service -f
 ## Modify Django Service:
 
 ```bash
-sudo nano /etc/systemd/system/django.service
+sudo nano /etc/systemd/system/tinko.service
 ```
 
 Modify the [Unit] section:
 
 ```ini
 [Unit]
-Description=My Django Web Application
+Description=Tinko Educational Platform
 Wants=network-online.target
 After=network-online.target
 ```
@@ -98,7 +92,7 @@ Save and reload
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl restart django.service
+sudo systemctl restart tinko.service
 ```
 
 ## Recap
@@ -110,4 +104,11 @@ what happens now when a teacher plugs it in:
 - The Check (startup_check.sh): It pings the internet.
     - If online: It skips the portal, your Django app boots safely, and the teacher goes to http://tinko.local.
     - If offline: It spins up the "Tinko-Setup" hotspot and the lightweight Flask portal.
-    - The Handoff (wifi_worker.sh): The teacher enters the credentials. The worker tests them in the background. If they fail, it reverts to the hotspot so the teacher isn't locked out. If they succeed, it kills the Flask portal, connects to the school router, and your Django app safely takes over.
+    - The Handoff (wifi_worker.sh): The teacher enters the credentials. The worker tests them in the background. If they fail, it reverts to the hotspot so the teacher isn't locked out. If they succeed, it kills the Flask portal, connects to the school router, starts Django, and your app takes over.
+
+## Hotspot Credentials
+
+- **SSID:** `Tinko-Setup`
+- **Password:** `tinko1234`
+
+These credentials are set in `startup_check.sh` when the hotspot is first created.

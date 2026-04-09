@@ -40,6 +40,19 @@ class ProfileSelectForm(forms.Form):
         help_text=_("Brightness percentage for RGB LEDs"),
     )
 
+    audio_input_device = forms.CharField(
+        required=False,
+        max_length=255,
+        label=_("Audio Input Device"),
+        help_text=_("Select the microphone device to use"),
+        widget=forms.TextInput(attrs={'readonly': True, 'id': 'audio-device-name'}),
+    )
+
+    audio_input_device_index = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'id': 'audio-device-index'}),
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Order profiles by type
@@ -96,6 +109,19 @@ class CustomThresholdForm(forms.Form):
         initial=100,
         label=_("LED Brightness (%)"),
         help_text=_("Brightness percentage for RGB LEDs"),
+    )
+
+    audio_input_device = forms.CharField(
+        required=False,
+        max_length=255,
+        label=_("Audio Input Device"),
+        help_text=_("Select the microphone device to use"),
+        widget=forms.TextInput(attrs={'readonly': True, 'id': 'audio-device-name'}),
+    )
+
+    audio_input_device_index = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'id': 'audio-device-index'}),
     )
 
     def clean(self):

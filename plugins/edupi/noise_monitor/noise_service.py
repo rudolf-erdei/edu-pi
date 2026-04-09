@@ -68,6 +68,12 @@ except ImportError:
         "sounddevice not available - using simulated noise data"
     )
 
+# Device status constants
+DEVICE_STATUS_CONNECTED = "connected"
+DEVICE_STATUS_DISCONNECTED = "disconnected"
+DEVICE_STATUS_RECONNECTING = "reconnecting"
+DEVICE_STATUS_DEFAULT = "default"  # Using system default
+
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +139,12 @@ class NoiseMonitorService:
         self._session_average: int = 0
         self._instant_color: str = "green"
         self._session_color: str = "green"
+
+        # Audio device settings
+        self._device_index: Optional[int] = None
+        self._device_name: str = ""
+        self._device_status: str = DEVICE_STATUS_DEFAULT
+        self._reconnect_interval: float = 2.0  # seconds
 
     def initialize_gpio(
         self,
@@ -252,6 +264,38 @@ class NoiseMonitorService:
             f"Configured - Yellow: {yellow_threshold}, Red: {red_threshold}, "
             f"Instant window: {instant_window_seconds}s, Session window: {session_window_minutes}min"
         )
+
+    def set_device(self, device_index: Optional[int], device_name: str = "") -> None:
+        """
+        Set the audio input device for monitoring.
+
+        Args:
+            device_index: Device index from sounddevice, or None for default
+            device_name: Human-readable device name for display
+        """
+        if device_index is None:
+            self._device_index = None
+            self._device_name = ""
+            self._device_status = DEVICE_STATUS_DEFAULT
+            logger.info("Using system default audio input device")
+        else:
+            self._device_index = device_index
+            self._device_name = device_name
+            self._device_status = DEVICE_STATUS_CONNECTED
+            logger.info(f"Audio input device set to: {device_name} (index {device_index})")
+
+    def get_device_status(self) -> dict:
+        """
+        Get current audio device status.
+
+        Returns:
+            dict: Device status information
+        """
+        return {
+            "device_index": self._device_index,
+            "device_name": self._device_name,
+            "device_status": self._device_status,
+        }
 
     def start_monitoring(self, callback: Callable = None) -> None:
         """
@@ -375,30 +419,45 @@ class NoiseMonitorService:
         Returns:
             int: Noise level 0-100
         """
-        if MICROPHONE_AVAILABLE:
-            try:
-                # Record a short sample
-                duration = 0.05  # 50ms
-                sample_rate = 44100
-                samples = int(duration * sample_rate)
+        if not MICROPHONE_AVAILABLE:
+            return self._simulate_noise()
 
-                recording = sd.rec(
-                    samples, samplerate=sample_rate, channels=1, dtype="float32"
-                )
-                sd.wait()
+        try:
+            # Record a short sample using configured device
+            duration = 0.05  # 50ms
+            sample_rate = 44100
+            samples = int(duration * sample_rate)
 
-                # Calculate RMS
-                rms = np.sqrt(np.mean(recording**2))
+            recording = sd.rec(
+                samples,
+                samplerate=sample_rate,
+                channels=1,
+                dtype="float32",
+                device=self._device_index,  # None uses default
+            )
+            sd.wait()
 
-                # Convert to 0-100 scale (assuming max RMS around 0.5)
-                level = int(min(100, max(0, rms * 200)))
+            # Calculate RMS
+            rms = np.sqrt(np.mean(recording**2))
 
-                return level
+            # Convert to 0-100 scale (assuming max RMS around 0.5)
+            level = int(min(100, max(0, rms * 200)))
 
-            except Exception as e:
-                logger.error(f"Error reading microphone: {e}")
-                return self._simulate_noise()
-        else:
+            # Update status on successful read
+            if self._device_index is not None and self._device_status != DEVICE_STATUS_CONNECTED:
+                self._device_status = DEVICE_STATUS_CONNECTED
+                logger.info(f"Audio device reconnected: {self._device_name}")
+
+            return level
+
+        except Exception as e:
+            logger.error(f"Error reading microphone: {e}")
+
+            # Update device status if using specific device
+            if self._device_index is not None:
+                self._device_status = DEVICE_STATUS_RECONNECTING
+                logger.warning(f"Audio device {self._device_name} unavailable, will retry in {self._reconnect_interval}s")
+
             return self._simulate_noise()
 
     def _simulate_noise(self) -> int:
@@ -540,6 +599,8 @@ class NoiseMonitorService:
             "is_monitoring": self._is_monitoring,
             "yellow_threshold": self._yellow_threshold,
             "red_threshold": self._red_threshold,
+            "device_status": self._device_status,
+            "device_name": self._device_name,
         }
 
     def is_monitoring(self) -> bool:
@@ -559,7 +620,11 @@ class NoiseMonitorService:
                     "noise_monitor",
                     {
                         "type": "noise_update",
-                        "data": data,
+                        "data": {
+                            **data,
+                            "device_status": self._device_status,
+                            "device_name": self._device_name,
+                        },
                     },
                 )
             except Exception as e:

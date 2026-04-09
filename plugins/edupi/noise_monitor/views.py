@@ -101,6 +101,8 @@ class NoiseMonitorConfigView(FormView):
         config.instant_window_seconds = form.cleaned_data["instant_window_seconds"]
         config.session_window_minutes = form.cleaned_data["session_window_minutes"]
         config.led_brightness = form.cleaned_data["led_brightness"]
+        config.audio_input_device = form.cleaned_data.get("audio_input_device", "")
+        config.audio_input_device_index = form.cleaned_data.get("audio_input_device_index")
         config.save()
 
         # Update service configuration
@@ -111,6 +113,10 @@ class NoiseMonitorConfigView(FormView):
             session_window_minutes=config.session_window_minutes,
             brightness=config.led_brightness,
         )
+
+        # Set audio device if specified
+        if config.audio_input_device_index is not None:
+            noise_service.set_device(config.audio_input_device_index, config.audio_input_device)
 
         logger.info(f"Noise monitor configured with profile: {profile.name}")
         return super().form_valid(form)
@@ -158,6 +164,8 @@ class CustomThresholdConfigView(FormView):
         config.instant_window_seconds = form.cleaned_data["instant_window_seconds"]
         config.session_window_minutes = form.cleaned_data["session_window_minutes"]
         config.led_brightness = form.cleaned_data["led_brightness"]
+        config.audio_input_device = form.cleaned_data.get("audio_input_device", "")
+        config.audio_input_device_index = form.cleaned_data.get("audio_input_device_index")
         config.save()
 
         # Update service
@@ -168,6 +176,10 @@ class CustomThresholdConfigView(FormView):
             session_window_minutes=config.session_window_minutes,
             brightness=config.led_brightness,
         )
+
+        # Set audio device if specified
+        if config.audio_input_device_index is not None:
+            noise_service.set_device(config.audio_input_device_index, config.audio_input_device)
 
         logger.info(
             f"Custom thresholds set: yellow={custom_profile.yellow_threshold}, red={custom_profile.red_threshold}"
@@ -293,3 +305,44 @@ class NoiseHistoryAPIView(View):
         }
 
         return JsonResponse(data)
+
+
+class AudioDevicesAPIView(View):
+    """API endpoint to list available audio input devices."""
+
+    def get(self, request, *args, **kwargs):
+        """Return list of available audio input devices."""
+        try:
+            import sounddevice as sd
+
+            devices = sd.query_devices()
+            input_devices = []
+
+            for idx, device in enumerate(devices):
+                if device['max_input_channels'] > 0:
+                    input_devices.append({
+                        'index': idx,
+                        'name': device['name'],
+                        'channels': device['max_input_channels'],
+                        'default_samplerate': int(device['default_samplerate']),
+                    })
+
+            return JsonResponse({
+                'success': True,
+                'devices': input_devices,
+                'default_input_index': sd.default.device[0] if sd.default.device[0] is not None else None,
+            })
+        except ImportError:
+            return JsonResponse({
+                'success': False,
+                'error': 'sounddevice not available - running in simulation mode',
+                'devices': [],
+                'default_input_index': None,
+            }, status=200)
+        except Exception as e:
+            logger.error(f"Error listing audio devices: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': str(e),
+                'devices': [],
+            }, status=500)

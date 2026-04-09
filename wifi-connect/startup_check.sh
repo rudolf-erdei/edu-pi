@@ -20,7 +20,7 @@ else
     # Check if our hotspot profile already exists from a previous run
     if ! nmcli connection show | grep -q "Tinko-Setup"; then
         log "Creating hotspot 'Tinko-Setup' for the first time..."
-        sudo nmcli dev wifi hotspot ifname wlan0 ssid "Tinko-Setup" password "tinto1234" con-name "Tinko-Setup"
+        sudo nmcli dev wifi hotspot ifname wlan0 ssid "Tinko-Setup" password "tinko1234" con-name "Tinko-Setup"
         log "Hotspot created successfully"
     else
         log "Hotspot profile exists, activating..."
@@ -30,5 +30,6 @@ else
 
     # Start the Flask Captive Portal
     log "Starting Flask captive portal..."
-    sudo python3 portal.py
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    sudo python3 "$SCRIPT_DIR/portal.py"
 fi

@@ -105,7 +105,26 @@ class Plugin(PluginBase):
             help_text="Start monitoring when plugin is enabled",
         )
 
+        # Load device config if available
+        self._load_device_config()
+
         logger.info(f"{self.name} plugin registered")
+
+    def _load_device_config(self) -> None:
+        """Load saved device configuration into the service."""
+        try:
+            from .models import NoiseMonitorConfig
+            from .noise_service import noise_service
+
+            config = NoiseMonitorConfig.objects.filter(is_active=True).first()
+            if config and config.audio_input_device_index is not None:
+                noise_service.set_device(
+                    config.audio_input_device_index,
+                    config.audio_input_device
+                )
+                logger.info(f"Loaded device config: {config.audio_input_device}")
+        except Exception as e:
+            logger.warning(f"Could not load device config: {e}")
 
     def uninstall(self) -> None:
         """Cleanup GPIO pins and resources."""
