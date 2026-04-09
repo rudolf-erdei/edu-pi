@@ -25,7 +25,7 @@ if sudo nmcli --wait 15 dev wifi connect "$SSID" password "$PASSWORD"; then
 
     # Start the Django application
     log "Starting Django application..."
-    sudo systemctl start django
+    sudo systemctl start tinko
     log "Django started successfully"
 else
     log "Connection to '$SSID' failed (wrong password or out of range). Reverting to hotspot..."

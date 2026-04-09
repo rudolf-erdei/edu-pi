@@ -76,14 +76,14 @@ sudo journalctl -u tinko-wifi.service -f
 ## Modify Django Service:
 
 ```bash
-sudo nano /etc/systemd/system/django.service
+sudo nano /etc/systemd/system/tinko.service
 ```
 
 Modify the [Unit] section:
 
 ```ini
 [Unit]
-Description=My Django Web Application
+Description=Tinko Educational Platform
 Wants=network-online.target
 After=network-online.target
 ```
@@ -92,7 +92,7 @@ Save and reload
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl restart django.service
+sudo systemctl restart tinko.service
 ```
 
 ## Recap
