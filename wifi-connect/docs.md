@@ -110,7 +110,7 @@ what happens now when a teacher plugs it in:
 - The Check (startup_check.sh): It pings the internet.
     - If online: It skips the portal, your Django app boots safely, and the teacher goes to http://tinko.local.
     - If offline: It spins up the "Tinko-Setup" hotspot and the lightweight Flask portal.
-    - The Handoff (wifi_worker.sh): The teacher enters the credentials. The worker tests them in the background. If they fail, it reverts to the hotspot so the teacher isn't locked out. If they succeed, it kills the Flask portal, connects to the school router, and your Django app safely takes over.
+    - The Handoff (wifi_worker.sh): The teacher enters the credentials. The worker tests them in the background. If they fail, it reverts to the hotspot so the teacher isn't locked out. If they succeed, it kills the Flask portal, connects to the school router, starts Django, and your app takes over.
 
 ## Hotspot Credentials
 

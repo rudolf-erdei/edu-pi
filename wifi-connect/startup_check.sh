@@ -30,5 +30,6 @@ else
 
     # Start the Flask Captive Portal
     log "Starting Flask captive portal..."
-    sudo python3 /home/pi/portal.py
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    sudo python3 "$SCRIPT_DIR/portal.py"
 fi

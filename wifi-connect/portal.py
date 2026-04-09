@@ -6,7 +6,9 @@ import os
 app = Flask(__name__)
 
 # Path to the wifi worker script - can be overridden via environment variable
-WIFI_WORKER_SCRIPT = os.environ.get('WIFI_WORKER_SCRIPT', '/home/pi/wifi_worker.sh')
+# Default: same directory as this script
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+WIFI_WORKER_SCRIPT = os.environ.get('WIFI_WORKER_SCRIPT', os.path.join(SCRIPT_DIR, 'wifi_worker.sh'))
 
 
 def validate_wifi_input(ssid: str, password: str) -> bool:

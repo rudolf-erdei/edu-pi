@@ -134,11 +134,40 @@ run_migrations() {
 # Collect static files
 collect_static() {
     log_info "Collecting static files..."
-    
+
     cd "$INSTALL_DIR"
     uv run python manage.py collectstatic --noinput
-    
+
     log_success "Static files collected"
+}
+
+# Update wifi-connect files
+update_wifi_connect() {
+    log_info "Updating wifi-connect files..."
+
+    WIFI_DIR="$HOME"
+
+    # Check if wifi-connect directory exists in the repo
+    if [[ ! -d "$INSTALL_DIR/wifi-connect" ]]; then
+        log_warning "wifi-connect directory not found in repo, skipping"
+        return
+    fi
+
+    # Copy wifi-connect files to home directory
+    sudo cp "$INSTALL_DIR/wifi-connect/portal.py" "$WIFI_DIR/"
+    sudo cp "$INSTALL_DIR/wifi-connect/startup_check.sh" "$WIFI_DIR/"
+    sudo cp "$INSTALL_DIR/wifi-connect/wifi_worker.sh" "$WIFI_DIR/"
+
+    # Make shell scripts executable
+    sudo chmod +x "$WIFI_DIR/startup_check.sh"
+    sudo chmod +x "$WIFI_DIR/wifi_worker.sh"
+
+    # Set ownership to current user
+    sudo chown $USER:$USER "$WIFI_DIR/portal.py"
+    sudo chown $USER:$USER "$WIFI_DIR/startup_check.sh"
+    sudo chown $USER:$USER "$WIFI_DIR/wifi_worker.sh"
+
+    log_success "wifi-connect files updated in $WIFI_DIR"
 }
 
 # Compile translations
@@ -232,6 +261,7 @@ main() {
     run_migrations
     collect_static
     compile_translations
+    update_wifi_connect
     restart_service
     print_summary
 }
