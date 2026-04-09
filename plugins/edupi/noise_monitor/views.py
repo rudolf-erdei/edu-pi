@@ -101,6 +101,8 @@ class NoiseMonitorConfigView(FormView):
         config.instant_window_seconds = form.cleaned_data["instant_window_seconds"]
         config.session_window_minutes = form.cleaned_data["session_window_minutes"]
         config.led_brightness = form.cleaned_data["led_brightness"]
+        config.audio_input_device = form.cleaned_data.get("audio_input_device", "")
+        config.audio_input_device_index = form.cleaned_data.get("audio_input_device_index")
         config.save()
 
         # Update service configuration
@@ -111,6 +113,10 @@ class NoiseMonitorConfigView(FormView):
             session_window_minutes=config.session_window_minutes,
             brightness=config.led_brightness,
         )
+
+        # Set audio device if specified
+        if config.audio_input_device_index is not None:
+            noise_service.set_device(config.audio_input_device_index, config.audio_input_device)
 
         logger.info(f"Noise monitor configured with profile: {profile.name}")
         return super().form_valid(form)
@@ -158,6 +164,8 @@ class CustomThresholdConfigView(FormView):
         config.instant_window_seconds = form.cleaned_data["instant_window_seconds"]
         config.session_window_minutes = form.cleaned_data["session_window_minutes"]
         config.led_brightness = form.cleaned_data["led_brightness"]
+        config.audio_input_device = form.cleaned_data.get("audio_input_device", "")
+        config.audio_input_device_index = form.cleaned_data.get("audio_input_device_index")
         config.save()
 
         # Update service
@@ -168,6 +176,10 @@ class CustomThresholdConfigView(FormView):
             session_window_minutes=config.session_window_minutes,
             brightness=config.led_brightness,
         )
+
+        # Set audio device if specified
+        if config.audio_input_device_index is not None:
+            noise_service.set_device(config.audio_input_device_index, config.audio_input_device)
 
         logger.info(
             f"Custom thresholds set: yellow={custom_profile.yellow_threshold}, red={custom_profile.red_threshold}"
