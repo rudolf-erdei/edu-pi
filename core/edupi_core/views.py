@@ -258,16 +258,35 @@ def settings_view(request: HttpRequest) -> HttpResponse:
                 }
             )
 
+    # Add Updates tab
+    tabs.append(
+        {
+            "id": "updates",
+            "label": _("Updates"),
+            "icon": "cog",
+            "active": False,
+        }
+    )
+
+    tab_id = request.GET.get("tab", "global")
+    is_global = tab_id == "global"
+    is_update = tab_id == "updates"
+    is_plugin = not is_global and not is_update
+
+    # Set active status for tabs
+    for tab in tabs:
+        tab["active"] = (tab["id"] == tab_id)
+
     context = {
         "title": _("Settings"),
         "form": form,
         "logo_form": logo_form,
         "logo_path": logo_path,
-        "is_global": True,
+        "is_global": is_global,
+        "is_update": is_update,
+        "is_plugin": is_plugin,
         "tabs": tabs,
         "MEDIA_URL": settings.MEDIA_URL,
     }
-
-    return render(request, "settings/settings_page.html", context)
 
     return render(request, "settings/settings_page.html", context)
