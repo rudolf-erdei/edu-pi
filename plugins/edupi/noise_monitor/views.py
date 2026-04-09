@@ -293,3 +293,44 @@ class NoiseHistoryAPIView(View):
         }
 
         return JsonResponse(data)
+
+
+class AudioDevicesAPIView(View):
+    """API endpoint to list available audio input devices."""
+
+    def get(self, request, *args, **kwargs):
+        """Return list of available audio input devices."""
+        try:
+            import sounddevice as sd
+
+            devices = sd.query_devices()
+            input_devices = []
+
+            for idx, device in enumerate(devices):
+                if device['max_input_channels'] > 0:
+                    input_devices.append({
+                        'index': idx,
+                        'name': device['name'],
+                        'channels': device['max_input_channels'],
+                        'default_samplerate': int(device['default_samplerate']),
+                    })
+
+            return JsonResponse({
+                'success': True,
+                'devices': input_devices,
+                'default_input_index': sd.default.device[0] if sd.default.device[0] is not None else None,
+            })
+        except ImportError:
+            return JsonResponse({
+                'success': False,
+                'error': 'sounddevice not available - running in simulation mode',
+                'devices': [],
+                'default_input_index': None,
+            }, status=200)
+        except Exception as e:
+            logger.error(f"Error listing audio devices: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': str(e),
+                'devices': [],
+            }, status=500)

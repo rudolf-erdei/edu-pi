@@ -17,4 +17,5 @@ urlpatterns = [
     path("control/", views.NoiseMonitorControlView.as_view(), name="control"),
     path("api/level/", views.NoiseLevelAPIView.as_view(), name="api_level"),
     path("api/history/", views.NoiseHistoryAPIView.as_view(), name="api_history"),
+    path("api/audio-devices/", views.AudioDevicesAPIView.as_view(), name="api_audio_devices"),
 ]
