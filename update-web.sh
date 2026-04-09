@@ -1,10 +1,9 @@
 #!/bin/bash
 #
-# Tinko - Educational Raspberry Pi Platform - Update Script
-# This script updates Tinko to the latest version from git
+# Tinko - Educational Raspberry Pi Platform - Web Update Script
+# This script is used by the tinko-update.service to update the system
 #
-# Usage: ./update.sh
-#
+# Usage: TINKO_UPDATE_DAEMON=1 ./update-web.sh
 
 set -e
 
@@ -16,7 +15,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-INSTALL_DIR="$(pwd)"
+# Use absolute path for stability when run by systemd
+INSTALL_DIR="/home/tinko/edu-pi"
 SERVICE_NAME="tinko"
 STATUS_FILE="/run/tinko-update/status.json"
 
@@ -26,64 +26,12 @@ update_status() {
         local stage=$1
         local status=$2
         # Use a temporary file and mv for atomic writes
+        # Note: The daemon typically manages the JSON structure,
+        # but the script provides the current stage.
         echo "{\"stage\": \"$stage\", \"status\": \"$status\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > "${STATUS_FILE}.tmp"
         mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
     fi
 }
-
-# Setup update infrastructure for web updates
-setup_update_infrastructure() {
-    log_info "Setting up update infrastructure for web updates..."
-
-    # 1. Create run directory and set permissions
-    sudo mkdir -p /run/tinko-update
-    sudo chmod 777 /run/tinko-update
-
-    # 2. Configure sudoers for the update process
-    SUDOERS_FILE="/etc/sudoers.d/tinko-update"
-    sudo tee $SUDOERS_FILE > /dev/null << EOF
-# Permissions for Tinko update process
-$USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop tinko
-$USER ALL=(All) NOPASSWD: /usr/bin/systemctl start tinko
-$USER ALL=(All) NOPASSWD: /usr/bin/mkdir -p /run/tinko-update
-$USER ALL=(All) NOPASSWD: /usr/bin/chmod 777 /run/tinko-update
-EOF
-
-    # 3. Install the update daemon service
-    log_info "Installing tinko-update.service..."
-
-    # Determine absolute path to the daemon
-    DAEMON_PATH="$INSTALL_DIR/core/update_system/update_daemon.py"
-
-    sudo tee /etc/systemd/system/tinko-update.service > /dev/null << EOF
-[Unit]
-Description=Tinko Update Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$INSTALL_DIR
-ExecStart=/usr/bin/python3 $DAEMON_PATH
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Reload systemd and enable service
-    sudo systemctl daemon-reload
-    sudo systemctl enable tinko-update.service
-
-    # Start the service if not running
-    if ! sudo systemctl is-active --quiet tinko-update.service; then
-        sudo systemctl start tinko-update.service
-    fi
-
-    log_success "Update infrastructure set up successfully"
-}
-
 
 # Logging functions
 log_info() {
@@ -102,23 +50,10 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Check if running as root
-check_root() {
-    if [[ $EUID -eq 0 ]]; then
-        # Allow root if run by the update daemon
-        if [[ "$TINKO_UPDATE_DAEMON" == "1" ]]; then
-            return 0
-        fi
-        log_error "This script should not be run as root/sudo"
-        log_info "It will use sudo when necessary. Please run as normal user."
-        exit 1
-    fi
-}
-
 # Check if we're in a git repository
 check_git_repo() {
-    if [[ ! -d .git ]]; then
-        log_error "Not a git repository. Please run this from the Tinko installation directory."
+    if [[ ! -d "$INSTALL_DIR/.git" ]]; then
+        log_error "Not a git repository. Please ensure INSTALL_DIR is correct."
         exit 1
     fi
 }
@@ -135,8 +70,7 @@ stop_service() {
             sleep 2
 
             if sudo systemctl is-active --quiet ${SERVICE_NAME} 2>/dev/null; then
-                log_error "Failed to stop service. Please stop it manually:"
-                log_info "  sudo systemctl stop ${SERVICE_NAME}"
+                log_error "Failed to stop service."
                 update_status "stop_service" "failed"
                 exit 1
             fi
@@ -145,7 +79,7 @@ stop_service() {
             log_info "Service is not running"
         fi
     else
-        log_warning "Tinko service not found. Is it installed?"
+        log_warning "Tinko service not found."
     fi
     update_status "stop_service" "completed"
 }
@@ -157,13 +91,11 @@ pull_latest() {
 
     cd "$INSTALL_DIR"
 
-    # Stash any local changes
     if [[ -n $(git status --porcelain) ]]; then
         log_warning "Local changes detected. Stashing them..."
         git stash
     fi
 
-    # Pull latest changes
     if git pull; then
         log_success "Latest changes pulled successfully"
     else
@@ -171,10 +103,6 @@ pull_latest() {
         update_status "pull" "failed"
         exit 1
     fi
-
-    # Show what was updated
-    log_info "Latest commits:"
-    git log --oneline -5
     update_status "pull" "completed"
 }
 
@@ -185,8 +113,6 @@ update_dependencies() {
 
     cd "$INSTALL_DIR"
 
-    # Sync all dependencies including extras
-    # Use --all-extras to ensure all optional dependencies are installed
     if [[ -f /proc/device-tree/model ]] && grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
         log_info "Installing all dependencies including Pi-specific extras..."
         uv sync --all-extras
@@ -213,58 +139,59 @@ run_migrations() {
 
 # Collect static files
 collect_static() {
+    update_status "static" "in_progress"
     log_info "Collecting static files..."
 
     cd "$INSTALL_DIR"
     uv run python manage.py collectstatic --noinput
 
     log_success "Static files collected"
+    update_status "static" "completed"
 }
 
 # Update wifi-connect files
 update_wifi_connect() {
+    update_status "wifi_connect" "in_progress"
     log_info "Updating wifi-connect files..."
 
     WIFI_DIR="$HOME"
 
-    # Check if wifi-connect directory exists in the repo
     if [[ ! -d "$INSTALL_DIR/wifi-connect" ]]; then
         log_warning "wifi-connect directory not found in repo, skipping"
+        update_status "wifi_connect" "completed"
         return
     fi
 
-    # Copy wifi-connect files to home directory
     sudo cp "$INSTALL_DIR/wifi-connect/portal.py" "$WIFI_DIR/"
     sudo cp "$INSTALL_DIR/wifi-connect/startup_check.sh" "$WIFI_DIR/"
     sudo cp "$INSTALL_DIR/wifi-connect/wifi_worker.sh" "$WIFI_DIR/"
 
-    # Make shell scripts executable
     sudo chmod +x "$WIFI_DIR/startup_check.sh"
     sudo chmod +x "$WIFI_DIR/wifi_worker.sh"
 
-    # Set ownership to current user
     sudo chown $USER:$USER "$WIFI_DIR/portal.py"
     sudo chown $USER:$USER "$WIFI_DIR/startup_check.sh"
     sudo chown $USER:$USER "$WIFI_DIR/wifi_worker.sh"
 
     log_success "wifi-connect files updated in $WIFI_DIR"
+    update_status "wifi_connect" "completed"
 }
 
 # Compile translations
 compile_translations() {
+    update_status "translations" "in_progress"
     log_info "Compiling translations..."
-    
+
     cd "$INSTALL_DIR"
-    
-    # Compile project translations
+
     uv run django-admin compilemessages 2>/dev/null || log_warning "No project translations to compile"
-    
-    # Compile plugin translations
+
     if [[ -f scripts/compile_translations.py ]]; then
         uv run python scripts/compile_translations.py
     fi
-    
+
     log_success "Translations compiled"
+    update_status "translations" "completed"
 }
 
 # Restart the service
@@ -272,71 +199,28 @@ restart_service() {
     update_status "restart_service" "in_progress"
     log_info "Restarting Tinko service..."
 
-    # Reload systemd in case service file changed
     sudo systemctl daemon-reload
-
     sudo systemctl start ${SERVICE_NAME}
     sleep 2
 
     if sudo systemctl is-active --quiet ${SERVICE_NAME}; then
         log_success "Service restarted successfully!"
         update_status "restart_service" "completed"
-
-        # Verify network binding
-        log_info "Verifying network binding..."
-        sleep 2
-
-        if sudo netstat -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
-            log_success "Service is accessible from other devices on port 8000"
-        elif sudo ss -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
-            log_success "Service is accessible from other devices on port 8000"
-        elif sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:8000"; then
-            log_warning "Service is only listening on localhost (127.0.0.1:8000)"
-            log_info "This may mean the service file needs updating."
-        fi
     else
-        log_error "Service failed to start. Check logs with:"
-        log_info "  sudo journalctl -u ${SERVICE_NAME} -f"
+        log_error "Service failed to start."
         update_status "restart_service" "failed"
         exit 1
     fi
-}
-
-# Print update summary
-print_summary() {
-    PI_IP=$(hostname -I | awk '{print $1}')
-    
-    echo
-    echo "=========================================="
-    echo -e "${GREEN}Tinko Update Complete!${NC}"
-    echo "=========================================="
-    echo
-    echo "Tinko has been updated to the latest version."
-    echo
-    echo "Access Tinko at:"
-    echo "  - Dashboard:       http://${PI_IP}:8000/"
-    echo "  - Admin Panel:     http://${PI_IP}:8000/admin/"
-    echo "  - Noise Monitor:   http://${PI_IP}:8000/plugins/edupi/noise_monitor/"
-    echo "  - Routines:        http://${PI_IP}:8000/plugins/edupi/routines/"
-    echo "  - Activity Timer:  http://${PI_IP}:8000/plugins/edupi/activity_timer/"
-    echo "  - Touch Piano:     http://${PI_IP}:8000/plugins/edupi/touch_piano/"
-    echo
-    echo "Service commands:"
-    echo "  sudo systemctl status ${SERVICE_NAME}"
-    echo "  sudo systemctl restart ${SERVICE_NAME}"
-    echo "  sudo journalctl -u ${SERVICE_NAME} -f"
-    echo
 }
 
 # Main update function
 main() {
     echo
     echo "=========================================="
-    echo "Tinko - Update Script"
+    echo "Tinko - Web Update Process"
     echo "=========================================="
     echo
-    
-    check_root
+
     check_git_repo
     stop_service
     pull_latest
@@ -346,7 +230,9 @@ main() {
     compile_translations
     update_wifi_connect
     restart_service
-    print_summary
+
+    echo
+    echo "Update process finished successfully."
 }
 
 # Handle script interruption

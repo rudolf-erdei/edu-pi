@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     "channels",
     "core.edupi_core",
     "core.plugin_system",
+    "core.update_system",
     # Core plugins (loaded before auto-discovered plugins)
     "plugins.edupi.activity_timer",
     "plugins.edupi.touch_piano",
