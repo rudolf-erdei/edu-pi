@@ -17,3 +17,5 @@ entities.json
 CLAUDE.md
 mempalace.yaml
 /docs/superpowers/
+db.sqlite3
+*.sqlite3
