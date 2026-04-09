@@ -1,0 +1,14 @@
+[Unit]
+Description=Tinko Update Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/tinko/edu-pi
+ExecStart=/usr/bin/python3 /home/tinko/edu-pi/core/update_system/update_daemon.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
