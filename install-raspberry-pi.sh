@@ -349,6 +349,7 @@ EOF
 [Unit]
 Description=Tinko Wi-Fi Captive Portal Check
 After=NetworkManager.service
+Before=tinko.service
 
 [Service]
 Type=simple

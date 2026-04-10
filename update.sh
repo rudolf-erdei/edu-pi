@@ -221,6 +221,40 @@ collect_static() {
     log_success "Static files collected"
 }
 
+# Ensure WiFi setup service is installed and enabled
+ensure_wifi_service() {
+    log_info "Ensuring WiFi setup service is present and enabled..."
+
+    WIFI_DIR="$HOME"
+    if [[ ! -f "$WIFI_DIR/startup_check.sh" ]]; then
+        log_warning "startup_check.sh not found in $WIFI_DIR, skipping service creation"
+        return
+    fi
+
+    sudo tee /etc/systemd/system/tinko-wifi.service > /dev/null << EOF
+[Unit]
+Description=Tinko Wi-Fi Captive Portal Check
+After=NetworkManager.service
+Before=tinko.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash $WIFI_DIR/startup_check.sh
+User=root
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable tinko-wifi.service
+    log_success "WiFi setup service ensured and enabled"
+}
+
 # Update wifi-connect files
 update_wifi_connect() {
     log_info "Updating wifi-connect files..."
@@ -246,6 +280,8 @@ update_wifi_connect() {
     sudo chown $USER:$USER "$WIFI_DIR/portal.py"
     sudo chown $USER:$USER "$WIFI_DIR/startup_check.sh"
     sudo chown $USER:$USER "$WIFI_DIR/wifi_worker.sh"
+
+    ensure_wifi_service
 
     log_success "wifi-connect files updated in $WIFI_DIR"
 }
