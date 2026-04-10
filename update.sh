@@ -231,6 +231,14 @@ ensure_wifi_service() {
         return
     fi
 
+    # Grant Python permission to bind to privileged port 80
+    # Since this is an update, the python binary might have changed
+    PYTHON_BIN=$(uv run which python)
+    if [[ -n "$PYTHON_BIN" ]]; then
+        log_info "Updating capabilities for $PYTHON_BIN to allow port 80..."
+        sudo setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN"
+    fi
+
     sudo tee /etc/systemd/system/tinko-wifi.service > /dev/null << EOF
 [Unit]
 Description=Tinko Wi-Fi Captive Portal Check
@@ -322,12 +330,12 @@ restart_service() {
         log_info "Verifying network binding..."
         sleep 2
 
-        if sudo netstat -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
-            log_success "Service is accessible from other devices on port 8000"
-        elif sudo ss -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
-            log_success "Service is accessible from other devices on port 8000"
-        elif sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:8000"; then
-            log_warning "Service is only listening on localhost (127.0.0.1:8000)"
+        if sudo netstat -tlnp 2>/dev/null | grep -q ":80.*0.0.0.0"; then
+            log_success "Service is accessible from other devices on port 80"
+        elif sudo ss -tlnp 2>/dev/null | grep -q ":80.*0.0.0.0"; then
+            log_success "Service is accessible from other devices on port 80"
+        elif sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:80"; then
+            log_warning "Service is only listening on localhost (127.0.0.1:80)"
             log_info "This may mean the service file needs updating."
         fi
     else
@@ -350,12 +358,12 @@ print_summary() {
     echo "Tinko has been updated to the latest version."
     echo
     echo "Access Tinko at:"
-    echo "  - Dashboard:       http://${PI_IP}:8000/"
-    echo "  - Admin Panel:     http://${PI_IP}:8000/admin/"
-    echo "  - Noise Monitor:   http://${PI_IP}:8000/plugins/edupi/noise_monitor/"
-    echo "  - Routines:        http://${PI_IP}:8000/plugins/edupi/routines/"
-    echo "  - Activity Timer:  http://${PI_IP}:8000/plugins/edupi/activity_timer/"
-    echo "  - Touch Piano:     http://${PI_IP}:8000/plugins/edupi/touch_piano/"
+    echo "  - Dashboard:       http://${PI_IP}:/"
+    echo "  - Admin Panel:     http://${PI_IP}:/admin/"
+    echo "  - Noise Monitor:   http://${PI_IP}:/plugins/edupi/noise_monitor/"
+    echo "  - Routines:        http://${PI_IP}:/plugins/edupi/routines/"
+    echo "  - Activity Timer:  http://${PI_IP}:/plugins/edupi/activity_timer/"
+    echo "  - Touch Piano:     http://${PI_IP}:/plugins/edupi/touch_piano/"
     echo
     echo "Service commands:"
     echo "  sudo systemctl status ${SERVICE_NAME}"

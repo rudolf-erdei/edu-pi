@@ -424,23 +424,34 @@ configure_audio() {
     log_success "Audio configuration complete"
 }
 
-# Create systemd service
+# Setup systemd service
 setup_systemd_service() {
     log_info "Setting up systemd service..."
-    
+
     read -p "Set up Tinko to start automatically on boot? (Y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Nn]$ ]]; then
         log_info "Skipping systemd service setup"
         log_info "To start manually, run:"
         log_info "  cd ${INSTALL_DIR}"
-        log_info "  uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+        log_info "  uv run daphne -b 0.0.0.0 -p 80 config.asgi:application"
         return
     fi
-    
+
     # Get UV path
     UV_PATH="$HOME/.local/bin/uv"
-    
+
+    # Grant Python permission to bind to port 80
+    log_info "Granting Python permission to bind to privileged port 80..."
+    # Find the actual python binary used by uv
+    PYTHON_BIN=$(uv run which python)
+    if [[ -n "$PYTHON_BIN" ]]; then
+        sudo setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN"
+        log_success "Capabilities set for $PYTHON_BIN"
+    else
+        log_error "Could not find Python binary to set capabilities"
+    fi
+
     # Create service file
     sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null << EOF
 [Unit]
@@ -457,51 +468,51 @@ Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
 ExecStartPre=${UV_PATH} run python manage.py migrate --noinput
 ExecStartPre=${UV_PATH} run python manage.py collectstatic --noinput
-ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 8000 config.asgi:application
+ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 config.asgi:application
 Restart=always
 RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 EOF
-    
+
     # Reload systemd
     sudo systemctl daemon-reload
-    
+
     # Enable service
     sudo systemctl enable ${SERVICE_NAME}
-    
+
     log_success "Systemd service created and enabled"
     log_info "Service commands:"
     log_info "  Start:   sudo systemctl start ${SERVICE_NAME}"
     log_info "  Stop:    sudo systemctl stop ${SERVICE_NAME}"
     log_info "  Status:  sudo systemctl status ${SERVICE_NAME}"
     log_info "  Logs:    sudo journalctl -u ${SERVICE_NAME} -f"
-    
+
     # Start the service
     read -p "Start the service now? (Y/n): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
         sudo systemctl start ${SERVICE_NAME}
         sleep 2
-        
+
         if sudo systemctl is-active --quiet ${SERVICE_NAME}; then
             log_success "Tinko service is running!"
-            
+
             # Verify network binding
             log_info "Verifying network binding..."
             sleep 2
-            
+
             # Check if listening on all interfaces
-            if sudo netstat -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
-                log_success "Service is accessible from other devices on port 8000"
-            elif sudo ss -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
-                log_success "Service is accessible from other devices on port 8000"
-            elif sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:8000"; then
-                log_error "Service is only listening on localhost (127.0.0.1:8000)"
+            if sudo netstat -tlnp 2>/dev/null | grep -q ":80.*0.0.0.0"; then
+                log_success "Service is accessible from other devices on port 80"
+            elif sudo ss -tlnp 2>/dev/null | grep -q ":80.*0.0.0.0"; then
+                log_success "Service is accessible from other devices on port 80"
+            elif sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:80"; then
+                log_error "Service is only listening on localhost (127.0.0.1:80)"
                 log_warning "This means the service is NOT accessible from other devices!"
                 log_info "Checking service file configuration..."
-                
+
                 # Check if the service file has the correct binding
                 if sudo grep -q "daphne.*-b 0.0.0.0" /etc/systemd/system/${SERVICE_NAME}.service 2>/dev/null; then
                     log_info "Service file has correct -b 0.0.0.0 flag"
@@ -512,13 +523,13 @@ EOF
                     log_info "To fix, edit the service file:"
                     log_info "  sudo systemctl stop ${SERVICE_NAME}"
                     log_info "  sudo nano /etc/systemd/system/${SERVICE_NAME}.service"
-                    log_info "Ensure ExecStart line contains: -b 0.0.0.0 -p 8000"
+                    log_info "Ensure ExecStart line contains: -b 0.0.0.0 -p 80"
                     log_info "  sudo systemctl daemon-reload"
                     log_info "  sudo systemctl start ${SERVICE_NAME}"
                 fi
             else
                 log_warning "Could not verify port binding. Please check manually:"
-                log_info "  sudo netstat -tlnp | grep 8000"
+                log_info "  sudo netstat -tlnp | grep 80"
             fi
         else
             log_error "Service failed to start. Check logs with:"
@@ -562,12 +573,12 @@ print_summary() {
     echo "=========================================="
     echo
     echo "Access Tinko at:"
-    echo "  - Dashboard:       http://${PI_IP}:8000/"
-    echo "  - Admin Panel:     http://${PI_IP}:8000/admin/"
-    echo "  - Noise Monitor:   http://${PI_IP}:8000/plugins/edupi/noise_monitor/"
-    echo "  - Routines:        http://${PI_IP}:8000/plugins/edupi/routines/"
-    echo "  - Activity Timer:  http://${PI_IP}:8000/plugins/edupi/activity_timer/"
-    echo "  - Touch Piano:     http://${PI_IP}:8000/plugins/edupi/touch_piano/"
+    echo "  - Dashboard:       http://${PI_IP}:/"
+    echo "  - Admin Panel:     http://${PI_IP}:/admin/"
+    echo "  - Noise Monitor:   http://${PI_IP}:/plugins/edupi/noise_monitor/"
+    echo "  - Routines:        http://${PI_IP}:/plugins/edupi/routines/"
+    echo "  - Activity Timer:  http://${PI_IP}:/plugins/edupi/activity_timer/"
+    echo "  - Touch Piano:     http://${PI_IP}:/plugins/edupi/touch_piano/"
     echo
     echo "Default Admin Credentials:"
     echo "  Username: admin"
