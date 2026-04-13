@@ -1,6 +1,5 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, redirect
 import subprocess
-import shlex
 import os
 import ssl
 import threading
@@ -84,6 +83,17 @@ WAIT_PAGE = """
 </body>
 </html>
 """
+
+# Captive portal detection URLs - redirect to the setup page.
+# These URLs are probed by OS-level connectivity checks (Android, Apple, Windows).
+# Returning a 302 redirect triggers the "Sign in to Wi-Fi" notification.
+@app.route('/generate_204')
+@app.route('/gen_204')
+@app.route('/hotspot-detect.html')
+@app.route('/connecttest.txt')
+def captive_portal_redirect():
+    return redirect('http://10.42.0.1/', code=302)
+
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

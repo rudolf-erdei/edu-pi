@@ -312,6 +312,12 @@ setup_wifi_connect() {
     log_info "Installing dnsmasq..."
     sudo apt-get install -y dnsmasq
 
+    # Check for dnsmasq version with known wildcard DNS bug
+    DNSMASQ_VERSION=$(dnsmasq --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+' | head -1)
+    if [[ "$DNSMASQ_VERSION" == "2.86" ]]; then
+        log_warning "dnsmasq 2.86 has a known bug with address=/#/ wildcard DNS redirection. Consider upgrading."
+    fi
+
     # Configure dnsmasq for captive portal
     if [[ ! -f /etc/dnsmasq.conf.backup ]]; then
         sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
@@ -328,6 +334,23 @@ interface=wlan0
 bind-interfaces
 EOF
     fi
+
+    # Disable DNS on NetworkManager's internal dnsmasq to prevent port 53 conflict.
+    # NM runs its own dnsmasq for shared connections which binds to port 53 on the hotspot IP.
+    # Our standalone dnsmasq needs port 53 for captive portal DNS redirection (address=/#/).
+    sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d/
+    echo "port=0" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf > /dev/null
+    log_info "Configured NM dnsmasq to disable DNS (port 53 conflict prevention)"
+
+    # Disable NetworkManager's periodic connectivity checks.
+    # These checks can cause WiFi disconnects in hotspot mode by detecting
+    # no internet and attempting to reconfigure the interface.
+    sudo mkdir -p /etc/NetworkManager/conf.d/
+    sudo tee /etc/NetworkManager/conf.d/no-connectivity-check.conf > /dev/null << EOF
+[connectivity]
+interval=0
+EOF
+    log_info "Disabled NetworkManager connectivity checks (prevents hotspot disconnects)"
 
     # Copy wifi-connect files to home directory
     log_info "Copying wifi-connect files..."
@@ -353,7 +376,8 @@ After=NetworkManager.service
 Before=tinko.service
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=no
 ExecStart=/bin/bash $WIFI_DIR/startup_check.sh
 User=root
 Restart=on-failure

@@ -536,6 +536,8 @@ if lcd_service.is_initialized():
 - Graceful handling of missing hardware (mock mode)
 - Auto-restart on crash
 - Database backups
+- **Captive portal WiFi setup** — Pi creates "Tinko-Setup" hotspot when no internet is available, allowing headless WiFi configuration from any phone
+- **Type=oneshot service ordering** — systemd waits for captive portal to finish before starting Django, preventing port 80 conflicts
 
 ### Security
 
@@ -982,58 +984,77 @@ The following features have been implemented:
 
 For deploying Edu-Pi as the primary application that starts automatically on boot:
 
-#### Systemd Service (Recommended)
+Use the provided install script which handles all setup:
 
-Create a systemd service that manages the Django application:
+```bash
+bash install-raspberry-pi.sh
+```
 
-1. **Service file location**: `/etc/systemd/system/edu-pi.service`
+Or update an existing installation:
 
-2. **Configuration**:
-   ```ini
-   [Unit]
-   Description=Edu-Pi Django Application
-   After=network.target
+```bash
+bash update.sh
+```
 
-   [Service]
-   Type=simple
-   User=pi
-   WorkingDirectory=/home/pi/edu-pi
-   Environment="PATH=/home/pi/.local/bin"
-   Environment="PYTHONPATH=/home/pi/edu-pi"
-   Environment="DJANGO_SETTINGS_MODULE=config.settings"
-   Environment="EDUPI_DEBUG=False"
-   ExecStart=/home/pi/.cargo/bin/uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
-   Restart=always
-   RestartSec=3
+#### Systemd Services
 
-   [Install]
-   WantedBy=multi-user.target
-   ```
+The install script creates two systemd services that work together:
 
-3. **Setup steps**:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable edu-pi
-   sudo systemctl start edu-pi
-   ```
+**1. WiFi Captive Portal** (`/etc/systemd/system/tinko-wifi.service`):
+- Runs `startup_check.sh` on boot to detect internet connectivity
+- If no internet: creates "Tinko-Setup" hotspot and starts Flask portal
+- Uses `Type=oneshot` so systemd waits for it to finish before starting Django
+- If internet available: exits immediately, Django starts
 
-4. **Features**:
-   - Auto-starts on boot
-   - Auto-restarts on crash
-   - Uses Daphne ASGI server for WebSocket support
-   - Logs to systemd journal
+```ini
+[Unit]
+Description=Tinko Wi-Fi Captive Portal Check
+After=NetworkManager.service
+Before=tinko.service
 
-5. **Management commands**:
-   ```bash
-   sudo systemctl status edu-pi      # Check status
-   sudo systemctl restart edu-pi     # Restart
-   sudo systemctl stop edu-pi        # Stop
-   sudo journalctl -u edu-pi -f      # View logs
-   ```
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/bin/bash /home/tinko/startup_check.sh
+User=root
+Restart=on-failure
+RestartSec=10
+```
+
+**2. Tinko Django App** (`/etc/systemd/system/tinko.service`):
+- Starts after the captive portal check completes
+- Runs Daphne ASGI server on port 80 for WebSocket support
+
+```ini
+[Unit]
+Description=Tinko Educational Platform
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=tinko
+WorkingDirectory=/home/tinko/edu-pi
+Environment="PATH=/home/tinko/.local/bin"
+Environment="PYTHONPATH=/home/tinko/edu-pi"
+Environment="DJANGO_SETTINGS_MODULE=config.settings"
+ExecStart=/home/tinko/.local/bin/uv run daphne -b 0.0.0.0 -p 80 config.asgi:application
+Restart=always
+RestartSec=3
+```
+
+#### Management commands:
+```bash
+sudo systemctl status tinko-wifi  # Captive portal status
+sudo systemctl status tinko        # Django app status
+sudo journalctl -u tinko-wifi -f   # Captive portal logs
+sudo journalctl -u tinko -f        # Django app logs
+cat /var/log/tinko_wifi.log        # WiFi connection log
+```
 
 ---
 
-_Last updated: 2025-03-28_
+_Last updated: 2026-04-13_
 
 ### Documentation
 

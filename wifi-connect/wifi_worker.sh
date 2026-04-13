@@ -12,6 +12,14 @@ log "Starting WiFi connection attempt for SSID: $SSID"
 # Give the Flask web server 3 seconds to send the HTML "Wait Page" to the teacher's phone
 sleep 3
 
+# Tear down the hotspot before attempting WiFi connection.
+# A single WiFi radio cannot be in AP mode and station mode simultaneously.
+nmcli connection down "Tinko-Setup" 2>/dev/null || true
+sleep 1
+
+# Remove any stale connection profile for this SSID to avoid duplicate profiles
+nmcli connection delete "$SSID" 2>/dev/null || true
+
 # Attempt to connect to the new Wi-Fi.
 # --wait 15 ensures it doesn't hang forever if the network drops.
 if nmcli --wait 15 dev wifi connect "$SSID" password "$PASSWORD"; then
@@ -30,7 +38,7 @@ if nmcli --wait 15 dev wifi connect "$SSID" password "$PASSWORD"; then
         rm -f /run/tinko-portal.pid
     else
         log "No PID file found, falling back to pkill"
-        pkill -f portal.py
+        pkill -f "python3.*portal.py"
         log "Flask portal stopped via pkill"
     fi
 
