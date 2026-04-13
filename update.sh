@@ -289,17 +289,40 @@ update_wifi_connect() {
     sudo chown $USER:$USER "$WIFI_DIR/startup_check.sh"
     sudo chown $USER:$USER "$WIFI_DIR/wifi_worker.sh"
 
-    # Ensure dnsmasq is running
+    # Ensure dnsmasq is installed and running
     if command -v systemctl &> /dev/null; then
-        if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
-            log_warning "dnsmasq is not running, restarting..."
-            sudo systemctl restart dnsmasq
-        fi
-        # Verify dnsmasq config includes bind-interfaces
-        if ! grep -q "bind-interfaces" /etc/dnsmasq.conf 2>/dev/null; then
-            log_warning "dnsmasq config missing bind-interfaces, adding it..."
-            echo "bind-interfaces" | sudo tee -a /etc/dnsmasq.conf > /dev/null
-            sudo systemctl restart dnsmasq
+        if ! systemctl list-unit-files dnsmasq.service &>/dev/null || ! systemctl list-unit-files dnsmasq.service | grep -q "dnsmasq"; then
+            log_info "dnsmasq service not found, installing and configuring..."
+            sudo apt-get install -y dnsmasq
+
+            # Back up original config if no backup exists
+            if [[ ! -f /etc/dnsmasq.conf.backup ]]; then
+                sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
+            fi
+
+            # Add captive portal configuration if not already present
+            if ! grep -q "address=/#/10.42.0.1" /etc/dnsmasq.conf 2>/dev/null; then
+                log_info "Configuring dnsmasq for captive portal..."
+                cat << 'EOF' | sudo tee -a /etc/dnsmasq.conf > /dev/null
+
+# Tinko Captive Portal Configuration
+address=/#/10.42.0.1
+interface=wlan0
+bind-interfaces
+EOF
+            fi
+        else
+            # Service exists — make sure it's running
+            if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
+                log_warning "dnsmasq is not running, restarting..."
+                sudo systemctl restart dnsmasq
+            fi
+            # Verify config includes bind-interfaces
+            if ! grep -q "bind-interfaces" /etc/dnsmasq.conf 2>/dev/null; then
+                log_warning "dnsmasq config missing bind-interfaces, adding it..."
+                echo "bind-interfaces" | sudo tee -a /etc/dnsmasq.conf > /dev/null
+                sudo systemctl restart dnsmasq
+            fi
         fi
     fi
 
