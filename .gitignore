@@ -19,3 +19,8 @@ mempalace.yaml
 /docs/superpowers/
 db.sqlite3
 *.sqlite3
+/.serena/
+/.claude/
+/.vscode/
+.claude/settings.local.json
+ISSUES.md
