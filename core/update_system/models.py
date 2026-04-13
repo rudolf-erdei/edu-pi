@@ -9,7 +9,7 @@ class UpdateStatus(models.Model):
         ('failed', 'Failed'),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='system_updates')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='system_updates', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -19,4 +19,5 @@ class UpdateStatus(models.Model):
         ordering = ['-started_at']
 
     def __str__(self):
-        return f"Update {self.id} by {self.user.username} - {self.status}"
+        username = self.user.username if self.user else "anonymous"
+        return f"Update {self.id} by {username} - {self.status}"
