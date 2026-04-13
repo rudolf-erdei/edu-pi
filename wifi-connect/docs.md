@@ -143,7 +143,7 @@ The Flask portal handles OS-level captive portal detection URLs by redirecting t
 
 - Android: `/generate_204` and `/gen_204` return 302 to `http://10.42.0.1/`
 - Apple: `/hotspot-detect.html` returns 302 to `http://10.42.0.1/`
-- Windows: `/connecttest.txt` returns 302 to `http://10.10.0.1/`
+- Windows: `/connecttest.txt` returns 302 to `http://10.42.0.1/`
 
 This ensures the "Sign in to Wi-Fi" notification appears on all major platforms.
 

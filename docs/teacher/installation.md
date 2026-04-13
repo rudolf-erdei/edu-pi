@@ -121,22 +121,45 @@ You should see the Tinko dashboard!
 
 ## Production Deployment
 
-For a production environment where Tinko runs automatically on boot:
-
-### Create Systemd Service
-
-Create a service file:
+For a production environment where Tinko runs automatically on boot, use the provided install script:
 
 ```bash
-sudo nano /etc/systemd/system/tinko.service
+bash install-raspberry-pi.sh
 ```
 
-Add the following:
+The script handles everything: system dependencies, Python packages, database setup, GPIO permissions, captive portal, and systemd services.
 
+### Manual Service Setup
+
+If you prefer to set up services manually, the key service files are:
+
+**Tinko WiFi Captive Portal** (`/etc/systemd/system/tinko-wifi.service`):
+```ini
+[Unit]
+Description=Tinko Wi-Fi Captive Portal Check
+After=NetworkManager.service
+Before=tinko.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/bin/bash /home/YOURUSER/startup_check.sh
+User=root
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Tinko Django App** (`/etc/systemd/system/tinko.service`):
 ```ini
 [Unit]
 Description=Tinko Educational Platform
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
@@ -146,7 +169,7 @@ Environment="PATH=/home/pi/.local/bin"
 Environment="PYTHONPATH=/home/pi/edu-pi"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
-ExecStart=/home/pi/.cargo/bin/uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
+ExecStart=/home/pi/.local/bin/uv run daphne -b 0.0.0.0 -p 80 config.asgi:application
 Restart=always
 RestartSec=3
 
@@ -155,29 +178,55 @@ WantedBy=multi-user.target
 ```
 
 !!! note
+    The `tinko-wifi.service` uses `Type=oneshot` (not `simple`). This is critical — it ensures systemd waits for the captive portal script to finish before starting Django, preventing a port 80 conflict. When there's internet, the script exits immediately. When there's no internet, it blocks until WiFi is configured.
+
+!!! note
     Migrations and static file collection are handled by the install and update scripts.
     They are not run at service start time to avoid a 10-30 second delay.
 
-### Enable and Start Service
+### Captive Portal (WiFi Setup)
+
+When the Pi boots without a configured WiFi network, it automatically creates a hotspot named **"Tinko-Setup"** with password **"tinko1234"**. Teachers can connect to this hotspot from their phone and configure the school WiFi through a simple web form.
+
+**Key configuration files** (set up automatically by the install script):
+
+| File | Purpose |
+|------|---------|
+| `/etc/dnsmasq.conf` | Wildcard DNS redirect (`address=/#/10.42.0.1`) |
+| `/etc/NetworkManager/dnsmasq-shared.d/no-dns.conf` | Disables DNS in NM's internal dnsmasq (`port=0`) to prevent port 53 conflict |
+| `/etc/NetworkManager/conf.d/no-connectivity-check.conf` | Disables NM connectivity checks (`interval=0`) to prevent hotspot disconnects |
+| `/etc/tinko-portal/cert.pem` | Self-signed TLS cert for HTTPS captive portal detection |
+
+### Enable and Start Services
 
 ```bash
 # Reload systemd
 sudo systemctl daemon-reload
 
 # Enable auto-start on boot
+sudo systemctl enable tinko-wifi
 sudo systemctl enable tinko
 
-# Start the service
+# Start the services
+sudo systemctl start tinko-wifi
 sudo systemctl start tinko
 
 # Check status
+sudo systemctl status tinko-wifi
 sudo systemctl status tinko
 ```
 
 ### View Logs
 
 ```bash
+# Django app logs
 sudo journalctl -u tinko -f
+
+# Captive portal logs
+sudo journalctl -u tinko-wifi -f
+
+# WiFi connection logs
+cat /var/log/tinko_wifi.log
 ```
 
 ## Troubleshooting

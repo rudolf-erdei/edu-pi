@@ -323,38 +323,137 @@ LOGGING = {
 **Problem:** Phone connects to "Tinko-Setup" WiFi but no login page appears
 
 **Solutions:**
+
+1. **Check if dnsmasq is running:**
 ```bash
-# 1. Check if dnsmasq is running
 sudo systemctl status dnsmasq
-
-# 2. Check for port 53 conflicts (systemd-resolved can block dnsmasq)
-sudo ss -tlnp | grep :53
-
-# 3. Verify dnsmasq config has bind-interfaces
-grep "bind-interfaces" /etc/dnsmasq.conf
-
-# 4. Restart dnsmasq while hotspot is active
-sudo systemctl restart dnsmasq
-
-# 5. Test DNS redirection from a connected phone:
-# Open browser and go to http://10.42.0.1
 ```
+
+2. **Check for port 53 conflicts** (NetworkManager's internal dnsmasq can conflict with standalone dnsmasq):
+```bash
+sudo ss -tlnp | grep :53
+# There should be ONE dnsmasq process on port 53
+# If two processes are on port 53, NM's internal dnsmasq is conflicting
+```
+
+3. **Verify NM's dnsmasq has DNS disabled:**
+```bash
+cat /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf
+# Should contain: port=0
+```
+
+4. **Verify dnsmasq captive portal config:**
+```bash
+grep -E "address=/#|interface=wlan0|bind-interfaces" /etc/dnsmasq.conf
+# All three lines should be present
+```
+
+5. **Verify captive portal detection URLs work** — From a device connected to Tinko-Setup, try:
+```bash
+curl -v http://10.42.0.1/generate_204
+# Should return 302 redirect to http://10.42.0.1/
+```
+
+6. **Restart dnsmasq while hotspot is active:**
+```bash
+sudo systemctl restart dnsmasq
+```
+
+7. **Manual fallback:** If the captive portal popup doesn't appear, open a browser and navigate to `http://10.42.0.1`
 
 ### dnsmasq fails to start
 
-**Problem:** dnsmasq won't start due to port 53 conflict with systemd-resolved
+**Problem:** dnsmasq won't start due to port 53 conflict
+
+**Common cause:** NetworkManager's internal dnsmasq (used for `ipv4.method shared`) also binds to port 53 on the hotspot IP, conflicting with the standalone dnsmasq.
 
 **Solutions:**
+
+1. **Verify NM's dnsmasq has DNS disabled:**
 ```bash
-# Check if systemd-resolved is using port 53
+cat /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf
+# Must contain: port=0
+# If missing, create it:
+sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d/
+echo "port=0" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf
+```
+
+2. **Check if systemd-resolved is using port 53:**
+```bash
 sudo ss -tlnp | grep :53
+```
 
-# If systemd-resolved is the conflict, ensure bind-interfaces is set
+3. **If systemd-resolved is the conflict**, disable its stub listener:
+```bash
+sudo mkdir -p /etc/systemd/resolved.conf.d/
+echo -e "[Resolve]\nDNSStubListener=no" | sudo tee /etc/systemd/resolved.conf.d/no-stub.conf
+sudo systemctl restart systemd-resolved
+```
+
+4. **Ensure bind-interfaces is set:**
+```bash
 grep "bind-interfaces" /etc/dnsmasq.conf
-
-# If missing, add it
+# If missing:
 echo "bind-interfaces" | sudo tee -a /etc/dnsmasq.conf
 sudo systemctl restart dnsmasq
+```
+
+### WiFi hotspot not created on boot
+
+**Problem:** "Tinko-Setup" hotspot doesn't appear
+
+**Solutions:**
+
+1. **Check the WiFi captive portal service:**
+```bash
+sudo systemctl status tinko-wifi
+sudo journalctl -u tinko-wifi -f
+```
+
+2. **Verify service type is oneshot** (not simple):
+```bash
+grep "Type=" /etc/systemd/system/tinko-wifi.service
+# Should be: Type=oneshot
+# If it says Type=simple, update it
+```
+
+3. **Manually start the hotspot for testing:**
+```bash
+sudo /home/tinko/startup_check.sh
+```
+
+4. **Check if NetworkManager is managing wlan0:**
+```bash
+nmcli device status
+# wlan0 should show as "wifi" and "managed"
+```
+
+### WiFi connection keeps cycling (connect/disconnect)
+
+**Problem:** Pi connects to WiFi but keeps disconnecting and reconnecting
+
+**Solutions:**
+
+1. **Disable IPv6 on the hotspot connection** (IPv6 DHCP failures can cause cycling):
+```bash
+nmcli connection modify "Tinko-Setup" ipv6.method disabled
+```
+
+2. **Disable NetworkManager connectivity checks:**
+```bash
+cat /etc/NetworkManager/conf.d/no-connectivity-check.conf
+# Should contain: [connectivity]\ninterval=0
+# If missing:
+sudo mkdir -p /etc/NetworkManager/conf.d/
+echo -e "[connectivity]\ninterval=0" | sudo tee /etc/NetworkManager/conf.d/no-connectivity-check.conf
+sudo systemctl reload NetworkManager
+```
+
+3. **Check for duplicate WiFi profiles:**
+```bash
+nmcli connection show
+# Remove duplicates for the same SSID
+nmcli connection delete "connection-name"
 ```
 
 ### WiFi scan shows empty list in portal
