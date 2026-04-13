@@ -146,8 +146,6 @@ Environment="PATH=/home/pi/.local/bin"
 Environment="PYTHONPATH=/home/pi/edu-pi"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
-ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py migrate --noinput
-ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py collectstatic --noinput
 ExecStart=/home/pi/.cargo/bin/uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
 Restart=always
 RestartSec=3
@@ -155,6 +153,10 @@ RestartSec=3
 [Install]
 WantedBy=multi-user.target
 ```
+
+!!! note
+    Migrations and static file collection are handled by the install and update scripts.
+    They are not run at service start time to avoid a 10-30 second delay.
 
 ### Enable and Start Service
 

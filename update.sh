@@ -221,6 +221,48 @@ collect_static() {
     log_success "Static files collected"
 }
 
+# Ensure WiFi setup service is installed and enabled
+ensure_wifi_service() {
+    log_info "Ensuring WiFi setup service is present and enabled..."
+
+    WIFI_DIR="$HOME"
+    if [[ ! -f "$WIFI_DIR/startup_check.sh" ]]; then
+        log_warning "startup_check.sh not found in $WIFI_DIR, skipping service creation"
+        return
+    fi
+
+    # Grant Python permission to bind to privileged port 80
+    # Since this is an update, the python binary might have changed
+    PYTHON_BIN=$(uv run which python)
+    if [[ -n "$PYTHON_BIN" ]]; then
+        log_info "Updating capabilities for $PYTHON_BIN to allow port 80..."
+        sudo setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN"
+    fi
+
+    sudo tee /etc/systemd/system/tinko-wifi.service > /dev/null << EOF
+[Unit]
+Description=Tinko Wi-Fi Captive Portal Check
+After=NetworkManager.service
+Before=tinko.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash $WIFI_DIR/startup_check.sh
+User=root
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable tinko-wifi.service
+    log_success "WiFi setup service ensured and enabled"
+}
+
 # Update wifi-connect files
 update_wifi_connect() {
     log_info "Updating wifi-connect files..."
@@ -246,6 +288,34 @@ update_wifi_connect() {
     sudo chown $USER:$USER "$WIFI_DIR/portal.py"
     sudo chown $USER:$USER "$WIFI_DIR/startup_check.sh"
     sudo chown $USER:$USER "$WIFI_DIR/wifi_worker.sh"
+
+    # Ensure dnsmasq is running
+    if command -v systemctl &> /dev/null; then
+        if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
+            log_warning "dnsmasq is not running, restarting..."
+            sudo systemctl restart dnsmasq
+        fi
+        # Verify dnsmasq config includes bind-interfaces
+        if ! grep -q "bind-interfaces" /etc/dnsmasq.conf 2>/dev/null; then
+            log_warning "dnsmasq config missing bind-interfaces, adding it..."
+            echo "bind-interfaces" | sudo tee -a /etc/dnsmasq.conf > /dev/null
+            sudo systemctl restart dnsmasq
+        fi
+    fi
+
+    # Ensure TLS certificate exists for HTTPS captive portal checks
+    if [[ ! -f /etc/tinko-portal/cert.pem ]] || [[ ! -f /etc/tinko-portal/key.pem ]]; then
+        log_info "Generating self-signed TLS certificate for captive portal..."
+        sudo mkdir -p /etc/tinko-portal
+        sudo openssl req -x509 -newkey rsa:2048 -keyout /etc/tinko-portal/key.pem \
+            -out /etc/tinko-portal/cert.pem -days 3650 -nodes \
+            -subj "/CN=Tinko-Setup" 2>/dev/null
+        sudo chmod 644 /etc/tinko-portal/cert.pem
+        sudo chmod 600 /etc/tinko-portal/key.pem
+        log_success "TLS certificate generated"
+    fi
+
+    ensure_wifi_service
 
     log_success "wifi-connect files updated in $WIFI_DIR"
 }
@@ -286,12 +356,12 @@ restart_service() {
         log_info "Verifying network binding..."
         sleep 2
 
-        if sudo netstat -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
-            log_success "Service is accessible from other devices on port 8000"
-        elif sudo ss -tlnp 2>/dev/null | grep -q ":8000.*0.0.0.0"; then
-            log_success "Service is accessible from other devices on port 8000"
-        elif sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:8000"; then
-            log_warning "Service is only listening on localhost (127.0.0.1:8000)"
+        if sudo netstat -tlnp 2>/dev/null | grep -q ":80.*0.0.0.0"; then
+            log_success "Service is accessible from other devices on port 80"
+        elif sudo ss -tlnp 2>/dev/null | grep -q ":80.*0.0.0.0"; then
+            log_success "Service is accessible from other devices on port 80"
+        elif sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:80"; then
+            log_warning "Service is only listening on localhost (127.0.0.1:80)"
             log_info "This may mean the service file needs updating."
         fi
     else
@@ -314,12 +384,12 @@ print_summary() {
     echo "Tinko has been updated to the latest version."
     echo
     echo "Access Tinko at:"
-    echo "  - Dashboard:       http://${PI_IP}:8000/"
-    echo "  - Admin Panel:     http://${PI_IP}:8000/admin/"
-    echo "  - Noise Monitor:   http://${PI_IP}:8000/plugins/edupi/noise_monitor/"
-    echo "  - Routines:        http://${PI_IP}:8000/plugins/edupi/routines/"
-    echo "  - Activity Timer:  http://${PI_IP}:8000/plugins/edupi/activity_timer/"
-    echo "  - Touch Piano:     http://${PI_IP}:8000/plugins/edupi/touch_piano/"
+    echo "  - Dashboard:       http://${PI_IP}:/"
+    echo "  - Admin Panel:     http://${PI_IP}:/admin/"
+    echo "  - Noise Monitor:   http://${PI_IP}:/plugins/edupi/noise_monitor/"
+    echo "  - Routines:        http://${PI_IP}:/plugins/edupi/routines/"
+    echo "  - Activity Timer:  http://${PI_IP}:/plugins/edupi/activity_timer/"
+    echo "  - Touch Piano:     http://${PI_IP}:/plugins/edupi/touch_piano/"
     echo
     echo "Service commands:"
     echo "  sudo systemctl status ${SERVICE_NAME}"
