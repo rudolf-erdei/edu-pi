@@ -390,6 +390,22 @@ compile_translations() {
     log_success "Translations compiled"
 }
 
+# Update Python capabilities for port 80 binding
+# After uv sync, the Python binary may change and setcap must be reapplied.
+# This is separate from the wifi section's setcap because this is always needed.
+update_python_capabilities() {
+    log_info "Updating Python capabilities for port 80 binding..."
+
+    PYTHON_BIN=$(uv run which python 2>/dev/null || true)
+    if [[ -n "$PYTHON_BIN" && -f "$PYTHON_BIN" ]]; then
+        sudo setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN"
+        log_success "Capabilities set for $PYTHON_BIN"
+    else
+        log_warning "Could not find Python binary to set capabilities"
+        log_info "Daphne may not be able to bind to port 80"
+    fi
+}
+
 # Restart the service
 restart_service() {
     update_status "restart_service" "in_progress"
@@ -464,6 +480,7 @@ main() {
     stop_service
     pull_latest
     update_dependencies
+    update_python_capabilities
     run_migrations
     collect_static
     compile_translations
