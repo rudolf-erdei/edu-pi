@@ -100,8 +100,10 @@ def connect():
     if not validate_wifi_input(ssid, password):
         return render_template_string(HTML_FORM, ssids=get_available_ssids(), error="Invalid input provided."), 400
 
-    # Spawn the worker script safely using list args (no shell injection)
-    subprocess.Popen(['sudo', 'bash', WIFI_WORKER_SCRIPT, ssid, password])
+    # Spawn the worker script safely using list args (no shell injection).
+    # No sudo needed — portal.py runs as root (started by startup_check.sh which
+    # runs as root via tinko-wifi.service).
+    subprocess.Popen(['bash', WIFI_WORKER_SCRIPT, ssid, password])
 
     # Immediately return the wait page BEFORE the Wi-Fi radio resets
     return render_template_string(WAIT_PAGE, ssid=ssid)

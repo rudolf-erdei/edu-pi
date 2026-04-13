@@ -14,23 +14,23 @@ sleep 3
 
 # Attempt to connect to the new Wi-Fi.
 # --wait 15 ensures it doesn't hang forever if the network drops.
-if sudo nmcli --wait 15 dev wifi connect "$SSID" password "$PASSWORD"; then
+if nmcli --wait 15 dev wifi connect "$SSID" password "$PASSWORD"; then
     log "Connection to '$SSID' successful!"
     # The Pi is now online.
 
     # Kill the Flask portal using its PID file (avoids killing unrelated processes)
     if [[ -f /run/tinko-portal.pid ]]; then
         PORTAL_PID=$(cat /run/tinko-portal.pid)
-        if sudo kill -0 "$PORTAL_PID" 2>/dev/null; then
-            sudo kill "$PORTAL_PID"
+        if kill -0 "$PORTAL_PID" 2>/dev/null; then
+            kill "$PORTAL_PID"
             log "Flask portal (PID $PORTAL_PID) stopped"
         else
             log "Flask portal PID $PORTAL_PID no longer running"
         fi
-        sudo rm -f /run/tinko-portal.pid
+        rm -f /run/tinko-portal.pid
     else
         log "No PID file found, falling back to pkill"
-        sudo pkill -f portal.py
+        pkill -f portal.py
         log "Flask portal stopped via pkill"
     fi
 
@@ -40,6 +40,11 @@ if sudo nmcli --wait 15 dev wifi connect "$SSID" password "$PASSWORD"; then
 else
     log "Connection to '$SSID' failed (wrong password or out of range). Reverting to hotspot..."
     # The connection failed. Bring the hotspot profile back up so the teacher can try again.
-    sudo nmcli connection up "Tinko-Setup"
+    nmcli connection up "Tinko-Setup"
     log "Hotspot 'Tinko-Setup' restored"
+
+    # Restart dnsmasq so it re-binds to the restored hotspot interface IP.
+    # Without this, DNS redirection may not work after the radio switch (AP → station → AP).
+    systemctl restart dnsmasq
+    log "dnsmasq restarted after hotspot restore"
 fi
