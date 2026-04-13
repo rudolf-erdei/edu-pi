@@ -28,10 +28,16 @@ else
         log "Hotspot activated"
     fi
 
+    # Disable IPv6 on the hotspot to prevent connection cycling issues
+    nmcli connection modify "Tinko-Setup" ipv6.method disabled 2>/dev/null || true
+
     # Restart dnsmasq so it binds to the hotspot interface IP
     log "Restarting dnsmasq to bind to hotspot interface..."
-    systemctl restart dnsmasq
-    log "dnsmasq restarted"
+    if ! systemctl restart dnsmasq; then
+        log "ERROR: Failed to restart dnsmasq"
+    else
+        log "dnsmasq restarted"
+    fi
 
     # Start the Flask Captive Portal
     log "Starting Flask captive portal..."
@@ -46,13 +52,13 @@ else
     #   - Restart=on-failure can attempt recovery
     #   - Or systemd starts tinko.service (if Before= ordering is still set)
     # Timeout after 30 minutes to prevent the Pi from being stuck in setup mode forever.
-    WATCHDOG_TIMEOUT=1800  # 30 minutes
+    WATCHDOG_TIMEOUT=600  # 10 minutes
     WATCHDOG_INTERVAL=30   # check every 30 seconds
     ELAPSED=0
 
     while kill -0 "$PORTAL_PID" 2>/dev/null; do
         if (( ELAPSED >= WATCHDOG_TIMEOUT )); then
-            log "Watchdog: Flask portal has been running for 30 minutes. Killing it to exit setup mode."
+            log "Watchdog: Flask portal has been running for 10 minutes. Killing it to exit setup mode."
             kill "$PORTAL_PID" 2>/dev/null
             rm -f /run/tinko-portal.pid
             break

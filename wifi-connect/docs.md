@@ -6,20 +6,40 @@ sudo apt install dnsmasq
 ```
 
 Edit the configuration file to redirect all web traffic to the Pi's hotspot IP address (NetworkManager defaults to 10.42.0.1 for hotspots):
-Bash
 
 ```bash
 sudo nano /etc/dnsmasq.conf
 ```
+
 Add these lines to the bottom of the file:
-Plaintext
 
 ```ini
+# Tinko Captive Portal Configuration
 address=/#/10.42.0.1
 interface=wlan0
+bind-interfaces
 ```
 
-Restart the service: 
+**Important:** You must also disable DNS on NetworkManager's internal dnsmasq to prevent a port 53 conflict. NM runs its own dnsmasq for shared connections, which also binds to port 53 on the hotspot IP. Create this config file:
+
+```bash
+sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d/
+echo "port=0" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf
+```
+
+This tells NM's dnsmasq to only handle DHCP (not DNS), leaving port 53 free for the standalone dnsmasq with the wildcard redirect.
+
+**Also important:** Disable NetworkManager's periodic connectivity checks to prevent hotspot disconnects:
+
+```bash
+sudo mkdir -p /etc/NetworkManager/conf.d/
+sudo tee /etc/NetworkManager/conf.d/no-connectivity-check.conf > /dev/null << EOF
+[connectivity]
+interval=0
+EOF
+```
+
+Restart the service:
 
 ```bash
 sudo systemctl restart dnsmasq
@@ -45,9 +65,11 @@ With the following content (replace `/home/YOURUSER` with your actual home direc
 [Unit]
 Description=Tinko Wi-Fi Captive Portal Check
 After=NetworkManager.service
+Before=tinko.service
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=no
 ExecStart=/bin/bash /home/YOURUSER/startup_check.sh
 User=root
 Restart=on-failure
@@ -58,6 +80,8 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 ```
+
+**Note:** The service type is `oneshot` (not `simple`). This is critical because it ensures systemd waits for `startup_check.sh` to finish before starting `tinko.service`. When there's internet, the script exits immediately and Django starts. When there's no internet, the script blocks (running the captive portal) until WiFi is configured, preventing a port 80 conflict between Flask and Django.
 
 After that run the following commands sequentially:
 
@@ -100,11 +124,11 @@ sudo systemctl restart tinko.service
 what happens now when a teacher plugs it in:
 
 - Power On: The Pi boots up.
-- The Wait: The system waits for the network to initialize.
+- The Wait: The system waits for the network to initialize (up to 120 seconds for `network-online.target`).
 - The Check (startup_check.sh): It pings the internet.
-    - If online: It skips the portal, your Django app boots safely, and the teacher goes to http://tinko.local.
-    - If offline: It spins up the "Tinko-Setup" hotspot and the lightweight Flask portal.
-    - The Handoff (wifi_worker.sh): The teacher enters the credentials. The worker tests them in the background. If they fail, it reverts to the hotspot so the teacher isn't locked out. If they succeed, it kills the Flask portal, connects to the school router, starts Django, and your app takes over.
+    - If online: It exits immediately, systemd starts `tinko.service`, and the Django app boots safely. The teacher goes to http://tinko.local.
+    - If offline: It spins up the "Tinko-Setup" hotspot and the Flask portal. **Systemd waits for this service to finish** (Type=oneshot) before starting Django, preventing a port 80 conflict.
+    - The Handoff (wifi_worker.sh): The teacher enters the credentials. The worker tears down the hotspot, connects to the school WiFi, and kills the Flask portal. The service exits, and Django starts via systemd ordering.
 
 ## Hotspot Credentials
 
@@ -112,3 +136,20 @@ what happens now when a teacher plugs it in:
 - **Password:** `tinko1234`
 
 These credentials are set in `startup_check.sh` when the hotspot is first created.
+
+## Captive Portal Detection
+
+The Flask portal handles OS-level captive portal detection URLs by redirecting them to the setup page:
+
+- Android: `/generate_204` and `/gen_204` return 302 to `http://10.42.0.1/`
+- Apple: `/hotspot-detect.html` returns 302 to `http://10.42.0.1/`
+- Windows: `/connecttest.txt` returns 302 to `http://10.10.0.1/`
+
+This ensures the "Sign in to Wi-Fi" notification appears on all major platforms.
+
+## Key Configuration Files
+
+- `/etc/dnsmasq.conf` — Standalone dnsmasq with wildcard DNS redirect (`address=/#/10.42.0.1`)
+- `/etc/NetworkManager/dnsmasq-shared.d/no-dns.conf` — Disables DNS in NM's internal dnsmasq (`port=0`)
+- `/etc/NetworkManager/conf.d/no-connectivity-check.conf` — Disables NM connectivity checks (`interval=0`)
+- `/etc/tinko-portal/cert.pem` and `key.pem` — Self-signed TLS certificate for HTTPS captive portal detection

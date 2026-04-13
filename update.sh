@@ -246,7 +246,8 @@ After=NetworkManager.service
 Before=tinko.service
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=no
 ExecStart=/bin/bash $WIFI_DIR/startup_check.sh
 User=root
 Restart=on-failure
@@ -289,41 +290,70 @@ update_wifi_connect() {
     sudo chown $USER:$USER "$WIFI_DIR/startup_check.sh"
     sudo chown $USER:$USER "$WIFI_DIR/wifi_worker.sh"
 
-    # Ensure dnsmasq is installed and running
-    if command -v systemctl &> /dev/null; then
-        if ! systemctl list-unit-files dnsmasq.service &>/dev/null || ! systemctl list-unit-files dnsmasq.service | grep -q "dnsmasq"; then
-            log_info "dnsmasq service not found, installing and configuring..."
-            sudo apt-get install -y dnsmasq
+    # Ensure dnsmasq is installed
+    if ! command -v dnsmasq &> /dev/null; then
+        log_info "dnsmasq not found, installing..."
+        sudo apt-get install -y dnsmasq
 
-            # Back up original config if no backup exists
-            if [[ ! -f /etc/dnsmasq.conf.backup ]]; then
-                sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
-            fi
+        # Back up original config if no backup exists
+        if [[ ! -f /etc/dnsmasq.conf.backup ]]; then
+            sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
+        fi
+    fi
 
-            # Add captive portal configuration if not already present
-            if ! grep -q "address=/#/10.42.0.1" /etc/dnsmasq.conf 2>/dev/null; then
-                log_info "Configuring dnsmasq for captive portal..."
-                cat << 'EOF' | sudo tee -a /etc/dnsmasq.conf > /dev/null
+    # Ensure captive portal DNS configuration is present (needed for older systems too)
+    if ! grep -q "address=/#/10.42.0.1" /etc/dnsmasq.conf 2>/dev/null; then
+        log_info "Configuring dnsmasq for captive portal..."
+        cat << 'EOF' | sudo tee -a /etc/dnsmasq.conf > /dev/null
 
 # Tinko Captive Portal Configuration
 address=/#/10.42.0.1
 interface=wlan0
 bind-interfaces
 EOF
-            fi
-        else
-            # Service exists — make sure it's running
-            if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
-                log_warning "dnsmasq is not running, restarting..."
-                sudo systemctl restart dnsmasq
-            fi
-            # Verify config includes bind-interfaces
-            if ! grep -q "bind-interfaces" /etc/dnsmasq.conf 2>/dev/null; then
-                log_warning "dnsmasq config missing bind-interfaces, adding it..."
-                echo "bind-interfaces" | sudo tee -a /etc/dnsmasq.conf > /dev/null
-                sudo systemctl restart dnsmasq
-            fi
+    else
+        # Config exists — make sure all three directives are present
+        if ! grep -q "interface=wlan0" /etc/dnsmasq.conf 2>/dev/null; then
+            echo "interface=wlan0" | sudo tee -a /etc/dnsmasq.conf > /dev/null
         fi
+        if ! grep -q "bind-interfaces" /etc/dnsmasq.conf 2>/dev/null; then
+            echo "bind-interfaces" | sudo tee -a /etc/dnsmasq.conf > /dev/null
+        fi
+    fi
+
+    # Ensure dnsmasq is running
+    if command -v systemctl &> /dev/null; then
+        if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
+            log_warning "dnsmasq is not running, restarting..."
+            sudo systemctl restart dnsmasq
+        fi
+    fi
+
+    # Disable DNS on NetworkManager's internal dnsmasq to prevent port 53 conflict.
+    # NM runs its own dnsmasq for shared connections which binds to port 53 on the hotspot IP.
+    # Our standalone dnsmasq needs port 53 for captive portal DNS redirection (address=/#/).
+    sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d/
+    if [[ ! -f /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf ]]; then
+        echo "port=0" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf > /dev/null
+        log_info "Disabled DNS on NetworkManager's internal dnsmasq (port 53 conflict prevention)"
+    fi
+
+    # Disable NetworkManager's periodic connectivity checks.
+    # These checks can cause WiFi disconnects in hotspot mode by detecting
+    # no internet and attempting to reconfigure the interface.
+    sudo mkdir -p /etc/NetworkManager/conf.d/
+    if [[ ! -f /etc/NetworkManager/conf.d/no-connectivity-check.conf ]]; then
+        sudo tee /etc/NetworkManager/conf.d/no-connectivity-check.conf > /dev/null << 'EOF'
+[connectivity]
+interval=0
+EOF
+        log_info "Disabled NetworkManager connectivity checks (prevents hotspot disconnects)"
+    fi
+
+    # Check for dnsmasq version with known wildcard DNS bug
+    DNSMASQ_VERSION=$(dnsmasq --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+' | head -1)
+    if [[ "$DNSMASQ_VERSION" == "2.86" ]]; then
+        log_warning "dnsmasq 2.86 has a known bug with address=/#/ wildcard DNS redirection. Consider upgrading."
     fi
 
     # Ensure TLS certificate exists for HTTPS captive portal checks
