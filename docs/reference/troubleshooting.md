@@ -318,6 +318,53 @@ LOGGING = {
 
 ## System Issues
 
+### Captive portal not appearing on phone
+
+**Problem:** Phone connects to "Tinko-Setup" WiFi but no login page appears
+
+**Solutions:**
+```bash
+# 1. Check if dnsmasq is running
+sudo systemctl status dnsmasq
+
+# 2. Check for port 53 conflicts (systemd-resolved can block dnsmasq)
+sudo ss -tlnp | grep :53
+
+# 3. Verify dnsmasq config has bind-interfaces
+grep "bind-interfaces" /etc/dnsmasq.conf
+
+# 4. Restart dnsmasq while hotspot is active
+sudo systemctl restart dnsmasq
+
+# 5. Test DNS redirection from a connected phone:
+# Open browser and go to http://10.42.0.1
+```
+
+### dnsmasq fails to start
+
+**Problem:** dnsmasq won't start due to port 53 conflict with systemd-resolved
+
+**Solutions:**
+```bash
+# Check if systemd-resolved is using port 53
+sudo ss -tlnp | grep :53
+
+# If systemd-resolved is the conflict, ensure bind-interfaces is set
+grep "bind-interfaces" /etc/dnsmasq.conf
+
+# If missing, add it
+echo "bind-interfaces" | sudo tee -a /etc/dnsmasq.conf
+sudo systemctl restart dnsmasq
+```
+
+### WiFi scan shows empty list in portal
+
+**Problem:** The SSID dropdown is empty when connecting Tinko to WiFi
+
+**Explanation:** The Pi's WiFi radio cannot scan for networks while in AP (hotspot) mode. This is a hardware limitation of most Raspberry Pi WiFi chips.
+
+**Solution:** Type the WiFi network name manually in the SSID field.
+
 ### Service won't start
 
 **Problem:** systemd service fails

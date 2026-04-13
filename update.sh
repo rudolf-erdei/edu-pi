@@ -289,6 +289,32 @@ update_wifi_connect() {
     sudo chown $USER:$USER "$WIFI_DIR/startup_check.sh"
     sudo chown $USER:$USER "$WIFI_DIR/wifi_worker.sh"
 
+    # Ensure dnsmasq is running
+    if command -v systemctl &> /dev/null; then
+        if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
+            log_warning "dnsmasq is not running, restarting..."
+            sudo systemctl restart dnsmasq
+        fi
+        # Verify dnsmasq config includes bind-interfaces
+        if ! grep -q "bind-interfaces" /etc/dnsmasq.conf 2>/dev/null; then
+            log_warning "dnsmasq config missing bind-interfaces, adding it..."
+            echo "bind-interfaces" | sudo tee -a /etc/dnsmasq.conf > /dev/null
+            sudo systemctl restart dnsmasq
+        fi
+    fi
+
+    # Ensure TLS certificate exists for HTTPS captive portal checks
+    if [[ ! -f /etc/tinko-portal/cert.pem ]] || [[ ! -f /etc/tinko-portal/key.pem ]]; then
+        log_info "Generating self-signed TLS certificate for captive portal..."
+        sudo mkdir -p /etc/tinko-portal
+        sudo openssl req -x509 -newkey rsa:2048 -keyout /etc/tinko-portal/key.pem \
+            -out /etc/tinko-portal/cert.pem -days 3650 -nodes \
+            -subj "/CN=Tinko-Setup" 2>/dev/null
+        sudo chmod 644 /etc/tinko-portal/cert.pem
+        sudo chmod 600 /etc/tinko-portal/key.pem
+        log_success "TLS certificate generated"
+    fi
+
     ensure_wifi_service
 
     log_success "wifi-connect files updated in $WIFI_DIR"

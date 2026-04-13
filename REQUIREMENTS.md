@@ -1002,8 +1002,6 @@ Create a systemd service that manages the Django application:
    Environment="PYTHONPATH=/home/pi/edu-pi"
    Environment="DJANGO_SETTINGS_MODULE=config.settings"
    Environment="EDUPI_DEBUG=False"
-   ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py migrate --noinput
-   ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py collectstatic --noinput
    ExecStart=/home/pi/.cargo/bin/uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
    Restart=always
    RestartSec=3
@@ -1022,7 +1020,6 @@ Create a systemd service that manages the Django application:
 4. **Features**:
    - Auto-starts on boot
    - Auto-restarts on crash
-   - Runs migrations and collectstatic before starting
    - Uses Daphne ASGI server for WebSocket support
    - Logs to systemd journal
 

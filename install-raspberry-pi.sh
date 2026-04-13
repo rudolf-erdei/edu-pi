@@ -325,6 +325,7 @@ setup_wifi_connect() {
 # Tinko Captive Portal Configuration
 address=/#/10.42.0.1
 interface=wlan0
+bind-interfaces
 EOF
     fi
 
@@ -371,6 +372,16 @@ EOF
     # Install Flask for the captive portal
     log_info "Installing Flask for captive portal..."
     sudo apt-get install -y python3-flask || pip3 install Flask
+
+    # Generate self-signed TLS cert for HTTPS captive portal checks
+    log_info "Generating self-signed TLS certificate for captive portal..."
+    sudo mkdir -p /etc/tinko-portal
+    sudo openssl req -x509 -newkey rsa:2048 -keyout /etc/tinko-portal/key.pem \
+        -out /etc/tinko-portal/cert.pem -days 3650 -nodes \
+        -subj "/CN=Tinko-Setup" 2>/dev/null
+    sudo chmod 644 /etc/tinko-portal/cert.pem
+    sudo chmod 600 /etc/tinko-portal/key.pem
+    log_success "TLS certificate generated for captive portal HTTPS"
 
     # Modify Django service to wait for network
     if [[ -f /etc/systemd/system/tinko.service ]]; then
@@ -466,8 +477,6 @@ Environment="PATH=$HOME/.local/bin"
 Environment="PYTHONPATH=${INSTALL_DIR}"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
-ExecStartPre=${UV_PATH} run python manage.py migrate --noinput
-ExecStartPre=${UV_PATH} run python manage.py collectstatic --noinput
 ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 config.asgi:application
 Restart=always
 RestartSec=3

@@ -18,7 +18,7 @@ else
     log "No internet detected. Initializing setup mode..."
 
     # Check if our hotspot profile already exists from a previous run
-    if ! nmcli connection show | grep -q "Tinko-Setup"; then
+    if ! nmcli connection show | grep -q "^\s*Tinko-Setup\b"; then
         log "Creating hotspot 'Tinko-Setup' for the first time..."
         sudo nmcli dev wifi hotspot ifname wlan0 ssid "Tinko-Setup" password "tinko1234" con-name "Tinko-Setup"
         log "Hotspot created successfully"
@@ -28,8 +28,17 @@ else
         log "Hotspot activated"
     fi
 
+    # Restart dnsmasq so it binds to the hotspot interface IP
+    log "Restarting dnsmasq to bind to hotspot interface..."
+    sudo systemctl restart dnsmasq
+    log "dnsmasq restarted"
+
     # Start the Flask Captive Portal
     log "Starting Flask captive portal..."
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    sudo python3 "$SCRIPT_DIR/portal.py"
+    sudo python3 "$SCRIPT_DIR/portal.py" &
+    PORTAL_PID=$!
+    echo "$PORTAL_PID" | sudo tee /run/tinko-portal.pid > /dev/null
+    log "Flask portal started with PID $PORTAL_PID"
+    wait $PORTAL_PID
 fi

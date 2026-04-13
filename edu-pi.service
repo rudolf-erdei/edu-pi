@@ -10,8 +10,6 @@ Environment="PATH=/home/pi/.local/share/uv/python/cpython-3.12.7-linux-aarch64-g
 Environment="PYTHONPATH=/home/pi/edu-pi"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
-ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py migrate --noinput
-ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py collectstatic --noinput
 ExecStart=/home/pi/.cargo/bin/uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
 Restart=always
 RestartSec=3

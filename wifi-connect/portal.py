@@ -2,6 +2,9 @@ from flask import Flask, request, render_template_string
 import subprocess
 import shlex
 import os
+import ssl
+import threading
+import http.server
 
 app = Flask(__name__)
 
@@ -49,6 +52,7 @@ HTML_FORM = """
 <head><title>Tinko Setup</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="font-family: Arial; text-align: center; margin-top: 50px;">
     <h2>Connect Tinko to Wi-Fi</h2>
+    <p style="color: #666; font-size: 14px;">Type your Wi-Fi name below. Scanning is unavailable in hotspot mode.</p>
     {% if error %}
     <div style="color: red; margin-bottom: 15px;">{{ error }}</div>
     {% endif %}
@@ -57,11 +61,13 @@ HTML_FORM = """
         <input type="password" name="password" placeholder="Password" required style="padding: 10px; margin: 10px; width: 80%;"><br>
         <button type="submit" style="padding: 15px 30px; background: #007BFF; color: white; border: none; border-radius: 5px;">Connect</button>
     </form>
+    {% if ssids %}
     <datalist id="network-list">
         {% for ssid in ssids %}
         <option value="{{ ssid }}">
         {% endfor %}
     </datalist>
+    {% endif %}
 </body>
 </html>
 """
@@ -101,4 +107,35 @@ def connect():
     return render_template_string(WAIT_PAGE, ssid=ssid)
 
 if __name__ == '__main__':
+    # Start HTTPS redirect server on port 443 in a background thread.
+    # Some Android devices use HTTPS for captive portal checks.
+    # A self-signed cert is sufficient — Android's connectivity check
+    # does not enforce cert validation, it just needs a response.
+    CERT_PATH = '/etc/tinko-portal/cert.pem'
+    KEY_PATH = '/etc/tinko-portal/key.pem'
+
+    if os.path.exists(CERT_PATH) and os.path.exists(KEY_PATH):
+        class RedirectHandler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(302)
+                self.send_header('Location', f'http://10.42.0.1{self.path}')
+                self.end_headers()
+
+            do_POST = do_GET  # type: ignore[assignment]
+
+            def log_message(self, format, *args):
+                pass  # Suppress access logs for the redirect server
+
+        def run_https():
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ctx.load_cert_chain(CERT_PATH, KEY_PATH)
+            server = http.server.HTTPServer(('0.0.0.0', 443), RedirectHandler)
+            server.socket = ctx.wrap_socket(server.socket, server_side=True)
+            server.serve_forever()
+
+        https_thread = threading.Thread(target=run_https, daemon=True)
+        https_thread.start()
+        print("HTTPS redirect server started on port 443")
+
+    # Start the main HTTP Flask server on port 80
     app.run(host='0.0.0.0', port=80)
