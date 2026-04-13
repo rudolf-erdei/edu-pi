@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "mcp__plugin_serena_serena__initial_instructions"
+      "mcp__plugin_serena_serena__initial_instructions",
+      "mcp__plugin_serena_serena__find_file",
+      "mcp__plugin_serena_serena__search_for_pattern"
     ]
   }
 }

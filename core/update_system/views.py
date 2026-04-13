@@ -3,7 +3,6 @@ import json
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from pathlib import Path
 from .models import UpdateStatus
@@ -43,7 +42,6 @@ def check_for_updates():
     except Exception as e:
         return {"error": str(e)}
 
-@login_required
 def check_updates(request):
     """Check for available updates."""
     result = check_for_updates()
@@ -51,7 +49,6 @@ def check_updates(request):
         return JsonResponse({"error": result["error"]}, status=500)
     return JsonResponse(result)
 
-@login_required
 def start_update(request):
     """Trigger the system update process."""
     # 1. Rate limit check (5 minutes)
@@ -70,7 +67,10 @@ def start_update(request):
         return JsonResponse({'error': 'Update already in progress'}, status=409)
 
     # 3. Create record
-    update = UpdateStatus.objects.create(user=request.user, status='in_progress')
+    update = UpdateStatus.objects.create(
+        user=request.user if request.user.is_authenticated else None,
+        status='in_progress',
+    )
 
     # 4. Trigger daemon
     try:
@@ -80,7 +80,6 @@ def start_update(request):
 
     return JsonResponse({'update_id': update.id})
 
-@login_required
 def get_update_status(request):
     """Poll the current status from the status file."""
     if not STATUS_FILE.exists():

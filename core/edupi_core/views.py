@@ -5,7 +5,6 @@ Views for the Tinko core application.
 from django.shortcuts import render
 from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
 
@@ -185,7 +184,6 @@ class GlobalSettingsFormImpl(GlobalSettingsForm):
     )
 
 
-@login_required
 def settings_view(request: HttpRequest) -> HttpResponse:
     """
     Main settings page with tabs for global and plugin settings.
