@@ -469,6 +469,7 @@ EOF
         -subj "/CN=Tinko-Setup" 2>/dev/null
     sudo chmod 644 /etc/tinko-portal/cert.pem
     sudo chmod 600 /etc/tinko-portal/key.pem
+    sudo chown $USER /etc/tinko-portal/key.pem
     log_success "TLS certificate generated for captive portal HTTPS"
 
     # Modify Django service to wait for network
@@ -549,6 +550,7 @@ setup_systemd_service() {
             -subj "/CN=tinko.local" 2>/dev/null
         sudo chmod 644 /etc/tinko-portal/cert.pem
         sudo chmod 600 /etc/tinko-portal/key.pem
+        sudo chown $USER /etc/tinko-portal/key.pem
     fi
 
     # Create service file — Daphne serves both HTTP (80) and HTTPS (443).

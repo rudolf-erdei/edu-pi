@@ -426,6 +426,7 @@ EOF
             -subj "/CN=Tinko-Setup" 2>/dev/null
         sudo chmod 644 /etc/tinko-portal/cert.pem
         sudo chmod 600 /etc/tinko-portal/key.pem
+        sudo chown $USER /etc/tinko-portal/key.pem
         log_success "TLS certificate generated"
     fi
 
@@ -467,6 +468,10 @@ ensure_tinko_service() {
         log_warning "tinko.service is using port ${CURRENT_PORT:-???} — updating to port 80..."
     fi
 
+    # Ensure TLS key is readable by the service user.
+    # Daphne runs as $USER and needs to read the private key for HTTPS.
+    sudo chown $USER /etc/tinko-portal/key.pem 2>/dev/null || true
+
     # Ensure TLS certificate exists (shared with captive portal)
     if [[ ! -f /etc/tinko-portal/cert.pem ]] || [[ ! -f /etc/tinko-portal/key.pem ]]; then
         log_info "Generating self-signed TLS certificate..."
@@ -476,6 +481,7 @@ ensure_tinko_service() {
             -subj "/CN=tinko.local" 2>/dev/null
         sudo chmod 644 /etc/tinko-portal/cert.pem
         sudo chmod 600 /etc/tinko-portal/key.pem
+        sudo chown $USER /etc/tinko-portal/key.pem
     fi
 
     UV_PATH="$HOME/.local/bin/uv"
