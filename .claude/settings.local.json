@@ -9,7 +9,8 @@
       "mcp__plugin_serena_serena__read_file",
       "mcp__plugin_serena_serena__search_for_pattern",
       "mcp__plugin_serena_serena__write_memory",
-      "mcp__plugin_serena_serena__replace_content"
+      "mcp__plugin_serena_serena__replace_content",
+      "mcp__plugin_serena_serena__edit_memory"
     ]
   }
 }

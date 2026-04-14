@@ -31,12 +31,19 @@ else
     # Disable IPv6 on the hotspot to prevent connection cycling issues
     nmcli connection modify "Tinko-Setup" ipv6.method disabled 2>/dev/null || true
 
-    # Restart dnsmasq so it binds to the hotspot interface IP
-    log "Restarting dnsmasq to bind to hotspot interface..."
-    if ! systemctl restart dnsmasq; then
-        log "ERROR: Failed to restart dnsmasq"
+    # Ensure dnsmasq is stopped first (may be running from a previous boot
+    # or leftover from an earlier attempt). We restart it cleanly so it
+    # binds to the current hotspot IP.
+    systemctl stop dnsmasq 2>/dev/null || true
+    sleep 1
+
+    # Start dnsmasq — it must only run in hotspot mode because its wildcard DNS
+    # (address=/#/10.42.0.1) would break internet access on a live WiFi connection.
+    log "Starting dnsmasq for hotspot DNS redirection..."
+    if ! systemctl start dnsmasq; then
+        log "ERROR: Failed to start dnsmasq"
     else
-        log "dnsmasq restarted"
+        log "dnsmasq started"
     fi
 
     # Start the Flask Captive Portal
