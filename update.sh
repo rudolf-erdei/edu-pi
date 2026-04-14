@@ -495,6 +495,50 @@ update_python_capabilities() {
     fi
 }
 
+# Ensure the tinko.service file is up to date.
+# The service file may drift from the install version (e.g., wrong port,
+# missing environment vars). This rewrites it to match the current install config.
+ensure_tinko_service() {
+    if [[ ! -f /etc/systemd/system/${SERVICE_NAME}.service ]]; then
+        log_warning "tinko.service not found — skipping service file update"
+        return
+    fi
+
+    # Read the current port from the service file
+    CURRENT_PORT=$(grep -oP '(?<=-p )\d+' /etc/systemd/system/${SERVICE_NAME}.service 2>/dev/null || echo "")
+
+    if [[ "$CURRENT_PORT" != "80" ]]; then
+        log_warning "tinko.service is using port ${CURRENT_PORT:-???} — updating to port 80..."
+    fi
+
+    UV_PATH="$HOME/.local/bin/uv"
+
+    # Rewrite the service file to match the install version
+    sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null << EOF
+[Unit]
+Description=Tinko Educational Platform
+After=network.target
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=${INSTALL_DIR}
+Environment="PATH=$HOME/.local/bin"
+Environment="PYTHONPATH=${INSTALL_DIR}"
+Environment="DJANGO_SETTINGS_MODULE=config.settings"
+Environment="EDUPI_DEBUG=False"
+ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 config.asgi:application
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    log_success "tinko.service updated (port 80, 0.0.0.0 binding)"
+}
+
 # Restart the service
 restart_service() {
     update_status "restart_service" "in_progress"
@@ -575,6 +619,7 @@ main() {
     collect_static
     compile_translations
     update_wifi_connect
+    ensure_tinko_service
     restart_service
     print_summary
 }
