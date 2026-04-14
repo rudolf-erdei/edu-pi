@@ -254,8 +254,18 @@ ensure_wifi_service() {
     # Since this is an update, the python binary might have changed
     PYTHON_BIN=$(uv run which python)
     if [[ -n "$PYTHON_BIN" ]]; then
-        log_info "Updating capabilities for $PYTHON_BIN to allow port 80..."
-        sudo setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN"
+        # readlink -f resolves symlinks — setcap needs the real binary path
+        REAL_PYTHON_BIN=$(readlink -f "$PYTHON_BIN")
+        if ! command -v setcap &> /dev/null; then
+            log_info "setcap not found, installing libcap2-bin..."
+            sudo apt-get install -y libcap2-bin
+        fi
+        log_info "Updating capabilities for $REAL_PYTHON_BIN to allow port 80..."
+        if sudo setcap 'cap_net_bind_service=+ep' "$REAL_PYTHON_BIN"; then
+            log_success "Capabilities set for $REAL_PYTHON_BIN"
+        else
+            log_warning "setcap failed — Daphne may not be able to bind to port 80"
+        fi
     fi
 
     sudo tee /etc/systemd/system/tinko-wifi.service > /dev/null << EOF
@@ -467,8 +477,18 @@ update_python_capabilities() {
 
     PYTHON_BIN=$(uv run which python 2>/dev/null || true)
     if [[ -n "$PYTHON_BIN" && -f "$PYTHON_BIN" ]]; then
-        sudo setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN"
-        log_success "Capabilities set for $PYTHON_BIN"
+        # readlink -f resolves symlinks — setcap needs the real binary path
+        REAL_PYTHON_BIN=$(readlink -f "$PYTHON_BIN")
+        if ! command -v setcap &> /dev/null; then
+            log_info "setcap not found, installing libcap2-bin..."
+            sudo apt-get install -y libcap2-bin
+        fi
+        if sudo setcap 'cap_net_bind_service=+ep' "$REAL_PYTHON_BIN"; then
+            log_success "Capabilities set for $REAL_PYTHON_BIN"
+        else
+            log_warning "setcap failed on $REAL_PYTHON_BIN"
+            log_info "Daphne may not be able to bind to port 80"
+        fi
     else
         log_warning "Could not find Python binary to set capabilities"
         log_info "Daphne may not be able to bind to port 80"

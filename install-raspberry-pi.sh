@@ -124,7 +124,8 @@ install_system_deps() {
         wireless-tools \
         alsa-utils \
         nftables \
-        iptables || true
+        iptables \
+        libcap2-bin || true
     
     # Try to install optional packages (some may not be available on certain systems)
     log_info "Attempting to install optional packages..."
@@ -542,10 +543,22 @@ setup_systemd_service() {
     # Grant Python permission to bind to port 80
     log_info "Granting Python permission to bind to privileged port 80..."
     # Find the actual python binary used by uv
+    # readlink -f resolves symlinks — setcap cannot set capabilities on symlinks,
+    # it needs the real binary path (e.g., .venv/bin/python -> .venv/bin/python3.11)
     PYTHON_BIN=$(uv run which python)
     if [[ -n "$PYTHON_BIN" ]]; then
-        sudo setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN"
-        log_success "Capabilities set for $PYTHON_BIN"
+        REAL_PYTHON_BIN=$(readlink -f "$PYTHON_BIN")
+        if command -v setcap &> /dev/null; then
+            if sudo setcap 'cap_net_bind_service=+ep' "$REAL_PYTHON_BIN"; then
+                log_success "Capabilities set for $REAL_PYTHON_BIN"
+            else
+                log_warning "setcap failed — Daphne may not be able to bind to port 80"
+                log_info "Try manually: sudo setcap 'cap_net_bind_service=+ep' $REAL_PYTHON_BIN"
+            fi
+        else
+            log_warning "setcap not found — install libcap2-bin: sudo apt-get install -y libcap2-bin"
+            log_info "Daphne may not be able to bind to port 80 without capabilities"
+        fi
     else
         log_error "Could not find Python binary to set capabilities"
     fi
