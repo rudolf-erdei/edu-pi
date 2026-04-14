@@ -8,6 +8,17 @@
 
 set -e
 
+# Safety: always restart the service even if the update fails.
+# Without this, a failed pull/migrate leaves the service stopped = user locked out.
+SERVICE_RESTARTED=0
+emergency_restart() {
+    if [[ "$SERVICE_RESTARTED" -eq 0 ]]; then
+        echo "[EMERGENCY] Restarting Tinko service after failed update..."
+        sudo systemctl start ${SERVICE_NAME} 2>/dev/null || true
+    fi
+}
+trap emergency_restart EXIT
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -157,25 +168,33 @@ pull_latest() {
 
     cd "$INSTALL_DIR"
 
+    # Prevent git from prompting for credentials (hangs in non-interactive scripts)
+    export GIT_TERMINAL_PROMPT=0
+
     # Stash any local changes
+    STASHED=0
     if [[ -n $(git status --porcelain) ]]; then
         log_warning "Local changes detected. Stashing them..."
         git stash
+        STASHED=1
     fi
 
-    # Pull latest changes
-    if git pull; then
+    # Pull latest changes (timeout prevents hanging on network issues)
+    if timeout 60 git pull; then
         log_success "Latest changes pulled successfully"
+        # Show what was updated
+        log_info "Latest commits:"
+        git log --oneline -5
+        update_status "pull" "completed"
     else
-        log_error "Failed to pull latest changes"
-        update_status "pull" "failed"
-        exit 1
+        log_warning "Failed to pull (no internet or network error). Continuing with current version."
+        # Restore stashed changes since we didn't pull anything new
+        if [[ "$STASHED" -eq 1 ]]; then
+            log_info "Restoring stashed local changes..."
+            git stash pop 2>/dev/null || true
+        fi
+        update_status "pull" "skipped"
     fi
-
-    # Show what was updated
-    log_info "Latest commits:"
-    git log --oneline -5
-    update_status "pull" "completed"
 }
 
 # Update Python dependencies
@@ -418,6 +437,7 @@ restart_service() {
     sleep 2
 
     if sudo systemctl is-active --quiet ${SERVICE_NAME}; then
+        SERVICE_RESTARTED=1
         log_success "Service restarted successfully!"
         update_status "restart_service" "completed"
 
