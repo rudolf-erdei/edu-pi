@@ -250,24 +250,6 @@ ensure_wifi_service() {
         return
     fi
 
-    # Grant Python permission to bind to privileged port 80
-    # Since this is an update, the python binary might have changed
-    PYTHON_BIN=$(uv run which python)
-    if [[ -n "$PYTHON_BIN" ]]; then
-        # readlink -f resolves symlinks — setcap needs the real binary path
-        REAL_PYTHON_BIN=$(readlink -f "$PYTHON_BIN")
-        if ! command -v setcap &> /dev/null; then
-            log_info "setcap not found, installing libcap2-bin..."
-            sudo apt-get install -y libcap2-bin
-        fi
-        log_info "Updating capabilities for $REAL_PYTHON_BIN to allow port 80..."
-        if sudo setcap 'cap_net_bind_service=+ep' "$REAL_PYTHON_BIN"; then
-            log_success "Capabilities set for $REAL_PYTHON_BIN"
-        else
-            log_warning "setcap failed — Daphne may not be able to bind to port 80"
-        fi
-    fi
-
     sudo tee /etc/systemd/system/tinko-wifi.service > /dev/null << EOF
 [Unit]
 Description=Tinko Wi-Fi Captive Portal Check
@@ -469,32 +451,6 @@ compile_translations() {
     log_success "Translations compiled"
 }
 
-# Update Python capabilities for port 80 binding
-# After uv sync, the Python binary may change and setcap must be reapplied.
-# This is separate from the wifi section's setcap because this is always needed.
-update_python_capabilities() {
-    log_info "Updating Python capabilities for port 80 binding..."
-
-    PYTHON_BIN=$(uv run which python 2>/dev/null || true)
-    if [[ -n "$PYTHON_BIN" && -f "$PYTHON_BIN" ]]; then
-        # readlink -f resolves symlinks — setcap needs the real binary path
-        REAL_PYTHON_BIN=$(readlink -f "$PYTHON_BIN")
-        if ! command -v setcap &> /dev/null; then
-            log_info "setcap not found, installing libcap2-bin..."
-            sudo apt-get install -y libcap2-bin
-        fi
-        if sudo setcap 'cap_net_bind_service=+ep' "$REAL_PYTHON_BIN"; then
-            log_success "Capabilities set for $REAL_PYTHON_BIN"
-        else
-            log_warning "setcap failed on $REAL_PYTHON_BIN"
-            log_info "Daphne may not be able to bind to port 80"
-        fi
-    else
-        log_warning "Could not find Python binary to set capabilities"
-        log_info "Daphne may not be able to bind to port 80"
-    fi
-}
-
 # Ensure the tinko.service file is up to date.
 # The service file may drift from the install version (e.g., wrong port,
 # missing environment vars). This rewrites it to match the current install config.
@@ -511,9 +467,23 @@ ensure_tinko_service() {
         log_warning "tinko.service is using port ${CURRENT_PORT:-???} — updating to port 80..."
     fi
 
+    # Ensure TLS certificate exists (shared with captive portal)
+    if [[ ! -f /etc/tinko-portal/cert.pem ]] || [[ ! -f /etc/tinko-portal/key.pem ]]; then
+        log_info "Generating self-signed TLS certificate..."
+        sudo mkdir -p /etc/tinko-portal
+        sudo openssl req -x509 -newkey rsa:2048 -keyout /etc/tinko-portal/key.pem \
+            -out /etc/tinko-portal/cert.pem -days 3650 -nodes \
+            -subj "/CN=tinko.local" 2>/dev/null
+        sudo chmod 644 /etc/tinko-portal/cert.pem
+        sudo chmod 600 /etc/tinko-portal/key.pem
+    fi
+
     UV_PATH="$HOME/.local/bin/uv"
 
-    # Rewrite the service file to match the install version
+    # Rewrite the service file — Daphne serves both HTTP (80) and HTTPS (443).
+    # The self-signed cert from /etc/tinko-portal/ is reused.
+    # No setcap needed since Daphne no longer needs to bind to port <1024
+    # when using AmbientCapabilities (or when nginx fronts it).
     sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null << EOF
 [Unit]
 Description=Tinko Educational Platform
@@ -527,7 +497,9 @@ Environment="PATH=$HOME/.local/bin"
 Environment="PYTHONPATH=${INSTALL_DIR}"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
-ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 config.asgi:application
+ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 -e ssl:443:privateKey=/etc/tinko-portal/key.pem:certKey=/etc/tinko-portal/cert.pem config.asgi:application
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 Restart=always
 RestartSec=3
 
@@ -536,7 +508,7 @@ WantedBy=multi-user.target
 EOF
 
     sudo systemctl daemon-reload
-    log_success "tinko.service updated (port 80, 0.0.0.0 binding)"
+    log_success "tinko.service updated (HTTP :80 + HTTPS :443)"
 }
 
 # Restart the service
@@ -614,7 +586,6 @@ main() {
     stop_service
     pull_latest
     update_dependencies
-    update_python_capabilities
     run_migrations
     collect_static
     compile_translations

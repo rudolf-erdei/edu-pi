@@ -540,30 +540,20 @@ setup_systemd_service() {
     # Get UV path
     UV_PATH="$HOME/.local/bin/uv"
 
-    # Grant Python permission to bind to port 80
-    log_info "Granting Python permission to bind to privileged port 80..."
-    # Find the actual python binary used by uv
-    # readlink -f resolves symlinks — setcap cannot set capabilities on symlinks,
-    # it needs the real binary path (e.g., .venv/bin/python -> .venv/bin/python3.11)
-    PYTHON_BIN=$(uv run which python)
-    if [[ -n "$PYTHON_BIN" ]]; then
-        REAL_PYTHON_BIN=$(readlink -f "$PYTHON_BIN")
-        if command -v setcap &> /dev/null; then
-            if sudo setcap 'cap_net_bind_service=+ep' "$REAL_PYTHON_BIN"; then
-                log_success "Capabilities set for $REAL_PYTHON_BIN"
-            else
-                log_warning "setcap failed — Daphne may not be able to bind to port 80"
-                log_info "Try manually: sudo setcap 'cap_net_bind_service=+ep' $REAL_PYTHON_BIN"
-            fi
-        else
-            log_warning "setcap not found — install libcap2-bin: sudo apt-get install -y libcap2-bin"
-            log_info "Daphne may not be able to bind to port 80 without capabilities"
-        fi
-    else
-        log_error "Could not find Python binary to set capabilities"
+    # Ensure TLS certificate exists for HTTPS
+    if [[ ! -f /etc/tinko-portal/cert.pem ]] || [[ ! -f /etc/tinko-portal/key.pem ]]; then
+        log_info "Generating self-signed TLS certificate..."
+        sudo mkdir -p /etc/tinko-portal
+        sudo openssl req -x509 -newkey rsa:2048 -keyout /etc/tinko-portal/key.pem \
+            -out /etc/tinko-portal/cert.pem -days 3650 -nodes \
+            -subj "/CN=tinko.local" 2>/dev/null
+        sudo chmod 644 /etc/tinko-portal/cert.pem
+        sudo chmod 600 /etc/tinko-portal/key.pem
     fi
 
-    # Create service file
+    # Create service file — Daphne serves both HTTP (80) and HTTPS (443).
+    # AmbientCapabilities grants CAP_NET_BIND_SERVICE at service start time,
+    # allowing Daphne to bind to privileged ports without setcap on the binary.
     sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null << EOF
 [Unit]
 Description=Tinko Educational Platform
@@ -577,7 +567,9 @@ Environment="PATH=$HOME/.local/bin"
 Environment="PYTHONPATH=${INSTALL_DIR}"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
-ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 config.asgi:application
+ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 -e ssl:443:privateKey=/etc/tinko-portal/key.pem:certKey=/etc/tinko-portal/cert.pem config.asgi:application
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 Restart=always
 RestartSec=3
 
