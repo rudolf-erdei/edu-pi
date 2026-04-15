@@ -2,7 +2,6 @@ import json
 import os
 from pathlib import Path
 from channels.generic.websocket import AsyncWebsocketConsumer
-from asgiref.shared import six
 
 # Configuration
 STATUS_FILE = Path("/run/tinko-update/status.json")
@@ -18,7 +17,7 @@ class SystemUpdateConsumer(AsyncWebsocketConsumer):
         status = self.get_status()
         await self.send(text_data=json.dumps(status))
 
-    async def disconnect(self):
+    async def disconnect(self, code):
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     def get_status(self):

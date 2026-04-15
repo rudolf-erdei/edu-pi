@@ -150,8 +150,23 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
+        'OPTIONS': {
+            # Keep temporary tables and indices in RAM instead of the SD card
+            'init_command': 'PRAGMA temp_store=MEMORY; PRAGMA synchronous=NORMAL;',
+        }
     }
 }
+
+# Use local memory for caching
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
+# Store sessions in the cache instead of the SQLite database
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 
 
 # Password validation
