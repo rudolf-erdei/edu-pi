@@ -150,12 +150,21 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
-        'OPTIONS': {
-            # Keep temporary tables and indices in RAM instead of the SD card
-            'init_command': 'PRAGMA temp_store=MEMORY; PRAGMA synchronous=NORMAL;',
-        }
     }
 }
+
+
+def set_sqlite_pragmas(sender, connection, **kwargs):
+    """Set SQLite PRAGMAs to reduce SD card writes on Raspberry Pi."""
+    if connection.vendor == "sqlite":
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA temp_store=MEMORY")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+
+
+from django.db.backends.signals import connection_created
+
+connection_created.connect(set_sqlite_pragmas)
 
 # Use local memory for caching
 CACHES = {
