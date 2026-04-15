@@ -16,7 +16,9 @@
       "Read(//c/Users/yo5bd/.claude/plugins/cache/caveman/caveman/c2ed24b3e5d4/skills/compress/**)",
       "Bash(python3 -m scripts \"C:\\\\Users\\\\yo5bd\\\\.claude\\\\projects\\\\D--Projects-edu-pi\\\\memory\\\\captive-portal-issues.md\")",
       "mcp__plugin_serena_serena__read_memory",
-      "Bash(python -m py_compile wifi-connect/portal.py)"
+      "Bash(python -m py_compile wifi-connect/portal.py)",
+      "mcp__plugin_serena_serena__find_symbol",
+      "mcp__plugin_serena_serena__insert_after_symbol"
     ]
   }
 }

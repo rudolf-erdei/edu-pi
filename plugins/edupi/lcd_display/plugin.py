@@ -84,6 +84,23 @@ class Plugin(PluginBase):
                     lcd_service.initialize()
                 self._lcd_service = lcd_service
                 logger.info(f"{self.name} LCD auto-initialized successfully")
+
+                # Start smiley face after short delay (splash shows during boot)
+                import threading
+
+                def _delayed_smiley():
+                    import time
+
+                    time.sleep(3)
+                    try:
+                        lcd_service.show_smiley_face()
+                        lcd_service.start_face_animation()
+                        logger.info("Smiley face displayed after boot splash")
+                    except Exception as e:
+                        logger.warning(f"Failed to show smiley after splash: {e}")
+
+                t = threading.Thread(target=_delayed_smiley, daemon=True)
+                t.start()
         except Exception as e:
             logger.warning(f"Could not auto-initialize LCD display: {e}")
             logger.info("LCD can still be initialized manually via web interface")
