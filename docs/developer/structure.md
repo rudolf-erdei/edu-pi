@@ -17,6 +17,13 @@ edu-pi/
 │   │   ├── views.py        # Dashboard views
 │   │   ├── urls.py         # App URLs
 │   │   └── templates/      # Core templates
+│   ├── update_system/     # System update feature
+│   │   ├── views.py        # Check/start/status endpoints
+│   │   ├── urls.py         # /updates/ routes
+│   │   ├── consumers.py    # WebSocket for real-time progress
+│   │   ├── models.py       # UpdateStatus model
+│   │   ├── update_daemon.py # Background update daemon
+│   │   └── routing.py      # WebSocket routing
 │   └── plugin_system/      # Plugin framework (IMPORTANT!)
 │       ├── __init__.py
 │       ├── base.py         # PluginBase class

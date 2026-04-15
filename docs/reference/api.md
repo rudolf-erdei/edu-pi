@@ -87,6 +87,93 @@ Content-Type: application/json
 }
 ```
 
+### System Updates
+
+#### Check for Updates
+
+```http
+GET /updates/check/
+```
+
+**Response:**
+```json
+{
+  "available": true,
+  "commits": ["abc123 Fix bug", "def456 Add feature"],
+  "current_version": "v1.2.3"
+}
+```
+
+#### Start Update
+
+```http
+POST /updates/start/
+```
+
+**Response (success):**
+```json
+{
+  "update_id": 1
+}
+```
+
+**Response (rate limited - 429):**
+```json
+{
+  "error": "Updates can only be run every 5 minutes",
+  "next_update_at": "2026-04-15T10:30:00Z"
+}
+```
+
+**Response (already in progress - 409):**
+```json
+{
+  "error": "Update already in progress"
+}
+```
+
+#### Get Update Status
+
+```http
+GET /updates/status/
+```
+
+**Response:**
+```json
+{
+  "status": "in_progress",
+  "stage": "migrations",
+  "stages_completed": ["check_git", "stop_service", "pull", "dependencies"],
+  "logs": [
+    {"time": "2026-04-15T10:32:01Z", "message": "Checking git repository..."},
+    {"time": "2026-04-15T10:32:02Z", "message": "Git repository OK"}
+  ]
+}
+```
+
+### System Updates WebSocket
+
+```javascript
+const ws = new WebSocket('ws://localhost:8000/ws/updates/');
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Update status:', data.status, 'Stage:', data.stage);
+};
+```
+
+**Message Format:**
+```json
+{
+  "status": "in_progress",
+  "stage": "pull",
+  "stages_completed": ["check_git", "stop_service"],
+  "logs": [
+    {"time": "2026-04-15T10:32:01Z", "message": "Pulling changes..."}
+  ]
+}
+```
+
 ## Plugin-Specific Endpoints
 
 ### Activity Timer
@@ -310,6 +397,31 @@ ws.onmessage = (event) => {
 - `line_changed`: New line highlighted
 - `playback_state`: Play/pause/stop updates
 - `sync`: Full state sync
+
+### System Updates WebSocket
+
+```javascript
+const ws = new WebSocket('ws://localhost:8000/ws/updates/');
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  if (data.status === 'completed') {
+    console.log('Update complete!');
+  }
+};
+```
+
+**Message Format:**
+```json
+{
+  "status": "in_progress|completed|failed",
+  "stage": "pull",
+  "stages_completed": ["check_git", "stop_service"],
+  "logs": [
+    {"time": "2026-04-15T10:32:01Z", "message": "Pulling changes..."}
+  ]
+}
+```
 
 ## Error Responses
 

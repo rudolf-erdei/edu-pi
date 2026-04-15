@@ -16,6 +16,7 @@ Settings are organized into tabs:
 
 1. **Global Settings** - System-wide configuration
 2. **Plugin Settings** - Individual plugin configurations
+3. **Updates** - Check for and apply system updates
 
 ## Global Settings
 
@@ -84,6 +85,67 @@ Settings use dot notation for organization:
 
 - **Global**: `tinko.global.school_name`
 - **Plugin**: `edupi.activity_timer.default_duration`
+
+## Updates
+
+The Updates tab lets you check for and apply system updates directly from the web interface.
+
+### Checking for Updates
+
+1. Click the **Updates** tab
+2. Click **Check for Updates**
+3. The system checks the git repository for new commits
+
+If updates are available:
+- Number of commits ahead is displayed
+- Recent changes are listed
+- **Update Now** button becomes active
+
+### Applying Updates
+
+1. Click **Update Now**
+2. Confirm the update in the dialog
+3. The system performs the update in stages:
+
+| Stage | Description |
+|-------|-------------|
+| Check git repository | Verify git is clean |
+| Stop service | Stop tinko.service |
+| Pull latest changes | Git pull from origin |
+| Update dependencies | `uv sync` |
+| Run migrations | Database schema updates |
+| Collect static files | Gather static assets |
+| Compile translations | Build language files |
+| Update wifi-connect files | Copy captive portal files |
+| Restart service | Start tinko.service |
+
+4. Real-time progress is shown with:
+   - Stage checkmarks (completed/in-progress/pending)
+   - Progress counter (e.g., 3/9)
+   - Live log output
+
+### During Update
+
+When the service restarts, the connection drops briefly. The page automatically:
+- Shows "Reconnecting..." indicator
+- Polls the server every 2 seconds
+- Reconnects when the service is back
+
+### After Update
+
+On success:
+- "Update Complete!" message appears
+- Page auto-refreshes after 10 seconds
+- Click **Refresh Now** to reload immediately
+
+On failure:
+- Error details displayed in the log area
+- **Retry Update** button available
+- **Cancel** returns to idle state
+
+### Rate Limiting
+
+Updates can only be triggered every 5 minutes to prevent abuse.
 
 ## Plugin-Specific Settings
 
