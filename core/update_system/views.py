@@ -19,7 +19,7 @@ def write_trigger_file(update_id):
         json.dump({"update_id": str(update_id), "created_at": datetime.utcnow().isoformat() + "Z"}, f)
 
 def check_for_updates():
-    """Runs git commands to see if the repo is ahead of origin/main."""
+    """Runs git commands to see if the repo is ahead of origin/master."""
     repo_path = Path("/home/tinko/edu-pi")
     try:
         # Fetch latest (with timeout to avoid hanging on network issues)
@@ -27,7 +27,7 @@ def check_for_updates():
 
         # Get commit diff
         result = subprocess.run(
-            ["git", "log", "HEAD..origin/main", "--oneline"],
+            ["git", "log", "HEAD..origin/master", "--oneline"],
             cwd=repo_path, check=True, capture_output=True, text=True, timeout=10
         )
         commits = result.stdout.strip().split('\n') if result.stdout.strip() else []
