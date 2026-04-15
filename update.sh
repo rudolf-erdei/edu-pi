@@ -499,7 +499,7 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=${INSTALL_DIR}
-Environment="PATH=$HOME/.local/bin"
+Environment="PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONPATH=${INSTALL_DIR}"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
