@@ -260,10 +260,9 @@ class LCDService:
             self.clear_screen()
             time.sleep(0.2)
 
-            # Show startup smiley face and start animation
-            logger.debug("About to show smiley face and start animation...")
-            self.show_smiley_face()
-            self.start_face_animation()
+            # Show splash text (replaces white flash during boot)
+            logger.debug("Showing splash screen...")
+            self.show_splash("Tinko")
 
             return True
 
@@ -1492,6 +1491,50 @@ class LCDService:
             logger.info("LCD screen cleared")
         except Exception as e:
             logger.error(f"Failed to clear screen: {e}")
+
+    def show_splash(self, text: str = "Tinko") -> None:
+        """Display large centered text as splash screen on boot."""
+        if not self._device:
+            logger.warning("LCD not initialized, cannot show splash")
+            return
+
+        try:
+            img = Image.new("RGB", (self._width, self._height), "black")
+            draw = ImageDraw.Draw(img)
+
+            # Try system fonts, falling back to default
+            font = None
+            font_paths = [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            ]
+            for fp in font_paths:
+                try:
+                    font = ImageFont.truetype(fp, 72)
+                    break
+                except (OSError, IOError):
+                    continue
+
+            if font is None:
+                try:
+                    font = ImageFont.load_default(size=72)
+                except TypeError:
+                    font = ImageFont.load_default()
+
+            # Center text
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            x = (self._width - text_width) // 2
+            y = (self._height - text_height) // 2
+
+            draw.text((x, y), text, fill="white", font=font)
+            self._device.image(img)
+            logger.info(f"Splash screen displayed: '{text}'")
+
+        except Exception as e:
+            logger.error(f"Failed to display splash: {e}")
 
     def display_image(self, image_path: str) -> bool:
         """

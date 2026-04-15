@@ -14,6 +14,7 @@ Tinko uses Django Channels for WebSocket support, enabling real-time updates for
 |----------|-----|---------|
 | Noise Monitor | `ws://host:8000/ws/noise-monitor/` | Real-time noise levels |
 | Routines | `ws://host:8000/ws/routines/` | Routine playback sync |
+| System Updates | `ws://host:8000/ws/updates/` | Real-time update progress |
 
 ## Creating WebSocket Consumers
 

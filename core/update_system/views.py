@@ -1,5 +1,6 @@
 import os
 import json
+import subprocess
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.http import JsonResponse
@@ -18,16 +19,16 @@ def write_trigger_file(update_id):
         json.dump({"update_id": str(update_id), "created_at": datetime.utcnow().isoformat() + "Z"}, f)
 
 def check_for_updates():
-    """Runs git commands to see if the repo is ahead of origin/main."""
+    """Runs git commands to see if the repo is ahead of origin/master."""
     repo_path = Path("/home/tinko/edu-pi")
     try:
-        # Fetch latest
-        subprocess.run(["git", "fetch"], cwd=repo_path, check=True, capture_output=True)
+        # Fetch latest (with timeout to avoid hanging on network issues)
+        subprocess.run(["git", "fetch"], cwd=repo_path, check=True, capture_output=True, timeout=30)
 
         # Get commit diff
         result = subprocess.run(
-            ["git", "log", "HEAD..origin/main", "--oneline"],
-            cwd=repo_path, check=True, capture_output=True, text=True
+            ["git", "log", "HEAD..origin/master", "--oneline"],
+            cwd=repo_path, check=True, capture_output=True, text=True, timeout=10
         )
         commits = result.stdout.strip().split('\n') if result.stdout.strip() else []
 
@@ -36,9 +37,11 @@ def check_for_updates():
             "commits": commits,
             "current_version": subprocess.run(
                 ["git", "describe", "--tags"],
-                cwd=repo_path, capture_output=True, text=True
+                cwd=repo_path, capture_output=True, text=True, timeout=10
             ).stdout.strip()
         }
+    except subprocess.TimeoutExpired:
+        return {"error": "Git fetch timed out — check internet connection"}
     except Exception as e:
         return {"error": str(e)}
 

@@ -42,6 +42,12 @@ if nmcli --wait 15 dev wifi connect "$SSID" password "$PASSWORD"; then
         log "Flask portal stopped via pkill"
     fi
 
+    # Stop dnsmasq — it's only needed in hotspot mode for DNS redirection.
+    # Its wildcard DNS (address=/#/10.42.0.1) would break internet access
+    # if left running while connected to real WiFi.
+    systemctl stop dnsmasq 2>/dev/null || true
+    log "dnsmasq stopped (no longer needed with WiFi internet)"
+
     # Wait for tinko-wifi service to finish so systemd naturally starts tinko
     # via the Before=tinko.service ordering dependency (avoids double-start)
     log "WiFi setup complete. Django will start via systemd ordering."

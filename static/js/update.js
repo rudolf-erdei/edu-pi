@@ -88,7 +88,7 @@ function updateProgressUI(data) {
     // Append logs
     if (data.logs && data.logs.length > 0) {
         const lastLog = data.logs[data.logs.length - 1];
-        elements.updateLog.innerText = data.logs.map(l => `[${l.time}] ${l.message}`).join('\\n');
+        elements.updateLog.innerText = data.logs.map(l => `[${l.time}] ${l.message}`).join('\n');
         elements.updateLog.scrollTop = elements.updateLog.scrollHeight;
     }
 }
@@ -97,6 +97,12 @@ async function checkUpdates() {
     showState('checking');
     try {
         const res = await fetch(`${API_BASE}/check/`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.error || 'Server error');
+            showState('idle');
+            return;
+        }
         const data = await res.json();
 
         if (data.available) {

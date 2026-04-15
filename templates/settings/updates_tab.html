@@ -1,118 +1,111 @@
-{% extends "base.html" %}
-{% load i18n %}
+{% load i18n %}{% load static %}
 
-{% block title %}{% trans "System Updates" %}{% endblock %}
+<div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+        <h2 class="card-title text-2xl mb-6">{% trans "System Updates" %}</h2>
 
-{% block content %}
-<div class="container mx-auto px-4 py-8 max-w-4xl">
-    <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-            <h2 class="card-title text-2xl mb-6">{% trans "System Updates" %}</h2>
-
-            <div id="update-container" class="space-y-8">
-                <!-- Idle State -->
-                <div id="state-idle" class="text-center py-12">
-                    <div class="mb-6 flex justify-center">
-                        <div class="p-4 rounded-full bg-base-200">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                        </div>
-                    </div>
-                    <p class="text-lg mb-8 opacity-70">{% trans "Keep your system up to date for the best experience." %}</p>
-                    <div class="flex justify-center gap-4">
-                        <button id="btn-check" class="btn btn-primary">{% trans "Check for Updates" %}</button>
-                        <button id="btn-update" class="btn btn-outline opacity-50" disabled>{% trans "Update Now" %}</button>
-                    </div>
-                </div>
-
-                <!-- Checking State -->
-                <div id="state-checking" class="hidden text-center py-12">
-                    <span class="loading loading-spinner loading-lg"></span>
-                    <p class="mt-4 text-lg">{% trans "Checking for available updates..." %}</p>
-                </div>
-
-                <!-- Update Available State -->
-                <div id="state-available" class="hidden space-y-6">
-                    <div class="bg-info/10 p-4 rounded-lg border border-info/20 flex items-center gap-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <div id="update-container" class="space-y-8">
+            <!-- Idle State -->
+            <div id="state-idle" class="text-center py-12">
+                <div class="mb-6 flex justify-center">
+                    <div class="p-4 rounded-full bg-base-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        <span class="font-semibold" id="update-info-text">{% trans "Update available!" %}</span>
-                    </div>
-                    <div class="bg-base-200 p-4 rounded-lg overflow-hidden">
-                        <h3 class="text-sm font-bold uppercase opacity-50 mb-2">{% trans "Recent Changes" %}</h3>
-                        <ul id="commit-list" class="text-sm space-y-1 font-mono"></ul>
-                    </div>
-                    <div class="flex justify-center gap-4">
-                        <button id="btn-update-confirm" class="btn btn-primary">{% trans "Update Now" %}</button>
                     </div>
                 </div>
+                <p class="text-lg mb-8 opacity-70">{% trans "Keep your system up to date for the best experience." %}</p>
+                <div class="flex justify-center gap-4">
+                    <button id="btn-check" class="btn btn-primary">{% trans "Check for Updates" %}</button>
+                    <button id="btn-update" class="btn btn-outline opacity-50" disabled>{% trans "Update Now" %}</button>
+                </div>
+            </div>
 
-                <!-- Updating State -->
-                <div id="state-updating" class="hidden space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="space-y-4">
-                            <h3 class="text-lg font-semibold mb-4">{% trans "Progress" %}</h3>
-                            <div id="stages-list" class="space-y-3">
-                                <!-- Stages injected by JS -->
-                            </div>
-                            <div class="mt-6 p-4 bg-base-200 rounded-lg text-center">
-                                <span class="text-sm opacity-70">{% trans "Progress" %}: </span>
-                                <span id="progress-count" class="font-bold">0/9</span>
-                            </div>
+            <!-- Checking State -->
+            <div id="state-checking" class="hidden text-center py-12">
+                <span class="loading loading-spinner loading-lg"></span>
+                <p class="mt-4 text-lg">{% trans "Checking for available updates..." %}</p>
+            </div>
+
+            <!-- Update Available State -->
+            <div id="state-available" class="hidden space-y-6">
+                <div class="bg-info/10 p-4 rounded-lg border border-info/20 flex items-center gap-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="font-semibold" id="update-info-text">{% trans "Update available!" %}</span>
+                </div>
+                <div class="bg-base-200 p-4 rounded-lg overflow-hidden">
+                    <h3 class="text-sm font-bold uppercase opacity-50 mb-2">{% trans "Recent Changes" %}</h3>
+                    <ul id="commit-list" class="text-sm space-y-1 font-mono"></ul>
+                </div>
+                <div class="flex justify-center gap-4">
+                    <button id="btn-update-confirm" class="btn btn-primary">{% trans "Update Now" %}</button>
+                </div>
+            </div>
+
+            <!-- Updating State -->
+            <div id="state-updating" class="hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-semibold mb-4">{% trans "Progress" %}</h3>
+                        <div id="stages-list" class="space-y-3">
+                            <!-- Stages injected by JS -->
                         </div>
-                        <div class="flex flex-col h-[400px]">
-                            <h3 class="text-lg font-semibold mb-4">{% trans "Update Log" %}</h3>
-                            <div id="update-log" class="flex-1 bg-neutral text-neutral-content p-4 rounded-lg font-mono text-xs overflow-y-auto whitespace-pre-wrap">
-                                {% trans "Waiting for daemon..." %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reconnecting State -->
-                <div id="state-reconnecting" class="hidden text-center py-12">
-                    <span class="loading loading-ring loading-lg"></span>
-                    <p class="mt-4 text-lg">{% trans "System is restarting. Reconnecting..." %}</p>
-                    <p class="text-sm opacity-50">{% trans "This may take a minute." %}</p>
-                </div>
-
-                <!-- Completed State -->
-                <div id="state-completed" class="hidden text-center py-12">
-                    <div class="mb-6 flex justify-center">
-                        <div class="p-4 rounded-full bg-success/20 text-success">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                            </svg>
+                        <div class="mt-6 p-4 bg-base-200 rounded-lg text-center">
+                            <span class="text-sm opacity-70">{% trans "Progress" %}: </span>
+                            <span id="progress-count" class="font-bold">0/9</span>
                         </div>
                     </div>
-                    <h2 class="text-2xl font-bold mb-2">{% trans "Update Complete!" %}</h2>
-                    <p class="mb-8 opacity-70">{% trans "The system has been updated successfully." %}</p>
-                    <div class="text-sm mb-8">
-                        {% trans "This page will refresh in" %} <span id="countdown" class="font-bold">10</span> {% trans "seconds..." %}
+                    <div class="flex flex-col h-[400px]">
+                        <h3 class="text-lg font-semibold mb-4">{% trans "Update Log" %}</h3>
+                        <div id="update-log" class="flex-1 bg-neutral text-neutral-content p-4 rounded-lg font-mono text-xs overflow-y-auto whitespace-pre-wrap">
+                            {% trans "Waiting for daemon..." %}
+                        </div>
                     </div>
-                    <button onclick="location.reload()" class="btn btn-primary">{% trans "Refresh Now" %}</button>
                 </div>
+            </div>
 
-                <!-- Failed State -->
-                <div id="state-failed" class="hidden space-y-6">
-                    <div class="bg-error/10 p-4 rounded-lg border border-error/20 flex items-center gap-4 text-error">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <!-- Reconnecting State -->
+            <div id="state-reconnecting" class="hidden text-center py-12">
+                <span class="loading loading-ring loading-lg"></span>
+                <p class="mt-4 text-lg">{% trans "System is restarting. Reconnecting..." %}</p>
+                <p class="text-sm opacity-50">{% trans "This may take a minute." %}</p>
+            </div>
+
+            <!-- Completed State -->
+            <div id="state-completed" class="hidden text-center py-12">
+                <div class="mb-6 flex justify-center">
+                    <div class="p-4 rounded-full bg-success/20 text-success">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        <span class="font-semibold">{% trans "Update Failed" %}</span>
                     </div>
-                    <div id="error-details" class="p-4 bg-base-200 rounded-lg text-sm font-mono text-error"></div>
-                    <div class="flex justify-center gap-4">
-                        <button id="btn-retry" class="btn btn-primary">{% trans "Retry Update" %}</button>
-                        <button onclick="location.reload()" class="btn btn-outline">{% trans "Cancel" %}</button>
-                    </div>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">{% trans "Update Complete!" %}</h2>
+                <p class="mb-8 opacity-70">{% trans "The system has been updated successfully." %}</p>
+                <div class="text-sm mb-8">
+                    {% trans "This page will refresh in" %} <span id="countdown" class="font-bold">10</span> {% trans "seconds..." %}
+                </div>
+                <button onclick="location.reload()" class="btn btn-primary">{% trans "Refresh Now" %}</button>
+            </div>
+
+            <!-- Failed State -->
+            <div id="state-failed" class="hidden space-y-6">
+                <div class="bg-error/10 p-4 rounded-lg border border-error/20 flex items-center gap-4 text-error">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="font-semibold">{% trans "Update Failed" %}</span>
+                </div>
+                <div id="error-details" class="p-4 bg-base-200 rounded-lg text-sm font-mono text-error"></div>
+                <div class="flex justify-center gap-4">
+                    <button id="btn-retry" class="btn btn-primary">{% trans "Retry Update" %}</button>
+                    <button onclick="location.reload()" class="btn btn-outline">{% trans "Cancel" %}</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<script src="/static/js/update.js"></script>
-{% endblock %}
+<script src="{% static 'js/update.js' %}"></script>

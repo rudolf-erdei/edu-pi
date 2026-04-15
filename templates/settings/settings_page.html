@@ -189,5 +189,10 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Updates Tab -->
+    {% if is_update %}
+    {% include "settings/updates_tab.html" %}
+    {% endif %}
 </div>
 {% endblock %}

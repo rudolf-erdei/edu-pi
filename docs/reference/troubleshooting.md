@@ -344,8 +344,21 @@ cat /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf
 
 4. **Verify dnsmasq captive portal config:**
 ```bash
-grep -E "address=/#|interface=wlan0|bind-interfaces" /etc/dnsmasq.conf
-# All three lines should be present
+grep -E "address=/#|interface=wlan0|bind-interfaces|except-interface" /etc/dnsmasq.conf
+# All four lines should be present
+```
+
+5. **Verify dnsmasq is NOT listening on loopback** (prevents Pi's DNS from being trapped):
+```bash
+grep "except-interface=lo" /etc/dnsmasq.conf
+# If missing, add it:
+echo "except-interface=lo" | sudo tee -a /etc/dnsmasq.conf
+```
+
+6. **Verify NetworkManager upstream DNS** (prevents resolv.conf from pointing to local dnsmasq):
+```bash
+cat /etc/NetworkManager/conf.d/dns-upstream.conf
+# Should contain: [global-dns-domain-*]\nservers=8.8.8.8,8.8.4.4
 ```
 
 5. **Verify captive portal detection URLs work** — From a device connected to Tinko-Setup, try:
@@ -454,6 +467,102 @@ sudo systemctl reload NetworkManager
 nmcli connection show
 # Remove duplicates for the same SSID
 nmcli connection delete "connection-name"
+```
+
+### No internet after connecting to WiFi (DNS broken)
+
+**Problem:** Pi connects to WiFi but `curl` hangs/freezes or DNS resolution fails
+
+**Common cause:** dnsmasq is running with wildcard DNS redirect (`address=/#/10.42.0.1`) even though the Pi is connected to a real WiFi network. This intercepts DNS queries and resolves everything to the old hotspot IP.
+
+**Solutions:**
+
+1. **Check if dnsmasq is running (it shouldn't be when connected to WiFi):**
+```bash
+sudo systemctl status dnsmasq
+# If active, stop it:
+sudo systemctl stop dnsmasq
+```
+
+2. **Verify dnsmasq is disabled at boot:**
+```bash
+sudo systemctl is-enabled dnsmasq
+# Should show "disabled" or "masked"
+# If enabled, disable it:
+sudo systemctl disable dnsmasq
+```
+
+3. **Test DNS resolution:**
+```bash
+nslookup google.com
+# Should resolve to a real IP, not 10.42.0.1
+```
+
+4. **Verify resolv.conf points to the correct DNS:**
+```bash
+cat /etc/resolv.conf
+# Should show your router's DNS or 8.8.8.8, NOT 127.0.0.1 or 10.42.0.1
+# If it points to 127.0.0.1, DNS queries may be trapped by local dnsmasq
+```
+
+5. **Check if dnsmasq is listening on loopback (DNS trap):**
+```bash
+grep "except-interface=lo" /etc/dnsmasq.conf
+# If missing, dnsmasq answers queries on 127.0.0.1 too — add it:
+echo "except-interface=lo" | sudo tee -a /etc/dnsmasq.conf
+sudo systemctl restart dnsmasq  # only if in hotspot mode
+```
+
+6. **Verify NetworkManager upstream DNS configuration:**
+```bash
+cat /etc/NetworkManager/conf.d/dns-upstream.conf
+# Should contain:
+# [global-dns-domain-*]
+# servers=8.8.8.8,8.8.4.4
+# If missing, create it (see install script)
+```
+
+7. **Disable systemd-resolved stub listener** (if active, it hijacks DNS to 127.0.0.53):
+```bash
+systemctl is-active systemd-resolved
+# If active:
+sudo mkdir -p /etc/systemd/resolved.conf.d/
+echo -e "[Resolve]\nDNSStubListener=no" | sudo tee /etc/systemd/resolved.conf.d/no-stub.conf
+sudo systemctl restart systemd-resolved
+```
+
+### iptables command not found (nftables migration)
+
+**Problem:** `iptables: command not found` errors, or NetworkManager hotspot NAT doesn't work
+
+**Explanation:** Debian 12 Bookworm (newer Raspberry Pi OS) has phased out iptables in favor of nftables. NetworkManager's hotspot shared mode uses nftables for NAT masquerading on these systems. Without nftables, the hotspot NAT silently fails.
+
+**Solutions:**
+
+1. **Install nftables:**
+```bash
+sudo apt-get install -y nftables
+```
+
+2. **Install the iptables-nft compatibility wrapper** (for any legacy tools that still call iptables):
+```bash
+sudo apt-get install -y iptables
+# This installs iptables-nft which translates iptables commands to nftables
+```
+
+3. **Verify nftables is working:**
+```bash
+sudo nft list ruleset
+# Should show NetworkManager's NAT rules when hotspot is active
+```
+
+4. **Check NetworkManager's firewall backend:**
+```bash
+cat /etc/NetworkManager/NetworkManager.conf
+# On Bookworm, NM should use nftables by default
+# If firewall backend is explicitly set to iptables, change it:
+# [main]
+# firewall-backend=nftables  (or remove the line to use default)
 ```
 
 ### WiFi scan shows empty list in portal

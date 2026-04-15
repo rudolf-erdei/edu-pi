@@ -1,0 +1,115 @@
+# LCD Display Plugin - Romanian Translation
+# Copyright (C) 2025 Tinko Team
+# This file is distributed under the same license as the edu-pi package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: edu-pi-lcd-display 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-04-15 10:00+0200\n"
+"PO-Revision-Date: 2025-04-15 10:00+0200\n"
+"Last-Translator: Tinko Team\n"
+"Language-Team: Romanian\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);\n"
+
+# models.py - LCDConfig
+msgid "0 degrees"
+msgstr "0 grade"
+
+msgid "90 degrees"
+msgstr "90 grade"
+
+msgid "180 degrees"
+msgstr "180 grade"
+
+msgid "270 degrees"
+msgstr "270 grade"
+
+msgid "Display rotation"
+msgstr "Rotația afișajului"
+
+msgid "Backlight brightness (0-100%)"
+msgstr "Luminozitate iluminare din spate (0-100%)"
+
+msgid "Display contrast (0.5-2.0)"
+msgstr "Contrast afișaj (0.5-2.0)"
+
+msgid "Show smiling face on startup"
+msgstr "Afișează față zâmbitoare la pornire"
+
+msgid "LCD Configuration"
+msgstr "Configurație LCD"
+
+msgid "LCD Configurations"
+msgstr "Configurații LCD"
+
+# models.py - DisplaySession
+msgid "Smiling Face"
+msgstr "Față zâmbitoare"
+
+msgid "Text Message"
+msgstr "Mesaj text"
+
+msgid "Custom Image"
+msgstr "Imagine personalizată"
+
+msgid "Clear Screen"
+msgstr "Ecran gol"
+
+msgid "Content displayed (text or image path)"
+msgstr "Conținut afișat (text sau cale imagine)"
+
+msgid "Display Session"
+msgstr "Sesiune afișaj"
+
+msgid "Display Sessions"
+msgstr "Sesiuni afișaj"
+
+# forms.py
+msgid "Enter text to display"
+msgstr "Introduceți textul de afișat"
+
+msgid "Text"
+msgstr "Text"
+
+# views.py
+msgid "Smiley face animation started"
+msgstr "Animația feței zâmbitoare a început"
+
+msgid "Text displayed"
+msgstr "Text afișat"
+
+msgid "Screen cleared"
+msgstr "Ecran șters"
+
+#, python-format
+msgid "Backlight set to %(brightness)s%%"
+msgstr "Iluminarea din spate setată la %(brightness)s%%"
+
+#, python-format
+msgid "Mood set to: %(mood)s"
+msgstr "Stare setată la: %(mood)s"
+
+#, python-format
+msgid "Invalid mood: %(mood)s"
+msgstr "Stare invalidă: %(mood)s"
+
+msgid "LCD not initialized"
+msgstr "LCD neinițializat"
+
+# plugin.py - register settings
+msgid "LCD Display"
+msgstr "Afișaj LCD"
+
+msgid "Display Rotation"
+msgstr "Rotație afișaj"
+
+msgid "Backlight Brightness (%)"
+msgstr "Luminozitate iluminare din spate (%)"
+
+msgid "Display Contrast"
+msgstr "Contrast afișaj"

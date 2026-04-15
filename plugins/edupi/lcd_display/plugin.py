@@ -7,6 +7,7 @@ Displays a smiling face on startup and can be controlled via the web interface.
 import logging
 
 from core.plugin_system.base import PluginBase
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ class Plugin(PluginBase):
 
         # Register admin menu
         self.register_admin_menu(
-            "LCD Display", "/plugins/edupi/lcd_display/", icon="tv"
+            _("LCD Display"), "/plugins/edupi/lcd_display/", icon="tv"
         )
 
         # Auto-initialize LCD display on startup
@@ -84,6 +85,23 @@ class Plugin(PluginBase):
                     lcd_service.initialize()
                 self._lcd_service = lcd_service
                 logger.info(f"{self.name} LCD auto-initialized successfully")
+
+                # Start smiley face after short delay (splash shows during boot)
+                import threading
+
+                def _delayed_smiley():
+                    import time
+
+                    time.sleep(3)
+                    try:
+                        lcd_service.show_smiley_face()
+                        lcd_service.start_face_animation()
+                        logger.info("Smiley face displayed after boot splash")
+                    except Exception as e:
+                        logger.warning(f"Failed to show smiley after splash: {e}")
+
+                t = threading.Thread(target=_delayed_smiley, daemon=True)
+                t.start()
         except Exception as e:
             logger.warning(f"Could not auto-initialize LCD display: {e}")
             logger.info("LCD can still be initialized manually via web interface")
@@ -91,19 +109,19 @@ class Plugin(PluginBase):
         # Register settings
         self.register_setting(
             "rotation",
-            "Display Rotation",
+            _("Display Rotation"),
             default=0,
             field_type="select",
             choices=[
-                (0, "0 degrees"),
-                (90, "90 degrees"),
-                (180, "180 degrees"),
-                (270, "270 degrees"),
+                (0, _("0 degrees")),
+                (90, _("90 degrees")),
+                (180, _("180 degrees")),
+                (270, _("270 degrees")),
             ],
         )
         self.register_setting(
             "backlight",
-            "Backlight Brightness (%)",
+            _("Backlight Brightness (%)"),
             default=100,
             field_type="number",
             min=0,
@@ -111,7 +129,7 @@ class Plugin(PluginBase):
         )
         self.register_setting(
             "contrast",
-            "Display Contrast",
+            _("Display Contrast"),
             default=1.0,
             field_type="number",
             min=0.5,

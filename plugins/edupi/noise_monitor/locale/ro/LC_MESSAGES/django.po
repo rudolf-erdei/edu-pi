@@ -1,0 +1,247 @@
+# Noise Monitor Plugin - Romanian Translation
+# Copyright (C) 2025 Tinko Team
+# This file is distributed under the same license as the edu-pi package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: edu-pi-noise-monitor 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-04-15 10:00+0200\n"
+"PO-Revision-Date: 2025-04-15 10:00+0200\n"
+"Last-Translator: Tinko Team\n"
+"Language-Team: Romanian\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);\n"
+
+# apps.py
+msgid "Noise Monitor"
+msgstr "Monitor zgomot"
+
+# models.py - NoiseProfile
+msgid "Test - Silent Mode"
+msgstr "Test - Mod silențios"
+
+msgid "Teaching - Moderate Noise"
+msgstr "Predare - Zgomot moderat"
+
+msgid "Group Work - Higher Tolerance"
+msgstr "Lucru în grup - Toleranță mai mare"
+
+msgid "Custom - User Defined"
+msgstr "Personalizat - Definit de utilizator"
+
+msgid "Type of noise profile"
+msgstr "Tipul profilului de zgomot"
+
+msgid "Display name for this profile"
+msgstr "Numele afișat pentru acest profil"
+
+msgid "Description of when to use this profile"
+msgstr "Descrierea momentului în care se folosește acest profil"
+
+msgid "Noise level above which LED turns yellow (0-100)"
+msgstr "Nivelul de zgomot peste care LED-ul devine galben (0-100)"
+
+msgid "Noise level above which LED turns red (0-100)"
+msgstr "Nivelul de zgomot peste care LED-ul devine roșu (0-100)"
+
+msgid "Whether this profile is active"
+msgstr "Dacă acest profil este activ"
+
+msgid "Noise Profile"
+msgstr "Profil de zgomot"
+
+msgid "Noise Profiles"
+msgstr "Profiluri de zgomot"
+
+# models.py - NoiseMonitorConfig
+msgid "Name of this configuration"
+msgstr "Numele acestei configurații"
+
+msgid "Noise profile to use"
+msgstr "Profilul de zgomot de folosit"
+
+msgid "Window size for instant average in seconds"
+msgstr "Dimensiunea ferestrei pentru media instantanee în secunde"
+
+msgid "Window size for session average in minutes"
+msgstr "Dimensiunea ferestrei pentru media de sesiune în minute"
+
+msgid "LED brightness percentage (10-100)"
+msgstr "Procentajul luminozității LED (10-100)"
+
+msgid "Whether this configuration is active"
+msgstr "Dacă această configurație este activă"
+
+msgid "Use this as the default configuration"
+msgstr "Folosește aceasta ca configurație implicită"
+
+msgid "Name of the selected audio input device"
+msgstr "Numele dispozitivului de intrare audio selectat"
+
+msgid "System index of the audio input device"
+msgstr "Indexul de sistem al dispozitivului de intrare audio"
+
+msgid "Noise Monitor Configuration"
+msgstr "Configurație monitor zgomot"
+
+msgid "Noise Monitor Configurations"
+msgstr "Configurații monitor zgomot"
+
+# models.py - NoiseReading
+msgid "Configuration during this reading"
+msgstr "Configurația în timpul acestei citiri"
+
+msgid "Raw noise level (0-100)"
+msgstr "Nivelul brut de zgomot (0-100)"
+
+msgid "Instant average noise level (0-100)"
+msgstr "Nivelul mediu instantaneu de zgomot (0-100)"
+
+msgid "Session average noise level (0-100)"
+msgstr "Nivelul mediu de sesiune de zgomot (0-100)"
+
+msgid "Color of instant LED (green/yellow/red)"
+msgstr "Culoarea LED-ului instantaneu (verde/galben/roșu)"
+
+msgid "Color of session LED (green/yellow/red)"
+msgstr "Culoarea LED-ului de sesiune (verde/galben/roșu)"
+
+msgid "When this reading was taken"
+msgstr "Când a fost efectuată această citire"
+
+msgid "Noise Reading"
+msgstr "Citire zgomot"
+
+msgid "Noise Readings"
+msgstr "Citiri zgomot"
+
+# forms.py
+msgid "Select Profile"
+msgstr "Selectare profil"
+
+msgid "Choose a predefined noise threshold profile"
+msgstr "Alegeți un profil predefinit de prag de zgomot"
+
+msgid "Instant Window (seconds)"
+msgstr "Fereastră instantanee (secunde)"
+
+msgid "Time window for instant average calculation"
+msgstr "Fereastra de timp pentru calculul mediei instantanee"
+
+msgid "Session Window (minutes)"
+msgstr "Fereastră de sesiune (minute)"
+
+msgid "Time window for session average calculation"
+msgstr "Fereastra de timp pentru calculul mediei de sesiune"
+
+msgid "LED Brightness (%)"
+msgstr "Luminozitate LED (%)"
+
+msgid "Brightness percentage for RGB LEDs"
+msgstr "Procentajul luminozității pentru LED-urile RGB"
+
+msgid "Audio Input Device"
+msgstr "Dispozitiv intrare audio"
+
+msgid "Select the microphone device to use"
+msgstr "Selectați microfonul de folosit"
+
+msgid "Configuration Name"
+msgstr "Numele configurației"
+
+msgid "Name for this custom configuration"
+msgstr "Numele pentru această configurație personalizată"
+
+msgid "Custom Configuration"
+msgstr "Configurație personalizată"
+
+msgid "Yellow Threshold"
+msgstr "Prag galben"
+
+msgid "Red Threshold"
+msgstr "Prag roșu"
+
+msgid "Yellow threshold must be less than red threshold."
+msgstr "Pragul galben trebuie să fie mai mic decât pragul roșu."
+
+msgid "Start Monitoring"
+msgstr "Pornește monitorizarea"
+
+msgid "Stop Monitoring"
+msgstr "Oprește monitorizarea"
+
+msgid "Reset Session"
+msgstr "Resetează sesiunea"
+
+msgid "Action"
+msgstr "Acțiune"
+
+# plugin_settings.py
+msgid "Instant Average Window (seconds)"
+msgstr "Fereastră medie instantanee (secunde)"
+
+msgid "Time window for instant noise average calculation"
+msgstr "Fereastra de timp pentru calculul mediei instantanee de zgomot"
+
+msgid "Session Average Window (minutes)"
+msgstr "Fereastră medie de sesiune (minute)"
+
+msgid "Time window for session noise average calculation"
+msgstr "Fereastra de timp pentru calculul mediei de sesiune de zgomot"
+
+msgid "LED Fade Duration (seconds)"
+msgstr "Durata tranziției LED (secunde)"
+
+msgid "Duration of LED color transitions"
+msgstr "Durata tranzițiilor de culoare LED"
+
+msgid "Yellow Threshold (%)"
+msgstr "Prag galben (%)"
+
+msgid "Noise level percentage that triggers yellow warning"
+msgstr "Procentajul nivelului de zgomot care declanșează avertizarea galbenă"
+
+msgid "Red Threshold (%)"
+msgstr "Prag roșu (%)"
+
+msgid "Noise level percentage that triggers red alert"
+msgstr "Procentajul nivelului de zgomot care declanșează alerta roșie"
+
+msgid "Enable Noise Monitoring"
+msgstr "Activează monitorizarea zgomotului"
+
+msgid "Start monitoring when plugin is enabled"
+msgstr "Pornește monitorizarea când modulul este activat"
+
+msgid "Log Readings"
+msgstr "Înregistrare citiri"
+
+msgid "Store noise readings in database for historical view"
+msgstr "Stochează citirile de zgomot în baza de date pentru vizualizare istorică"
+
+msgid "Brightness level for RGB LEDs (10-100%)"
+msgstr "Nivelul luminozității pentru LED-urile RGB (10-100%)"
+
+# plugin.py - admin menu
+msgid "Noise Monitor"
+msgstr "Monitor zgomot"
+
+# plugin.py - register_setting (duplicates already above, but these from plugin.py)
+msgid "Instant Average Window (seconds)"
+msgstr "Fereastră medie instantanee (secunde)"
+
+msgid "Session Average Window (minutes)"
+msgstr "Fereastră medie de sesiune (minute)"
+
+msgid "LED Brightness (%)"
+msgstr "Luminozitate LED (%)"
+
+msgid "Enable Noise Monitoring"
+msgstr "Activează monitorizarea zgomotului"
+
+msgid "Start monitoring when plugin is enabled"
+msgstr "Pornește monitorizarea când modulul este activat"

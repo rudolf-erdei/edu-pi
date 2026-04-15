@@ -122,7 +122,10 @@ install_system_deps() {
         libharfbuzz-dev \
         libfribidi-dev \
         wireless-tools \
-        alsa-utils || true
+        alsa-utils \
+        nftables \
+        iptables \
+        libcap2-bin || true
     
     # Try to install optional packages (some may not be available on certain systems)
     log_info "Attempting to install optional packages..."
@@ -312,6 +315,31 @@ setup_wifi_connect() {
     log_info "Installing dnsmasq..."
     sudo apt-get install -y dnsmasq
 
+    # Install nftables — the modern replacement for iptables.
+    # On Debian Bookworm+ (newer Raspberry Pi OS), iptables is phased out
+    # in favor of nftables. NetworkManager's hotspot shared mode uses
+    # nftables for NAT masquerading on these systems. Without nftables,
+    # the hotspot NAT silently fails and connected clients can't route traffic.
+    if ! command -v nft &> /dev/null; then
+        log_info "nftables not found, installing..."
+        sudo apt-get install -y nftables
+    fi
+
+    # Ensure the iptables-nft wrapper is available so that any legacy
+    # iptables calls (from NM or other tools) are translated to nftables.
+    if ! command -v iptables &> /dev/null; then
+        log_info "iptables not found, installing iptables-nft wrapper..."
+        sudo apt-get install -y iptables
+    fi
+
+    # Disable dnsmasq auto-start on boot. It should only run in hotspot
+    # mode (managed by startup_check.sh / wifi_worker.sh). If dnsmasq
+    # starts on boot with its wildcard DNS redirect (address=/#/10.42.0.1),
+    # it breaks internet DNS resolution for the Pi itself.
+    sudo systemctl stop dnsmasq 2>/dev/null || true
+    sudo systemctl disable dnsmasq 2>/dev/null || true
+    log_info "dnsmasq auto-start disabled (will only run in hotspot mode)"
+
     # Check for dnsmasq version with known wildcard DNS bug
     DNSMASQ_VERSION=$(dnsmasq --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+' | head -1)
     if [[ "$DNSMASQ_VERSION" == "2.86" ]]; then
@@ -332,7 +360,19 @@ setup_wifi_connect() {
 address=/#/10.42.0.1
 interface=wlan0
 bind-interfaces
+except-interface=lo
 EOF
+    else
+        # Config exists — make sure all directives are present
+        if ! grep -q "interface=wlan0" /etc/dnsmasq.conf 2>/dev/null; then
+            echo "interface=wlan0" | sudo tee -a /etc/dnsmasq.conf > /dev/null
+        fi
+        if ! grep -q "bind-interfaces" /etc/dnsmasq.conf 2>/dev/null; then
+            echo "bind-interfaces" | sudo tee -a /etc/dnsmasq.conf > /dev/null
+        fi
+        if ! grep -q "except-interface=lo" /etc/dnsmasq.conf 2>/dev/null; then
+            echo "except-interface=lo" | sudo tee -a /etc/dnsmasq.conf > /dev/null
+        fi
     fi
 
     # Disable DNS on NetworkManager's internal dnsmasq to prevent port 53 conflict.
@@ -341,6 +381,30 @@ EOF
     sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d/
     echo "port=0" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf > /dev/null
     log_info "Configured NM dnsmasq to disable DNS (port 53 conflict prevention)"
+
+    # Prevent the Pi's own DNS from being trapped by dnsmasq's wildcard redirect.
+    # Tell NetworkManager to use a hardcoded upstream DNS server instead of the
+    # system default (which may point to 127.0.0.1 or the local dnsmasq).
+    # This ensures the Pi can always resolve real hostnames for internet checks.
+    sudo mkdir -p /etc/NetworkManager/conf.d/
+    sudo tee /etc/NetworkManager/conf.d/dns-upstream.conf > /dev/null << 'EOF'
+[global-dns-domain-*]
+servers=8.8.8.8,8.8.4.4
+EOF
+    log_info "Configured NM to use upstream DNS (8.8.8.8) bypassing local dnsmasq"
+
+    # Ensure systemd-resolved stub listener doesn't hijack DNS to 127.0.0.53.
+    # On some systems, systemd-resolved intercepts all DNS queries via a stub
+    # on 127.0.0.53:53, which would bypass NM's DNS configuration.
+    if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+        sudo mkdir -p /etc/systemd/resolved.conf.d/
+        sudo tee /etc/systemd/resolved.conf.d/no-stub.conf > /dev/null << 'EOF'
+[Resolve]
+DNSStubListener=no
+EOF
+        sudo systemctl restart systemd-resolved 2>/dev/null || true
+        log_info "Disabled systemd-resolved stub listener (prevents 127.0.0.53 DNS hijack)"
+    fi
 
     # Disable NetworkManager's periodic connectivity checks.
     # These checks can cause WiFi disconnects in hotspot mode by detecting
@@ -405,6 +469,7 @@ EOF
         -subj "/CN=Tinko-Setup" 2>/dev/null
     sudo chmod 644 /etc/tinko-portal/cert.pem
     sudo chmod 600 /etc/tinko-portal/key.pem
+    sudo chown $USER /etc/tinko-portal/key.pem
     log_success "TLS certificate generated for captive portal HTTPS"
 
     # Modify Django service to wait for network
@@ -476,18 +541,21 @@ setup_systemd_service() {
     # Get UV path
     UV_PATH="$HOME/.local/bin/uv"
 
-    # Grant Python permission to bind to port 80
-    log_info "Granting Python permission to bind to privileged port 80..."
-    # Find the actual python binary used by uv
-    PYTHON_BIN=$(uv run which python)
-    if [[ -n "$PYTHON_BIN" ]]; then
-        sudo setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN"
-        log_success "Capabilities set for $PYTHON_BIN"
-    else
-        log_error "Could not find Python binary to set capabilities"
+    # Ensure TLS certificate exists for HTTPS
+    if [[ ! -f /etc/tinko-portal/cert.pem ]] || [[ ! -f /etc/tinko-portal/key.pem ]]; then
+        log_info "Generating self-signed TLS certificate..."
+        sudo mkdir -p /etc/tinko-portal
+        sudo openssl req -x509 -newkey rsa:2048 -keyout /etc/tinko-portal/key.pem \
+            -out /etc/tinko-portal/cert.pem -days 3650 -nodes \
+            -subj "/CN=tinko.local" 2>/dev/null
+        sudo chmod 644 /etc/tinko-portal/cert.pem
+        sudo chmod 600 /etc/tinko-portal/key.pem
+        sudo chown $USER /etc/tinko-portal/key.pem
     fi
 
-    # Create service file
+    # Create service file — Daphne serves both HTTP (80) and HTTPS (443).
+    # AmbientCapabilities grants CAP_NET_BIND_SERVICE at service start time,
+    # allowing Daphne to bind to privileged ports without setcap on the binary.
     sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null << EOF
 [Unit]
 Description=Tinko Educational Platform
@@ -497,13 +565,18 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=${INSTALL_DIR}
-Environment="PATH=$HOME/.local/bin"
+Environment="PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONPATH=${INSTALL_DIR}"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
-ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 config.asgi:application
+ExecStartPre=${UV_PATH} run python manage.py collectstatic --noinput
+ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 -e ssl:443:privateKey=/etc/tinko-portal/key.pem:certKey=/etc/tinko-portal/cert.pem config.asgi:application
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 Restart=always
-RestartSec=3
+RestartSec=5
+StartLimitBurst=5
+StartLimitIntervalSec=60
 
 [Install]
 WantedBy=multi-user.target
@@ -720,7 +793,21 @@ restart_service_after_update() {
         # Reload systemd in case service file changed
         sudo systemctl daemon-reload
         
-        sudo systemctl start ${SERVICE_NAME}
+        # Wait for port 80 to be fully released (avoids crash-restart loop)
+        log_info "Waiting for port 80 to be released..."
+        for i in $(seq 1 15); do
+            if ! sudo ss -tlnp 2>/dev/null | grep -q ":80\b"; then
+                log_success "Port 80 is free"
+                break
+            fi
+            if [[ "$i" -eq 15 ]]; then
+                log_warning "Port 80 still in use after 15s, forcing start anyway"
+            else
+                sleep 1
+            fi
+        done
+        
+        sudo systemctl restart ${SERVICE_NAME}
         sleep 2
         
         if sudo systemctl is-active --quiet ${SERVICE_NAME}; then

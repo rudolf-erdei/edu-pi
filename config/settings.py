@@ -103,6 +103,7 @@ INSTALLED_APPS = [x for x in INSTALLED_APPS if not (x in seen or seen.add(x))]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -154,6 +155,30 @@ DATABASES = {
 }
 
 
+def set_sqlite_pragmas(sender, connection, **kwargs):
+    """Set SQLite PRAGMAs to reduce SD card writes on Raspberry Pi."""
+    if connection.vendor == "sqlite":
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA temp_store=MEMORY")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+
+
+from django.db.backends.signals import connection_created
+
+connection_created.connect(set_sqlite_pragmas)
+
+# Use local memory for caching
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
+# Store sessions in the cache instead of the SQLite database
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -188,11 +213,16 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

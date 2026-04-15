@@ -2,7 +2,16 @@
 
 ```bash
 sudo apt update
-sudo apt install dnsmasq
+sudo apt install dnsmasq nftables iptables
+```
+
+**Important:** Install `nftables` and `iptables` too. On Debian 12 Bookworm (newer Raspberry Pi OS), iptables has been phased out in favor of nftables. NetworkManager's hotspot shared mode uses nftables for NAT masquerading. The `iptables` package installs the iptables-nft wrapper that translates legacy iptables calls to nftables.
+
+**Critical:** Disable dnsmasq auto-start. It must only run during hotspot mode (managed by startup_check.sh and wifi_worker.sh). If dnsmasq starts on boot with its wildcard DNS redirect active, it will break internet DNS resolution for the Pi:
+
+```bash
+sudo systemctl stop dnsmasq
+sudo systemctl disable dnsmasq
 ```
 
 Edit the configuration file to redirect all web traffic to the Pi's hotspot IP address (NetworkManager defaults to 10.42.0.1 for hotspots):
@@ -18,6 +27,19 @@ Add these lines to the bottom of the file:
 address=/#/10.42.0.1
 interface=wlan0
 bind-interfaces
+except-interface=lo
+```
+
+**Critical:** `except-interface=lo` prevents dnsmasq from listening on the loopback interface. Without it, if the Pi's `/etc/resolv.conf` points to `127.0.0.1`, all DNS queries from the Pi itself would be intercepted by dnsmasq's wildcard redirect, breaking internet access.
+
+**Also critical:** Ensure NetworkManager uses real upstream DNS (not the local dnsmasq):
+
+```bash
+sudo mkdir -p /etc/NetworkManager/conf.d/
+sudo tee /etc/NetworkManager/conf.d/dns-upstream.conf > /dev/null << 'EOF'
+[global-dns-domain-*]
+servers=8.8.8.8,8.8.4.4
+EOF
 ```
 
 **Important:** You must also disable DNS on NetworkManager's internal dnsmasq to prevent a port 53 conflict. NM runs its own dnsmasq for shared connections, which also binds to port 53 on the hotspot IP. Create this config file:
@@ -39,10 +61,10 @@ interval=0
 EOF
 ```
 
-Restart the service:
+Restart the service (only needed when testing the hotspot; dnsmasq is normally managed by startup_check.sh):
 
 ```bash
-sudo systemctl restart dnsmasq
+sudo systemctl start dnsmasq
 ```
 
 Install Flask
@@ -149,7 +171,15 @@ This ensures the "Sign in to Wi-Fi" notification appears on all major platforms.
 
 ## Key Configuration Files
 
-- `/etc/dnsmasq.conf` — Standalone dnsmasq with wildcard DNS redirect (`address=/#/10.42.0.1`)
+- `/etc/dnsmasq.conf` — Standalone dnsmasq with wildcard DNS redirect (`address=/#/10.42.0.1`). **Must be disabled at boot** — only started by startup_check.sh in hotspot mode.
 - `/etc/NetworkManager/dnsmasq-shared.d/no-dns.conf` — Disables DNS in NM's internal dnsmasq (`port=0`)
 - `/etc/NetworkManager/conf.d/no-connectivity-check.conf` — Disables NM connectivity checks (`interval=0`)
 - `/etc/tinko-portal/cert.pem` and `key.pem` — Self-signed TLS certificate for HTTPS captive portal detection
+
+## dnsmasq Lifecycle
+
+dnsmasq must **only** run when the hotspot is active. Its wildcard DNS (`address=/#/10.42.0.1`) resolves all domains to the hotspot IP, which breaks internet DNS if left running when the Pi is connected to real WiFi.
+
+- **Disabled at boot** — `systemctl disable dnsmasq` prevents it from starting automatically
+- **Started by startup_check.sh** — Only when no internet is detected (hotspot mode)
+- **Stopped by wifi_worker.sh** — After successfully connecting to WiFi

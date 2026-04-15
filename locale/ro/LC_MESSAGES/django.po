@@ -74,9 +74,6 @@ msgid "Admin Panel"
 msgstr "Panou de administrare"
 
 # Admin Dashboard
-msgid "Plugin Management"
-msgstr "Administrare aplicații"
-
 msgid "Manage your installed plugins, view their status, and configure settings."
 msgstr "Gestionați aplicațiile instalate, vizualizați starea lor și configurați setările."
 
@@ -106,7 +103,7 @@ msgid "Disabled"
 msgstr "Dezactivat"
 
 msgid "Version"
-msgstr "Versine"
+msgstr "Versiune"
 
 msgid "There are currently no active plugins available. Please check the admin panel or install some plugins."
 msgstr "Momentan nu există aplicații active disponibile. Verificați panoul de administrare sau instalați aplicații."
@@ -117,3 +114,117 @@ msgstr "Momentan nu există aplicații active disponibile. Verificați panoul de
 # Footer
 msgid "Tinko Educational Platform"
 msgstr "Platformă Educațională Tinko"
+
+# Core views - Global Settings
+msgid "School Name"
+msgstr "Numele școlii"
+
+msgid "The name of your school or institution"
+msgstr "Numele școlii sau instituției dumneavoastră"
+
+msgid "Robot Name"
+msgstr "Numele robotului"
+
+msgid "Customize the robot's name for your classroom"
+msgstr "Personalizați numele robotului pentru clasa dumneavoastră"
+
+msgid "Default Language"
+msgstr "Limba implicită"
+
+msgid "English"
+msgstr "Engleză"
+
+msgid "Romanian"
+msgstr "Română"
+
+msgid "Default language for the interface"
+msgstr "Limba implicită pentru interfață"
+
+msgid "Timezone"
+msgstr "Fus orar"
+
+msgid "Select your local timezone"
+msgstr "Selectați fusul orar local"
+
+msgid "Global settings saved successfully."
+msgstr "Setările globale au fost salvate cu succes."
+
+msgid "Please correct the errors below."
+msgstr "Corectați erorile de mai jos."
+
+msgid "Global Settings"
+msgstr "Setări globale"
+
+msgid "Updates"
+msgstr "Actualizări"
+
+msgid "Settings"
+msgstr "Setări"
+
+# Core plugin_system settings_forms
+msgid "System TTS (Offline)"
+msgstr "TTS sistem (Offline)"
+
+msgid "Edge TTS (Online)"
+msgstr "Edge TTS (Online)"
+
+msgid "Edge TTS (High Quality - Online)"
+msgstr "Edge TTS (Calitate ridicată - Online)"
+
+msgid "Google TTS (Online)"
+msgstr "Google TTS (Online)"
+
+msgid "Image file too large (> 5MB)"
+msgstr "Fișier imagine prea mare (> 5MB)"
+
+msgid "Unsupported image format. Use PNG, JPG, or GIF."
+msgstr "Format imagine nesuportat. Folosiți PNG, JPG sau GIF."
+
+msgid "Invalid image file."
+msgstr "Fișier imagine invalid."
+
+# Plugin names (used in dashboard via _(plugin.name))
+msgid "Noise Monitor"
+msgstr "Monitor zgomot"
+
+msgid "LCD Display"
+msgstr "Afișaj LCD"
+
+msgid "Routines"
+msgstr "Rutine"
+
+msgid "Touch Piano"
+msgstr "Pian Tactil"
+
+# Plugin descriptions (used in dashboard via _(plugin.description))
+msgid "Visual noise level monitor for classroom with dual RGB LED feedback"
+msgstr "Monitor vizual de nivel de zgomot pentru clasă cu feedback RGB LED dublu"
+
+msgid ""
+"SPI TFT LCD display support for ILI9341 driver. "
+"Shows a smiling face on startup with web-based controls."
+msgstr ""
+"Suport afișaj LCD TFT SPI pentru driver ILI9341. "
+"Afișează o față zâmbitoare la pornire cu comenzi web."
+
+msgid ""
+"Text-to-Speech classroom routines with USB presenter support for activities"
+msgstr ""
+"Rutine de clasă text-to-speech cu suport prezentator USB pentru activități"
+
+msgid ""
+"Play musical notes by touching conductive materials connected to GPIO pins. "
+"Supports bananas, foil, copper tape, and other conductive items."
+msgstr ""
+"Cântă note muzicale atingând materiale conductive conectate la pinii GPIO. "
+"Suportă banane, folie, bandă de cupru și alte obiecte conductive."
+
+# Dashboard title
+msgid "Tinko Dashboard"
+msgstr "Panou Tinko"
+
+msgid "Activity Timer"
+msgstr "Timer de Activitate"
+
+msgid "Visual countdown timer for classroom activities with RGB LED feedback"
+msgstr "Timer de numărătoare inversă vizual pentru activități în clasă cu feedback LED RGB"

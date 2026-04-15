@@ -8,6 +8,7 @@ import logging
 from typing import Optional
 
 from core.plugin_system.base import PluginBase
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
@@ -67,31 +68,31 @@ class Plugin(PluginBase):
 
         # Register admin menu
         self.register_admin_menu(
-            "Noise Monitor", "/plugins/edupi/noise_monitor/", icon="volume-2"
+            _("Noise Monitor"), "/plugins/edupi/noise_monitor/", icon="volume-2"
         )
 
         # Register settings
         self.register_setting(
             "instant_window_seconds",
-            "Instant Average Window (seconds)",
+            _("Instant Average Window (seconds)"),
             default=10,
             field_type="number",
             min=5,
             max=60,
-            help_text="Time window for instant noise average calculation",
+            help_text=_("Time window for instant noise average calculation"),
         )
         self.register_setting(
             "session_window_minutes",
-            "Session Average Window (minutes)",
+            _("Session Average Window (minutes)"),
             default=5,
             field_type="number",
             min=1,
             max=30,
-            help_text="Time window for session noise average calculation",
+            help_text=_("Time window for session noise average calculation"),
         )
         self.register_setting(
             "led_brightness",
-            "LED Brightness (%)",
+            _("LED Brightness (%)"),
             default=100,
             field_type="number",
             min=10,
@@ -99,10 +100,10 @@ class Plugin(PluginBase):
         )
         self.register_setting(
             "enable_monitoring",
-            "Enable Noise Monitoring",
+            _("Enable Noise Monitoring"),
             default=True,
             field_type="boolean",
-            help_text="Start monitoring when plugin is enabled",
+            help_text=_("Start monitoring when plugin is enabled"),
         )
 
         # Load device config if available
