@@ -24,3 +24,4 @@ db.sqlite3
 /.vscode/
 .claude/settings.local.json
 ISSUES.md
+/.claude

@@ -4,6 +4,164 @@ import os
 import ssl
 import threading
 import http.server
+import signal
+import sys
+
+# LCD display support for captive portal mode
+# Shows WiFi credentials on the physical screen during setup
+_lcd_device = None
+_lcd_backlight = None
+_lcd_cs_pin = None
+_lcd_dc_pin = None
+_lcd_rst_pin = None
+_lcd_width = 320
+_lcd_height = 240
+
+try:
+    import digitalio
+    import board
+    import adafruit_rgb_display.ili9341 as ili9341
+    from gpiozero import PWMLED
+    from PIL import Image, ImageDraw
+
+    LCD_AVAILABLE = True
+except ImportError:
+    LCD_AVAILABLE = False
+
+
+def _init_lcd():
+    """Initialize the ILI9341 LCD display. Returns True on success."""
+    global _lcd_device, _lcd_backlight, _lcd_cs_pin, _lcd_dc_pin, _lcd_rst_pin
+
+    if not LCD_AVAILABLE:
+        print("LCD: Libraries not available, skipping display")
+        return False
+
+    try:
+        _lcd_cs_pin = digitalio.DigitalInOut(board.D22)
+        _lcd_dc_pin = digitalio.DigitalInOut(board.D24)
+        _lcd_rst_pin = digitalio.DigitalInOut(board.D23)
+        spi = board.SPI()
+
+        _lcd_device = ili9341.ILI9341(
+            spi,
+            rotation=90,  # landscape
+            cs=_lcd_cs_pin,
+            dc=_lcd_dc_pin,
+            rst=_lcd_rst_pin,
+            baudrate=16000000,
+        )
+
+        _lcd_width = 320
+        _lcd_height = 240
+
+        _lcd_backlight = PWMLED(18)
+        _lcd_backlight.value = 1.0  # full brightness
+
+        print(f"LCD: Initialized {_lcd_width}x{_lcd_height}")
+        return True
+
+    except Exception as e:
+        print(f"LCD: Initialization failed: {e}")
+        _lcd_device = None
+        _lcd_backlight = None
+        _lcd_cs_pin = None
+        _lcd_dc_pin = None
+        _lcd_rst_pin = None
+        return False
+
+
+def _show_wifi_on_lcd(ssid, password):
+    """Display WiFi credentials on the LCD screen."""
+    if not _lcd_device:
+        return
+
+    try:
+        img = Image.new("RGB", (_lcd_width, _lcd_height), "black")
+        draw = ImageDraw.Draw(img)
+
+        # Use default font — PIL's built-in bitmap font
+        # For the small TFT, default font is readable at close range
+
+        # Title: "Tinko WiFi Setup" centered at top
+        title = "Tinko WiFi Setup"
+        bbox = draw.textbbox((0, 0), title)
+        tw = bbox[2] - bbox[0]
+        draw.text(((_lcd_width - tw) // 2, 20), title, fill="white")
+
+        # Separator line
+        draw.line([(40, 50), (280, 50)], fill="gray", width=1)
+
+        # SSID line
+        ssid_label = f"WiFi: {ssid}"
+        bbox = draw.textbbox((0, 0), ssid_label)
+        tw = bbox[2] - bbox[0]
+        draw.text(((_lcd_width - tw) // 2, 70), ssid_label, fill="white")
+
+        # Password line
+        pass_label = f"Pass: {password}"
+        bbox = draw.textbbox((0, 0), pass_label)
+        tw = bbox[2] - bbox[0]
+        draw.text(((_lcd_width - tw) // 2, 100), pass_label, fill="white")
+
+        # Instructions
+        line1 = "Connect, then"
+        bbox = draw.textbbox((0, 0), line1)
+        tw = bbox[2] - bbox[0]
+        draw.text(((_lcd_width - tw) // 2, 160), line1, fill="gray")
+
+        line2 = "open browser"
+        bbox = draw.textbbox((0, 0), line2)
+        tw = bbox[2] - bbox[0]
+        draw.text(((_lcd_width - tw) // 2, 185), line2, fill="gray")
+
+        _lcd_device.image(img)
+        print(f"LCD: Showing WiFi credentials (SSID: {ssid})")
+
+    except Exception as e:
+        print(f"LCD: Failed to display WiFi info: {e}")
+
+
+def _clear_lcd():
+    """Clear the LCD screen and release resources."""
+    global _lcd_device, _lcd_backlight, _lcd_cs_pin, _lcd_dc_pin, _lcd_rst_pin
+
+    if not _lcd_device:
+        return
+
+    try:
+        img = Image.new("RGB", (_lcd_width, _lcd_height), "black")
+        _lcd_device.image(img)
+        print("LCD: Screen cleared")
+    except Exception as e:
+        print(f"LCD: Failed to clear screen: {e}")
+
+    try:
+        if _lcd_backlight:
+            _lcd_backlight.close()
+            _lcd_backlight = None
+    except Exception as e:
+        print(f"LCD: Failed to release backlight: {e}")
+
+    for pin in (_lcd_cs_pin, _lcd_dc_pin, _lcd_rst_pin):
+        if pin:
+            try:
+                pin.deinit()
+            except Exception as e:
+                print(f"LCD: Failed to deinit pin: {e}")
+
+    _lcd_cs_pin = None
+    _lcd_dc_pin = None
+    _lcd_rst_pin = None
+    _lcd_device = None
+
+
+def _handle_sigterm(signum, frame):
+    """SIGTERM handler: clear LCD before exit."""
+    print("Portal received SIGTERM, cleaning up LCD...")
+    _clear_lcd()
+    sys.exit(0)
+
 
 app = Flask(__name__)
 
@@ -119,6 +277,16 @@ def connect():
     return render_template_string(WAIT_PAGE, ssid=ssid)
 
 if __name__ == '__main__':
+    # Initialize LCD and show WiFi credentials during captive portal
+    hotspot_ssid = os.environ.get('HOTSPOT_SSID', 'Tinko-Setup')
+    hotspot_password = os.environ.get('HOTSPOT_PASSWORD', 'tinko1234')
+
+    if _init_lcd():
+        _show_wifi_on_lcd(hotspot_ssid, hotspot_password)
+
+    # Register SIGTERM handler after LCD init so cleanup works on exit
+    signal.signal(signal.SIGTERM, _handle_sigterm)
+
     # Start HTTPS redirect server on port 443 in a background thread.
     # Some Android devices use HTTPS for captive portal checks.
     # A self-signed cert is sufficient — Android's connectivity check

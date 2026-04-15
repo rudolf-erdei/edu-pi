@@ -49,7 +49,7 @@ else
     # Start the Flask Captive Portal
     log "Starting Flask captive portal..."
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    python3 "$SCRIPT_DIR/portal.py" &
+    HOTSPOT_SSID="Tinko-Setup" HOTSPOT_PASSWORD="tinko1234" python3 "$SCRIPT_DIR/portal.py" &
     PORTAL_PID=$!
     echo "$PORTAL_PID" > /run/tinko-portal.pid
     log "Flask portal started with PID $PORTAL_PID"
