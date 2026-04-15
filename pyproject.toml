@@ -17,6 +17,7 @@ dependencies = [
     "pillow>=10.0.0",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
+    "whitenoise>=6.7.0",
     "python-dotenv>=1.0.0",
     "adafruit-circuitpython-rgb-display>=3.10.0",
     "adafruit-blinka>=8.20.0",

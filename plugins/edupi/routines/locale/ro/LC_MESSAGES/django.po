@@ -1,0 +1,427 @@
+# Routines Plugin - Romanian Translation
+# Copyright (C) 2025 Tinko Team
+# This file is distributed under the same license as the edu-pi package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: edu-pi-routines 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-04-15 10:00+0200\n"
+"PO-Revision-Date: 2025-04-15 10:00+0200\n"
+"Last-Translator: Tinko Team\n"
+"Language-Team: Romanian\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);\n"
+
+# apps.py
+msgid "Routines"
+msgstr "Rutine"
+
+# models.py - RoutineCategory
+msgid "Warm-up"
+msgstr "Încălzire"
+
+msgid "Transition"
+msgstr "Tranziție"
+
+msgid "Cooldown"
+msgstr "Răcire"
+
+msgid "Custom"
+msgstr "Personalizat"
+
+msgid "Type of routine category"
+msgstr "Tipul categoriei de rutină"
+
+msgid "Display name for this category"
+msgstr "Numele afișat pentru această categorie"
+
+msgid "Description of this category"
+msgstr "Descrierea acestei categorii"
+
+msgid "Hex color for this category"
+msgstr "Culoare hex pentru această categorie"
+
+msgid "Display order (lower numbers first)"
+msgstr "Ordinea de afișare (numerele mai mici primele)"
+
+msgid "Whether this category is active"
+msgstr "Dacă această categorie este activă"
+
+msgid "Routine Category"
+msgstr "Categorie rutină"
+
+msgid "Routine Categories"
+msgstr "Categorii rutine"
+
+# models.py - Routine TTSEngine
+msgid "System TTS (Offline)"
+msgstr "TTS sistem (Offline)"
+
+msgid "Edge TTS (High Quality)"
+msgstr "Edge TTS (Calitate ridicată)"
+
+msgid "Google TTS (Online)"
+msgstr "Google TTS (Online)"
+
+msgid "Use Uploaded Audio"
+msgstr "Folosește audio încărcat"
+
+# models.py - Routine
+msgid "Title of the routine"
+msgstr "Titlul rutinei"
+
+msgid "Routine text content (one line per instruction)"
+msgstr "Conținutul text al rutinei (o linie per instrucțiune)"
+
+msgid "Category this routine belongs to"
+msgstr "Categoria căreia îi aparține această rutină"
+
+msgid "Upload MP3/WAV file (optional, overrides TTS)"
+msgstr "Încarcă fișier MP3/WAV (opțional, suprascrie TTS)"
+
+msgid "Text-to-speech engine to use"
+msgstr "Motorul text-to-speech de folosit"
+
+msgid "TTS speed multiplier (0.5 = slow, 2.0 = fast)"
+msgstr "Multiplicator viteză TTS (0.5 = lent, 2.0 = rapid)"
+
+msgid "Voice name (engine-specific)"
+msgstr "Numele vocii (specific motorului)"
+
+msgid "Language code (e.g., 'en', 'ro', 'es')"
+msgstr "Codul limbii (ex., 'en', 'ro', 'es')"
+
+msgid "Whether this is a built-in routine"
+msgstr "Dacă aceasta este o rutină preinstalată"
+
+msgid "Whether this routine is active"
+msgstr "Dacă această rutină este activă"
+
+msgid "Routine"
+msgstr "Rutină"
+
+# models.py - RoutineSession
+msgid "Pending"
+msgstr "În așteptare"
+
+msgid "Playing"
+msgstr "Se redă"
+
+msgid "Paused"
+msgstr "În pauză"
+
+msgid "Completed"
+msgstr "Completat"
+
+msgid "Stopped"
+msgstr "Oprit"
+
+msgid "Routine being played"
+msgstr "Rutina care se redă"
+
+msgid "Current playback status"
+msgstr "Starea curentă de redare"
+
+msgid "Current line being played (0-based)"
+msgstr "Linia curentă redată (index de la 0)"
+
+msgid "When the routine started"
+msgstr "Când a început rutina"
+
+msgid "When the routine was last paused"
+msgstr "Când a fost pusă pe pauză rutina ultima dată"
+
+msgid "When the routine completed"
+msgstr "Când s-a terminat rutina"
+
+msgid "Total duration in seconds"
+msgstr "Durata totală în secunde"
+
+msgid "Routine Session"
+msgstr "Sesiune rutină"
+
+msgid "Routine Sessions"
+msgstr "Sesiuni rutină"
+
+# models.py - PresenterButtonMapping
+msgid "Name of this button mapping configuration"
+msgstr "Numele acestei configurații de mapare a butoanelor"
+
+msgid "Event code for Next button"
+msgstr "Cod eveniment pentru butonul Înainte"
+
+msgid "Event code for Previous button"
+msgstr "Cod eveniment pentru butonul Înapoi"
+
+msgid "Event code for Play/Pause button"
+msgstr "Cod eveniment pentru butonul Redare/Pauză"
+
+msgid "Event code for Stop button"
+msgstr "Cod eveniment pentru butonul Stop"
+
+msgid "Use this as the default mapping"
+msgstr "Folosește aceasta ca mapare implicită"
+
+msgid "Whether this mapping is active"
+msgstr "Dacă această mapare este activă"
+
+msgid "Presenter Button Mapping"
+msgstr "Mapare butoane prezentator"
+
+msgid "Presenter Button Mappings"
+msgstr "Mapări butoane prezentator"
+
+# forms.py
+msgid "Routine title"
+msgstr "Titlul rutinei"
+
+msgid "Enter routine text, one line per instruction"
+msgstr "Introduceți textul rutinei, o linie per instrucțiune"
+
+msgid "Voice name (optional)"
+msgstr "Numele vocii (opțional)"
+
+msgid "Routine content cannot be empty"
+msgstr "Conținutul rutinei nu poate fi gol"
+
+msgid "Text to speak"
+msgstr "Text de citit"
+
+msgid "Enter text to preview"
+msgstr "Introduceți textul pentru previzualizare"
+
+msgid "TTS Engine"
+msgstr "Motor TTS"
+
+msgid "Language"
+msgstr "Limbă"
+
+msgid "Voice (optional)"
+msgstr "Voce (opțional)"
+
+msgid "Voice name"
+msgstr "Numele vocii"
+
+msgid "Speed"
+msgstr "Viteză"
+
+msgid "Category name"
+msgstr "Numele categoriei"
+
+msgid "Description"
+msgstr "Descriere"
+
+# plugin_settings.py
+msgid "Default TTS Engine"
+msgstr "Motor TTS implicit"
+
+msgid "Select the default text-to-speech engine"
+msgstr "Selectați motorul text-to-speech implicit"
+
+msgid "Default TTS Speed"
+msgstr "Viteză TTS implicită"
+
+msgid "Speech speed multiplier (0.5 = slow, 1.0 = normal, 2.0 = fast)"
+msgstr "Multiplicator viteză vorbire (0.5 = lent, 1.0 = normal, 2.0 = rapid)"
+
+msgid "Default Language"
+msgstr "Limba implicită"
+
+msgid "Default language code (e.g., 'en', 'ro', 'es')"
+msgstr "Codul limbii implicite (ex., 'en', 'ro', 'es')"
+
+msgid "Default Volume"
+msgstr "Volum implicit"
+
+msgid "Default volume level for audio playback (0-100%)"
+msgstr "Nivelul volumului implicit pentru redarea audio (0-100%)"
+
+msgid "Enable Audio Fade"
+msgstr "Activează estomparea audio"
+
+msgid "Fade audio in/out at start/end of playback"
+msgstr "Estompare audio la începutul/sfârșitul redării"
+
+msgid "Enable USB Presenter"
+msgstr "Activează prezentator USB"
+
+msgid "Allow control via USB wireless presenter"
+msgstr "Permite controlul prin prezentator wireless USB"
+
+msgid "Auto-detect Presenter"
+msgstr "Detectare automată prezentator"
+
+msgid "Automatically detect presenter when plugged in"
+msgstr "Detectează automat prezentatorul la conectare"
+
+msgid "Auto-advance Lines"
+msgstr "Avansare automată linii"
+
+msgid "Automatically advance to next line after speech completes"
+msgstr "Avansează automat la linia următoare după finalizarea vorbirii"
+
+msgid "Line Delay"
+msgstr "Întârziere linie"
+
+msgid "Delay in seconds before auto-advancing to next line"
+msgstr "Întârziere în secunde înainte de avansarea automată la linia următoare"
+
+# views.py
+msgid "Create Routine"
+msgstr "Creează rutină"
+
+msgid "Create"
+msgstr "Creează"
+
+msgid "Routine created successfully"
+msgstr "Rutină creată cu succes"
+
+msgid "Edit Routine"
+msgstr "Editează rutină"
+
+msgid "Update"
+msgstr "Actualizează"
+
+msgid "Routine updated successfully"
+msgstr "Rutină actualizată cu succes"
+
+msgid "Routine deleted successfully"
+msgstr "Rutină ștearsă cu succes"
+
+msgid "Invalid action"
+msgstr "Acțiune invalidă"
+
+msgid "Routine started"
+msgstr "Rutină pornită"
+
+msgid "Failed to play"
+msgstr "Redare eșuată"
+
+msgid "Failed to pause"
+msgstr "Pauză eșuată"
+
+msgid "Resumed"
+msgstr "Reluat"
+
+msgid "Failed to resume"
+msgstr "Reluare eșuată"
+
+msgid "Failed to stop"
+msgstr "Oprire eșuată"
+
+msgid "Next line"
+msgstr "Linia următoare"
+
+msgid "At end"
+msgstr "La final"
+
+msgid "Previous line"
+msgstr "Linia anterioară"
+
+msgid "At beginning"
+msgstr "La început"
+
+msgid "TTS audio generated successfully"
+msgstr "Audio TTS generat cu succes"
+
+msgid "Failed to generate TTS audio"
+msgstr "Generarea audio TTS a eșuat"
+
+msgid "Routine Categories"
+msgstr "Categorii rutine"
+
+msgid "Create Category"
+msgstr "Creează categorie"
+
+msgid "Category created successfully"
+msgstr "Categorie creată cu succes"
+
+# Pre-built routine content (from plugin.py)
+msgid ""
+"Let's warm up our hands for writing!\n"
+"Rub your palms together, rub, rub, rub.\n"
+"Now your fingers, wiggle them up high.\n"
+"Shake them out, shake, shake, shake.\n"
+"Ready to write, nice and warm!"
+msgstr ""
+"Să ne încălzim mâinile pentru scris!\n"
+"Frecăți palmele între ele, freacă, freacă, freacă.\n"
+"Acum degetele, mișcați-le sus.\n"
+"Scuturați-le, scutură, scutură, scutură.\n"
+"Gata de scris, calde și pregătite!"
+
+msgid ""
+"Let's stretch our fingers!\n"
+"Hold up your hands and spread your fingers wide.\n"
+"Now make tight fists, squeeze, squeeze, squeeze.\n"
+"Open your hands wide again.\n"
+"Wiggle your fingers like they're dancing.\n"
+"Your fingers are ready to write!"
+msgstr ""
+"Să ne întindem degetele!\n"
+"Ridicați mâinile și deschideți degetele larg.\n"
+"Acum faceți pumni strânși, strânge, strânge, strânge.\n"
+"Deschideți mâinile larg din nou.\n"
+"Mișcați-vă degetele ca și cum ar dansa.\n"
+"Degetele dumneavoastră sunt gata de scris!"
+
+msgid ""
+"Let's take a moment to breathe.\n"
+"Breathe in slowly through your nose...\n"
+"Hold it...\n"
+"Now breathe out through your mouth...\n"
+"One more time.\n"
+"Breathe in...\n"
+"And out...\n"
+"You're ready to focus."
+msgstr ""
+"Să luăm un moment să respirăm.\n"
+"Respirați încet pe nas...\n"
+"Țineți...\n"
+"Acum expirați pe gură...\n"
+"Încă o dată.\n"
+"Inspirați...\n"
+"Și expirați...\n"
+"Sunteți gata să vă concentrați."
+
+# plugin.py - admin menu
+msgid "Routines"
+msgstr "Rutine"
+
+# plugin.py - register_setting (unique to plugin.py, not in plugin_settings.py)
+msgid "Default TTS Engine"
+msgstr "Motor TTS implicit"
+
+msgid "Default TTS Speed"
+msgstr "Viteză TTS implicită"
+
+msgid "Default speech speed (0.5 = slow, 1.0 = normal, 2.0 = fast)"
+msgstr "Viteză implicită a vorbirii (0.5 = lent, 1.0 = normal, 2.0 = rapid)"
+
+msgid "Default Language"
+msgstr "Limba implicită"
+
+msgid "Default language code (e.g., 'en', 'ro')"
+msgstr "Codul limbii implicite (ex., 'en', 'ro')"
+
+msgid "Enable USB Presenter"
+msgstr "Activează prezentator USB"
+
+msgid "Allow USB presenter control"
+msgstr "Permite controlul prin prezentator USB"
+
+msgid "System TTS (Offline)"
+msgstr "TTS sistem (Offline)"
+
+msgid "Edge TTS (High Quality)"
+msgstr "Edge TTS (Calitate ridicată)"
+
+msgid "Google TTS (Online)"
+msgstr "Google TTS (Online)"
+
+msgid "Default text-to-speech engine"
+msgstr "Motorul text-to-speech implicit"

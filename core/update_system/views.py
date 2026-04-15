@@ -22,13 +22,13 @@ def check_for_updates():
     """Runs git commands to see if the repo is ahead of origin/main."""
     repo_path = Path("/home/tinko/edu-pi")
     try:
-        # Fetch latest
-        subprocess.run(["git", "fetch"], cwd=repo_path, check=True, capture_output=True)
+        # Fetch latest (with timeout to avoid hanging on network issues)
+        subprocess.run(["git", "fetch"], cwd=repo_path, check=True, capture_output=True, timeout=30)
 
         # Get commit diff
         result = subprocess.run(
             ["git", "log", "HEAD..origin/main", "--oneline"],
-            cwd=repo_path, check=True, capture_output=True, text=True
+            cwd=repo_path, check=True, capture_output=True, text=True, timeout=10
         )
         commits = result.stdout.strip().split('\n') if result.stdout.strip() else []
 
@@ -37,9 +37,11 @@ def check_for_updates():
             "commits": commits,
             "current_version": subprocess.run(
                 ["git", "describe", "--tags"],
-                cwd=repo_path, capture_output=True, text=True
+                cwd=repo_path, capture_output=True, text=True, timeout=10
             ).stdout.strip()
         }
+    except subprocess.TimeoutExpired:
+        return {"error": "Git fetch timed out — check internet connection"}
     except Exception as e:
         return {"error": str(e)}
 

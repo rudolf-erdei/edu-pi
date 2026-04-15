@@ -8,6 +8,7 @@ import logging
 from typing import Optional
 
 from core.plugin_system.base import PluginBase
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +71,13 @@ class Plugin(PluginBase):
 
         # Register admin menu
         self.register_admin_menu(
-            "Activity Timer", "/plugins/edupi/activity_timer/", icon="clock"
+            _("Activity Timer"), "/plugins/edupi/activity_timer/", icon="clock"
         )
 
         # Register settings
         self.register_setting(
             "default_duration",
-            "Default Duration (minutes)",
+            _("Default Duration (minutes)"),
             default=10,
             field_type="number",
             min=1,
@@ -84,7 +85,7 @@ class Plugin(PluginBase):
         )
         self.register_setting(
             "led_brightness",
-            "LED Brightness (%)",
+            _("LED Brightness (%)"),
             default=100,
             field_type="number",
             min=10,
@@ -92,16 +93,16 @@ class Plugin(PluginBase):
         )
         self.register_setting(
             "warning_threshold",
-            "Warning Threshold (%)",
+            _("Warning Threshold (%)"),
             default=20,
             field_type="number",
             min=5,
             max=50,
-            help_text="Percentage of time remaining when LED turns yellow",
+            help_text=_("Percentage of time remaining when LED turns yellow"),
         )
         self.register_setting(
             "enable_buzzer",
-            "Enable Buzzer",
+            _("Enable Buzzer"),
             default=True,
             field_type="boolean",
         )

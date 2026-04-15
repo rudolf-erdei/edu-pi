@@ -7,6 +7,7 @@ import logging
 from typing import Optional
 
 from core.plugin_system.base import PluginBase
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
@@ -77,45 +78,45 @@ class Plugin(PluginBase):
 
         # Register admin menu
         self.register_admin_menu(
-            "Routines", "/plugins/edupi/routines/", icon="microphone"
+            _("Routines"), "/plugins/edupi/routines/", icon="microphone"
         )
 
         # Register settings
         self.register_setting(
             "default_tts_engine",
-            "Default TTS Engine",
+            _("Default TTS Engine"),
             default="pyttsx3",
             field_type="select",
             choices=[
-                ("pyttsx3", "System TTS (Offline)"),
-                ("edge_tts", "Edge TTS (High Quality)"),
-                ("gtts", "Google TTS (Online)"),
+                ("pyttsx3", _("System TTS (Offline)")),
+                ("edge_tts", _("Edge TTS (High Quality)")),
+                ("gtts", _("Google TTS (Online)")),
             ],
-            help_text="Default text-to-speech engine",
+            help_text=_("Default text-to-speech engine"),
         )
         self.register_setting(
             "default_tts_speed",
-            "Default TTS Speed",
+            _("Default TTS Speed"),
             default=1.0,
             field_type="number",
             min=0.5,
             max=2.0,
             step=0.1,
-            help_text="Default speech speed (0.5 = slow, 1.0 = normal, 2.0 = fast)",
+            help_text=_("Default speech speed (0.5 = slow, 1.0 = normal, 2.0 = fast)"),
         )
         self.register_setting(
             "default_language",
-            "Default Language",
+            _("Default Language"),
             default="en",
             field_type="text",
-            help_text="Default language code (e.g., 'en', 'ro')",
+            help_text=_("Default language code (e.g., 'en', 'ro')"),
         )
         self.register_setting(
             "enable_presenter",
-            "Enable USB Presenter",
+            _("Enable USB Presenter"),
             default=True,
             field_type="boolean",
-            help_text="Allow USB presenter control",
+            help_text=_("Allow USB presenter control"),
         )
 
         logger.info(f"{self.name} plugin registered")
