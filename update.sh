@@ -507,7 +507,9 @@ ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 -e ssl:443:privateKey=/etc/tink
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 Restart=always
-RestartSec=3
+RestartSec=5
+StartLimitBurst=5
+StartLimitIntervalSec=60
 
 [Install]
 WantedBy=multi-user.target
@@ -525,7 +527,21 @@ restart_service() {
     # Reload systemd in case service file changed
     sudo systemctl daemon-reload
 
-    sudo systemctl start ${SERVICE_NAME}
+    # Wait for port 80 to be fully released (avoids crash-restart loop)
+    log_info "Waiting for port 80 to be released..."
+    for i in $(seq 1 15); do
+        if ! sudo ss -tlnp 2>/dev/null | grep -q ":80\b"; then
+            log_success "Port 80 is free"
+            break
+        fi
+        if [[ "$i" -eq 15 ]]; then
+            log_warning "Port 80 still in use after 15s, forcing start anyway"
+        else
+            sleep 1
+        fi
+    done
+
+    sudo systemctl restart ${SERVICE_NAME}
     sleep 2
 
     if sudo systemctl is-active --quiet ${SERVICE_NAME}; then
