@@ -30,6 +30,8 @@ NC='\033[0m' # No Color
 INSTALL_DIR="$(pwd)"
 SERVICE_NAME="tinko"
 STATUS_FILE="/run/tinko-update/status.json"
+# The daemon owns status.json; scripts only report the current stage.
+STAGE_FILE="/run/tinko-update/stage.json"
 
 # Telemetry function for the daemon
 update_status() {
@@ -37,64 +39,11 @@ update_status() {
         local stage=$1
         local status=$2
         # Use a temporary file and mv for atomic writes
-        echo "{\"stage\": \"$stage\", \"status\": \"$status\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > "${STATUS_FILE}.tmp"
-        mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+        # The daemon owns status.json; this writes only the current stage.
+        echo "{\"stage\": \"$stage\", \"status\": \"$status\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > "${STAGE_FILE}.tmp"
+        mv "${STAGE_FILE}.tmp" "$STAGE_FILE"
     fi
 }
-
-# Setup update infrastructure for web updates
-setup_update_infrastructure() {
-    log_info "Setting up update infrastructure for web updates..."
-
-    # 1. Create run directory and set permissions
-    sudo mkdir -p /run/tinko-update
-    sudo chmod 777 /run/tinko-update
-
-    # 2. Configure sudoers for the update process
-    SUDOERS_FILE="/etc/sudoers.d/tinko-update"
-    sudo tee $SUDOERS_FILE > /dev/null << EOF
-# Permissions for Tinko update process
-$USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop tinko
-$USER ALL=(All) NOPASSWD: /usr/bin/systemctl start tinko
-$USER ALL=(All) NOPASSWD: /usr/bin/mkdir -p /run/tinko-update
-$USER ALL=(All) NOPASSWD: /usr/bin/chmod 777 /run/tinko-update
-EOF
-
-    # 3. Install the update daemon service
-    log_info "Installing tinko-update.service..."
-
-    # Determine absolute path to the daemon
-    DAEMON_PATH="$INSTALL_DIR/core/update_system/update_daemon.py"
-
-    sudo tee /etc/systemd/system/tinko-update.service > /dev/null << EOF
-[Unit]
-Description=Tinko Update Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$INSTALL_DIR
-ExecStart=/usr/bin/python3 $DAEMON_PATH
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Reload systemd and enable service
-    sudo systemctl daemon-reload
-    sudo systemctl enable tinko-update.service
-
-    # Start the service if not running
-    if ! sudo systemctl is-active --quiet tinko-update.service; then
-        sudo systemctl start tinko-update.service
-    fi
-
-    log_success "Update infrastructure set up successfully"
-}
-
 
 # Logging functions
 log_info() {
@@ -112,6 +61,11 @@ log_warning() {
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
+
+# Load update infrastructure setup (tinko-update.service daemon install)
+# Requires INSTALL_DIR and the log functions above.
+# shellcheck source=scripts/update_infra.sh
+source "$INSTALL_DIR/scripts/update_infra.sh"
 
 # Check if running as root
 check_root() {
@@ -584,7 +538,7 @@ print_summary() {
     echo "Tinko has been updated to the latest version."
     echo
     echo "Access Tinko at:"
-    echo "  - Dashboard:       http://${PI_IP}:/"
+    echo "  - Dashboard:       http://${PI_IP}/"
     echo "  - Admin Panel:     http://${PI_IP}:/admin/"
     echo "  - Noise Monitor:   http://${PI_IP}:/plugins/edupi/noise_monitor/"
     echo "  - Routines:        http://${PI_IP}:/plugins/edupi/routines/"
@@ -616,6 +570,7 @@ main() {
     compile_translations
     update_wifi_connect
     ensure_tinko_service
+    setup_update_infrastructure
     restart_service
     print_summary
 }

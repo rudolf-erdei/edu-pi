@@ -9,6 +9,7 @@ from pathlib import Path
 PROJECT_ROOT = "/home/tinko/edu-pi"
 TRIGGER_FILE = Path("/run/tinko-update/trigger")
 STATUS_FILE = Path("/run/tinko-update/status.json")
+STAGE_FILE = Path("/run/tinko-update/stage.json")
 UPDATE_SCRIPT = Path(PROJECT_ROOT) / "update-web.sh"
 
 def ensure_directories():
@@ -36,6 +37,16 @@ def get_current_status():
         }
     try:
         with open(STATUS_FILE, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+def get_current_stage():
+    """Read the stage file written by update-web.sh, or return {}."""
+    if not STAGE_FILE.exists():
+        return {}
+    try:
+        with open(STAGE_FILE, 'r') as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
         return {}
@@ -91,13 +102,16 @@ def run_update(update_id):
             if log_line:
                 log_to_status(status, log_line)
 
-            # Sync stage from the status file written by update-web.sh
-            # update-web.sh writes its own status.json, we merge it here
-            current_script_status = get_current_status()
-            if current_script_status.get("stage") != status["stage"]:
-                status["stage"] = current_script_status.get("stage")
-                if current_script_status.get("status") == "completed":
-                    status["stages_completed"].append(status["stage"])
+            # Sync stage from the stage file written by update-web.sh.
+            # The script writes only {stage,status,timestamp} to stage.json;
+            # status.json stays daemon-owned so the web UI sees a stable schema.
+            current_script_status = get_current_stage()
+            stage = current_script_status.get("stage")
+            script_status = current_script_status.get("status")
+            if stage is not None:
+                status["stage"] = stage
+                if script_status == "completed" and stage not in status["stages_completed"]:
+                    status["stages_completed"].append(stage)
                 write_status(status)
 
         return_code = process.wait()
