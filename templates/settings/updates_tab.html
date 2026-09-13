@@ -16,6 +16,18 @@
                 </div>
                 <p class="text-lg mb-8 opacity-70">{% trans "Keep your system up to date for the best experience." %}</p>
 
+                <!-- Last update info: filled by JS on tab load -->
+                <div id="last-update-info" class="hidden mb-6 text-sm opacity-60">
+                    <p>
+                        <span class="opacity-50">{% trans "Last code update" %}:</span>
+                        <span id="last-update-date" class="font-semibold"></span>
+                    </p>
+                    <p id="last-update-ws-wrap" class="hidden">
+                        <span class="opacity-50">{% trans "Last successful update" %}:</span>
+                        <span id="last-update-ws" class="font-semibold"></span>
+                    </p>
+                </div>
+
                 <!-- Check result: shown after "Check for Updates" -->
                 <div id="check-result" class="hidden mb-6 text-left">
                     <div id="check-result-box" class="flex items-center gap-4 p-4 rounded-lg border"></div>

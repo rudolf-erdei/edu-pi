@@ -38,6 +38,11 @@ const elements = {
     updateLog: document.getElementById('update-log'),
     errorDetails: document.getElementById('error-details'),
     countdown: document.getElementById('countdown'),
+
+    lastUpdateInfo: document.getElementById('last-update-info'),
+    lastUpdateDate: document.getElementById('last-update-date'),
+    lastUpdateWsWrap: document.getElementById('last-update-ws-wrap'),
+    lastUpdateWs: document.getElementById('last-update-ws'),
 };
 
 function showState(state) {
@@ -265,3 +270,33 @@ function failUpdate(error) {
 elements.btnCheck.onclick = checkUpdates;
 elements.btnUpdate.onclick = startUpdate;
 elements.btnRetry.onclick = startUpdate;
+
+function formatDate(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString(undefined, {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+    });
+}
+
+// Show "last update" on tab load: last commit date on the installed code,
+// plus the last successful web update (if any). Non-fatal on failure.
+(async function loadLastUpdateInfo() {
+    try {
+        const res = await fetch(`${API_BASE}/last-update/`);
+        if (!res.ok) return;
+        const data = await res.json();
+        let visible = false;
+        if (data.git_last_commit) {
+            elements.lastUpdateDate.innerText = formatDate(data.git_last_commit);
+            visible = true;
+        }
+        if (data.last_successful_update) {
+            elements.lastUpdateWsWrap.classList.remove('hidden');
+            elements.lastUpdateWs.innerText = formatDate(data.last_successful_update);
+            visible = true;
+        }
+        if (visible) elements.lastUpdateInfo.classList.remove('hidden');
+    } catch (e) { /* info display only, never block the tab */ }
+})();
