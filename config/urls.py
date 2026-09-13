@@ -21,7 +21,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.i18n import JavaScriptCatalog
 
-from core.edupi_core.views import home_view, settings_view
+from core.edupi_core.views import home_view, settings_view, power_shutdown
 from core.plugin_system.views import (
     plugin_dashboard_view,
     enable_plugin_view,
@@ -37,6 +37,8 @@ urlpatterns = [
     path("jsi18n/", JavaScriptCatalog.as_view(), name="javascript-catalog"),
     # System updates
     path("updates/", include("core.update_system.urls")),
+    # Safe shutdown (poweroff via sudoers; UI button on dashboard)
+    path("power/shutdown/", power_shutdown, name="power_shutdown"),
     # Plugin URLs - plugins register under /plugins/<author>/<plugin>/
     path("plugins/", include("core.plugin_system.urls")),
     # Plugin dashboard URLs - must come before admin/ catch-all

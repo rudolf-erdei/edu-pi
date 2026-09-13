@@ -295,3 +295,19 @@ msgstr "Reîncearcă actualizarea"
 
 msgid "Cancel"
 msgstr "Anulează"
+
+# Dashboard - Power (home.html)
+msgid "Shutdown"
+msgstr "Oprire"
+
+msgid "Turn off Tinko? All activities will stop."
+msgstr "Opriți Tinko? Toate activitățile se vor opri."
+
+msgid "Tinko is shutting down..."
+msgstr "Tinko se oprește..."
+
+msgid "Could not start shutdown"
+msgstr "Nu s-a putut porni oprirea"
+
+msgid "Could not start shutdown. Try again."
+msgstr "Nu s-a putut porni oprirea. Încercați din nou."
