@@ -91,3 +91,24 @@ def test_failed_terminal_status_syncs_error(client, tmp_path):
     record.refresh_from_db()
     assert record.status == "failed"
     assert record.error_message == "uv: command not found"
+
+
+@pytest.mark.django_db
+def test_last_update_info_returns_completed_db_row(client, tmp_path):
+    """The last-update endpoint reports the most recent completed row and does
+    not error when the git repo is absent (dev machines, non-Pi)."""
+    done = UpdateStatus.objects.create(status="completed", completed_at=timezone.now())
+    UpdateStatus.objects.create(status="in_progress")
+
+    with mock.patch(
+        "core.update_system.views.subprocess.run", side_effect=FileNotFoundError
+    ):
+        resp = client.get("/updates/last-update/")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["git_last_commit"] is None          # no git repo -> graceful None
+    assert data["last_successful_update"] is not None
+    assert (
+        data["last_successful_update"] == done.completed_at.isoformat()
+    )

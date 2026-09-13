@@ -134,3 +134,24 @@ def get_update_status(request):
             return JsonResponse(json.load(f))
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+def get_last_update_info(request):
+    """Return the date of the last commit on the installed code and the last
+    successful web update. Cheap: reads only local git HEAD and one DB row
+    (no network, no git fetch)."""
+    info = {"git_last_commit": None, "last_successful_update": None}
+    repo_path = Path("/home/tinko/edu-pi")
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(repo_path), "log", "-1", "--format=%cI"],
+            capture_output=True, text=True, timeout=10, cwd=repo_path
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            info["git_last_commit"] = r.stdout.strip()
+    except Exception:
+        pass
+
+    last_ok = UpdateStatus.objects.filter(status="completed").order_by("-completed_at").first()
+    if last_ok and last_ok.completed_at:
+        info["last_successful_update"] = last_ok.completed_at.isoformat()
+    return JsonResponse(info)
