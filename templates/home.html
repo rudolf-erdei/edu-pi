@@ -68,11 +68,6 @@
           {% trans "There are currently no active apps available. Please check
           the admin panel or install some apps." %}
         </div>
-        <div class="mt-2">
-          <a href="/admin/" class="btn btn-sm btn-primary"
-            >{% trans "Go to Admin Panel" %}</a
-          >
-        </div>
       </div>
     </div>
     {% endif %}
@@ -83,13 +78,65 @@
   <div class="card bg-base-100 shadow-lg">
     <div class="card-body p-4">
       <div class="card-actions justify-center">
-        <span class="badge badge-xl py-6 shadow bg-gray-100 mr-8">{% trans "Active Apps" %}: {{ plugin_count }}</span>
-        <a href="/admin/" class="btn btn-primary">{% trans "Admin Panel" %}</a>
-        <a href="/admin/plugins/" class="btn btn-outline btn-secondary"
-          >{% trans "App Management" %}</a
-        >
+        <span class="badge badge-xl py-6 shadow bg-gray-100">{% trans "Active Apps" %}: {{ plugin_count }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Power -->
+  <div class="card bg-base-100 shadow-lg mt-8">
+    <div class="card-body p-4">
+      <div class="card-actions justify-center flex-col">
+        <button id="btn-shutdown" class="btn btn-error btn-outline"
+          data-confirm="{% trans 'Turn off Tinko? All activities will stop.' %}">
+          {% trans "Shutdown" %}
+        </button>
+        <p id="shutdown-state" class="hidden text-sm text-success mt-1">
+          {% trans "Tinko is shutting down..." %}
+        </p>
+        <p id="shutdown-error" class="hidden text-sm text-error mt-1">
+          {% trans "Could not start shutdown. Try again." %}
+        </p>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+(function () {
+  const btn = document.getElementById('btn-shutdown');
+  if (!btn) return;
+  const state = document.getElementById('shutdown-state');
+  const error = document.getElementById('shutdown-error');
+
+  function csrfToken() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+
+  btn.addEventListener('click', async function () {
+    if (!confirm(btn.dataset.confirm)) return;
+    // Optimistic: disable immediately so a slow response can't cause a second click.
+    btn.disabled = true;
+    error.classList.add('hidden');
+    try {
+      const res = await fetch('{% url "power_shutdown" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken() },
+        credentials: 'same-origin',
+      });
+      if (res.ok) {
+        btn.classList.add('hidden');
+        state.classList.remove('hidden');
+      } else {
+        btn.disabled = false;
+        error.classList.remove('hidden');
+      }
+    } catch (e) {
+      btn.disabled = false;
+      error.classList.remove('hidden');
+    }
+  });
+})();
+</script>
 {% endblock %}

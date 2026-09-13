@@ -3,7 +3,8 @@ Views for the Tinko core application.
 """
 
 from django.shortcuts import render
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse, HttpResponseNotAllowed
+import subprocess
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.conf import settings
@@ -288,3 +289,25 @@ def settings_view(request: HttpRequest) -> HttpResponse:
     }
 
     return render(request, "settings/settings_page.html", context)
+
+
+def power_shutdown(request: HttpRequest):
+    """Safely power off the Raspberry Pi (systemctl poweroff, root via
+    passwordless sudoers). Launched detached so daphne going down mid-request
+    never kills the poweroff itself. The UI shows an optimistic message on
+    click; this endpoint only triggers the shutdown."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    try:
+        subprocess.Popen(
+            ["sudo", "-n", "systemctl", "poweroff"],
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return JsonResponse({"ok": True})
+    except OSError as e:
+        logger.error("Could not start shutdown: %s", e)
+        return JsonResponse(
+            {"ok": False, "error": _("Could not start shutdown")}, status=500
+        )
