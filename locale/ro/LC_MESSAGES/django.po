@@ -228,3 +228,70 @@ msgstr "Timer de Activitate"
 
 msgid "Visual countdown timer for classroom activities with RGB LED feedback"
 msgstr "Timer de numărătoare inversă vizual pentru activități în clasă cu feedback LED RGB"
+
+# Updates tab (templates/settings/updates_tab.html)
+msgid "System Updates"
+msgstr "Actualizări de sistem"
+
+msgid "Keep your system up to date for the best experience."
+msgstr "Mențineți sistemul la zi pentru cea mai bună experiență."
+
+msgid "Last code update"
+msgstr "Ultima actualizare a codului"
+
+msgid "Last successful update"
+msgstr "Ultima actualizare reușită"
+
+msgid "Recent Changes"
+msgstr "Modificări recente"
+
+msgid "Check for Updates"
+msgstr "Verificați actualizările"
+
+msgid "Update Now"
+msgstr "Actualizați acum"
+
+msgid "Check for updates first"
+msgstr "Verificați întâi actualizările"
+
+msgid "Checking for available updates..."
+msgstr "Se verifică actualizările disponibile..."
+
+msgid "Progress"
+msgstr "Progres"
+
+msgid "Update Log"
+msgstr "Jurnal de actualizare"
+
+msgid "Waiting for daemon..."
+msgstr "Se așteaptă serviciul de actualizare..."
+
+msgid "System is restarting. Reconnecting..."
+msgstr "Sistemul repornește. Se reconectează..."
+
+msgid "This may take a minute."
+msgstr "Aceasta poate dura un minut."
+
+msgid "Update Complete!"
+msgstr "Actualizare completă!"
+
+msgid "The system has been updated successfully."
+msgstr "Sistemul a fost actualizat cu succes."
+
+msgid "This page will refresh in"
+msgstr "Această pagină se va reîncărca în"
+
+msgid "seconds..."
+msgstr "secunde..."
+
+msgid "Refresh Now"
+msgstr "Reîncarcă acum"
+
+msgid "Update Failed"
+msgstr "Actualizare eșuată"
+
+msgid "Retry Update"
+msgstr "Reîncearcă actualizarea"
+
+msgid "Cancel"
+msgstr "Anulează"

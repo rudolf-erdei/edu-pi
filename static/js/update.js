@@ -2,15 +2,15 @@ const API_BASE = '/updates';
 const WS_BASE = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/updates/`;
 
 const STAGES = [
-    { id: 'check_git', label: 'Check git repository' },
-    { id: 'stop_service', label: 'Stop service' },
-    { id: 'pull', label: 'Pull latest changes' },
-    { id: 'dependencies', label: 'Update dependencies' },
-    { id: 'migrations', label: 'Run migrations' },
-    { id: 'static', label: 'Collect static files' },
-    { id: 'translations', label: 'Compile translations' },
-    { id: 'wifi_connect', label: 'Update wifi-connect files' },
-    { id: 'restart_service', label: 'Restart service' },
+    { id: 'check_git', label: gettext('Check git repository') },
+    { id: 'stop_service', label: gettext('Stop service') },
+    { id: 'pull', label: gettext('Pull latest changes') },
+    { id: 'dependencies', label: gettext('Update dependencies') },
+    { id: 'migrations', label: gettext('Run migrations') },
+    { id: 'static', label: gettext('Collect static files') },
+    { id: 'translations', label: gettext('Compile translations') },
+    { id: 'wifi_connect', label: gettext('Update wifi-connect files') },
+    { id: 'restart_service', label: gettext('Restart service') },
 ];
 
 let socket = null;
@@ -136,7 +136,7 @@ async function checkUpdates() {
         const res = await fetch(`${API_BASE}/check/`);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            showCheckResult('error', err.error || 'Server error');
+            showCheckResult('error', gettext(err.error) || gettext('Server error'));
             showState('idle');
             return;
         }
@@ -144,29 +144,31 @@ async function checkUpdates() {
 
         if (data.available) {
             const n = data.commits.length;
-            showCheckResult('available', `${n} update${n === 1 ? '' : 's'} available`);
+            const msg = ngettext('%s update available', '%s updates available', n)
+                .replace('%s', String(n));
+            showCheckResult('available', msg);
             elements.commitList.innerHTML = data.commits.map(c => `<li>${c}</li>`).join('');
             elements.commitListWrap.classList.remove('hidden');
             setUpdateEnabled(true);
         } else {
-            showCheckResult('ok', 'System is up to date!');
+            showCheckResult('ok', gettext('System is up to date!'));
             setUpdateEnabled(false);
         }
         showState('idle');
     } catch (e) {
-        showCheckResult('error', 'Error checking for updates');
+        showCheckResult('error', gettext('Error checking for updates'));
         showState('idle');
     }
 }
 
 async function startUpdate() {
-    if (!confirm('This will restart the service. Continue?')) return;
+    if (!confirm(gettext('This will restart the service. Continue?'))) return;
 
     try {
         const res = await fetch(`${API_BASE}/start/`, { method: 'POST' });
         const resJson = await res.json().catch(() => ({}));
         if (!res.ok) {
-            alert(resJson.error);
+            alert(gettext(resJson.error) || gettext('Server error'));
             return;
         }
 
@@ -176,7 +178,7 @@ async function startUpdate() {
         initStages();
         connectWebSocket();
     } catch (e) {
-        alert('Error starting update');
+        alert(gettext('Error starting update'));
         showState('idle');
     }
 }
@@ -264,7 +266,7 @@ function failUpdate(error) {
     stopPolling();
     if (socket) socket.close();
     showState('failed');
-    elements.errorDetails.innerText = error || 'Unknown error occurred during update.';
+    elements.errorDetails.innerText = gettext(error) || gettext('Unknown error occurred during update.');
 }
 
 elements.btnCheck.onclick = checkUpdates;

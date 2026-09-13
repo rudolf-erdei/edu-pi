@@ -19,6 +19,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
+from django.views.i18n import JavaScriptCatalog
 
 from core.edupi_core.views import home_view, settings_view
 from core.plugin_system.views import (
@@ -32,6 +33,8 @@ urlpatterns = [
     path("", home_view, name="home"),
     # Language switcher
     path("i18n/", include("django.conf.urls.i18n")),
+    # Translation catalog for JavaScript (gettext/ngettext in static JS)
+    path("jsi18n/", JavaScriptCatalog.as_view(), name="javascript-catalog"),
     # System updates
     path("updates/", include("core.update_system.urls")),
     # Plugin URLs - plugins register under /plugins/<author>/<plugin>/
