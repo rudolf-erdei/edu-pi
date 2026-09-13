@@ -127,7 +127,7 @@ pull_latest() {
         STASHED=1
     fi
 
-    if timeout 60 run_as_user "cd '$INSTALL_DIR' && GIT_TERMINAL_PROMPT=0 git pull"; then
+    if run_as_user "cd '$INSTALL_DIR' && timeout 60 GIT_TERMINAL_PROMPT=0 git pull"; then
         log_success "Latest changes pulled successfully"
         update_status "pull" "completed"
     else
@@ -401,9 +401,16 @@ update_python_capabilities() {
 
     # Resolve the real interpreter path (uv/venv python is a symlink).
     PYTHON_BIN=$(run_as_user "cd '$INSTALL_DIR' && uv run python -c 'import sys; print(sys.executable)' 2>/dev/null")
+    # setcap refuses symlinks, so resolve to the real binary underneath.
+    PYTHON_BIN=$(realpath "$PYTHON_BIN" 2>/dev/null || echo "$PYTHON_BIN")
     if [[ -n "$PYTHON_BIN" && -f "$PYTHON_BIN" ]]; then
-        setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN"
-        log_success "Capabilities set for $PYTHON_BIN"
+        if setcap 'cap_net_bind_service=+ep' "$PYTHON_BIN" 2>/dev/null; then
+            log_success "Capabilities set for $PYTHON_BIN"
+        else
+            # AmbientCapabilities in tinko.service already covers port 80;
+            # setcap is belt-and-suspenders only, so it must never fail the update.
+            log_warning "Could not set capabilities (non-fatal - AmbientCapabilities covers port 80)"
+        fi
     else
         log_warning "Could not find Python binary to set capabilities"
         log_info "Daphne uses AmbientCapabilities, so this is non-fatal"
