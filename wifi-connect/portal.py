@@ -183,12 +183,30 @@ def validate_wifi_input(ssid: str, password: str) -> bool:
             return False
     return True
 
+def _in_hotspot_mode():
+    """True when wlan0 is associated to the Tinko-Setup hotspot (AP mode)."""
+    try:
+        state = subprocess.check_output(
+            ['nmcli', '-g', 'GENERAL.STATE', 'device', 'show', 'wlan0'], text=True, timeout=5
+        ).strip()
+        conn = subprocess.check_output(
+            ['nmcli', '-g', 'GENERAL.CONNECTION', 'device', 'show', 'wlan0'], text=True, timeout=5
+        ).strip()
+        return state.startswith('connected') and conn == 'Tinko-Setup'
+    except Exception:
+        return False
+
+
 # Helper function to ask NetworkManager for nearby Wi-Fi networks
 def get_available_ssids():
+    # A single radio cannot scan while serving the hotspot — skip the scan
+    # instead of blocking the page render on a doomed nmcli call.
+    if _in_hotspot_mode():
+        return []
     try:
         # Run the nmcli command to list only the SSIDs
-        result = subprocess.check_output(['nmcli', '-t', '-f', 'SSID', 'dev', 'wifi'], text=True)
-        
+        result = subprocess.check_output(['nmcli', '-t', '-f', 'SSID', 'dev', 'wifi'], text=True, timeout=8)
+
         # Split the output by line
         ssids = result.split('\n')
         
@@ -249,6 +267,8 @@ WAIT_PAGE = """
 @app.route('/gen_204')
 @app.route('/hotspot-detect.html')
 @app.route('/connecttest.txt')
+@app.route('/ncsi.txt')
+@app.route('/library/test/success.html')
 def captive_portal_redirect():
     return redirect('http://10.42.0.1/', code=302)
 
@@ -307,15 +327,23 @@ if __name__ == '__main__':
                 pass  # Suppress access logs for the redirect server
 
         def run_https():
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            ctx.load_cert_chain(CERT_PATH, KEY_PATH)
-            server = http.server.HTTPServer(('0.0.0.0', 443), RedirectHandler)
-            server.socket = ctx.wrap_socket(server.socket, server_side=True)
-            server.serve_forever()
+            try:
+                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                ctx.load_cert_chain(CERT_PATH, KEY_PATH)
+                server = http.server.HTTPServer(('0.0.0.0', 443), RedirectHandler)
+                server.socket = ctx.wrap_socket(server.socket, server_side=True)
+                server.serve_forever()
+            except OSError as e:
+                # Port 443 already taken (e.g. daphne HTTPS). HTTPS captive
+                # detection degrades to HTTP-only; do not crash the portal.
+                print(f"HTTPS redirect server could not bind port 443: {e}")
+            except Exception as e:
+                print(f"HTTPS redirect server error: {e}")
 
         https_thread = threading.Thread(target=run_https, daemon=True)
         https_thread.start()
         print("HTTPS redirect server started on port 443")
 
-    # Start the main HTTP Flask server on port 80
-    app.run(host='0.0.0.0', port=80)
+    # Start the main HTTP Flask server on port 80 (override for testing).
+    PORTAL_PORT = int(os.environ.get('PORTAL_PORT', '80'))
+    app.run(host='0.0.0.0', port=PORTAL_PORT)

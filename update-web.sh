@@ -175,12 +175,158 @@ collect_static() {
     update_status "static" "completed"
 }
 
+# Ensure the NetworkManager / dnsmasq system configs the captive portal
+# depends on are present and idempotent (port 53 for the wildcard dnsmasq,
+# upstream DNS for the Pi, no connectivity checks that would cycle the hotspot).
+ensure_nm_configs() {
+    log_info "Ensuring NM/dnsmasq captive portal configs..."
+    WIFI_DIR="/home/${SERVICE_USER}"
+
+    if ! command -v dnsmasq &> /dev/null; then
+        log_info "dnsmasq not found, installing..."
+        apt-get install -y dnsmasq
+        if [[ ! -f /etc/dnsmasq.conf.backup ]]; then
+            cp /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
+        fi
+    fi
+    if ! command -v nft &> /dev/null; then
+        log_info "nftables not found, installing..."
+        apt-get install -y nftables
+    fi
+    if ! command -v iptables &> /dev/null; then
+        log_info "iptables not found, installing iptables-nft wrapper..."
+        apt-get install -y iptables
+    fi
+
+    # Wildcard DNS redirect config (idempotent)
+    if ! grep -q "address=/#/10.42.0.1" /etc/dnsmasq.conf 2>/dev/null; then
+        log_info "Configuring dnsmasq for captive portal..."
+        cat << 'EOF' | tee -a /etc/dnsmasq.conf > /dev/null
+
+# Tinko Captive Portal Configuration
+address=/#/10.42.0.1
+interface=wlan0
+bind-interfaces
+except-interface=lo
+EOF
+    fi
+    grep -q "interface=wlan0" /etc/dnsmasq.conf 2>/dev/null || echo "interface=wlan0" | tee -a /etc/dnsmasq.conf > /dev/null
+    grep -q "bind-interfaces" /etc/dnsmasq.conf 2>/dev/null || echo "bind-interfaces" | tee -a /etc/dnsmasq.conf > /dev/null
+    grep -q "except-interface=lo" /etc/dnsmasq.conf 2>/dev/null || echo "except-interface=lo" | tee -a /etc/dnsmasq.conf > /dev/null
+
+    # dnsmasq must only run in hotspot mode — never at boot.
+    if systemctl is-enabled dnsmasq 2>/dev/null | grep -q "enabled"; then
+        systemctl stop dnsmasq 2>/dev/null || true
+        systemctl disable dnsmasq 2>/dev/null || true
+        log_info "Disabled dnsmasq auto-start (will only run in hotspot mode)"
+    fi
+
+    # NM's internal dnsmasq must give up port 53 (DHCP only).
+    mkdir -p /etc/NetworkManager/dnsmasq-shared.d
+    if [[ ! -f /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf ]]; then
+        echo "port=0" | tee /etc/NetworkManager/dnsmasq-shared.d/no-dns.conf > /dev/null
+        log_info "Disabled DNS on NetworkManager's internal dnsmasq (port 53 conflict prevention)"
+    fi
+
+    # Pi's own resolver must bypass any local dnsmasq.
+    mkdir -p /etc/NetworkManager/conf.d
+    if [[ ! -f /etc/NetworkManager/conf.d/dns-upstream.conf ]]; then
+        tee /etc/NetworkManager/conf.d/dns-upstream.conf > /dev/null << 'EOF'
+[global-dns-domain-*]
+servers=8.8.8.8,8.8.4.4
+EOF
+        log_info "Configured NM to use upstream DNS (8.8.8.8) bypassing local dnsmasq"
+    fi
+
+    # systemd-resolved stub listener would hijack DNS to 127.0.0.53.
+    if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+        mkdir -p /etc/systemd/resolved.conf.d
+        if [[ ! -f /etc/systemd/resolved.conf.d/no-stub.conf ]]; then
+            tee /etc/systemd/resolved.conf.d/no-stub.conf > /dev/null << 'EOF'
+[Resolve]
+DNSStubListener=no
+EOF
+            systemctl restart systemd-resolved 2>/dev/null || true
+            log_info "Disabled systemd-resolved stub listener (prevents 127.0.0.53 DNS hijack)"
+        fi
+    fi
+
+    # No NM connectivity checks -> no hotspot cycling.
+    mkdir -p /etc/NetworkManager/conf.d
+    if [[ ! -f /etc/NetworkManager/conf.d/no-connectivity-check.conf ]]; then
+        tee /etc/NetworkManager/conf.d/no-connectivity-check.conf > /dev/null << 'EOF'
+[connectivity]
+interval=0
+EOF
+        log_info "Disabled NetworkManager connectivity checks (prevents hotspot disconnects)"
+    fi
+
+    # TLS cert shared between portal HTTPS redirect and daphne HTTPS.
+    if [[ ! -f /etc/tinko-portal/cert.pem ]] || [[ ! -f /etc/tinko-portal/key.pem ]]; then
+        log_info "Generating self-signed TLS certificate for captive portal..."
+        mkdir -p /etc/tinko-portal
+        openssl req -x509 -newkey rsa:2048 -keyout /etc/tinko-portal/key.pem \
+            -out /etc/tinko-portal/cert.pem -days 3650 -nodes \
+            -subj "/CN=Tinko-Setup" 2>/dev/null
+        chmod 644 /etc/tinko-portal/cert.pem
+        chmod 600 /etc/tinko-portal/key.pem
+        chown ${SERVICE_USER}:${SERVICE_USER} /etc/tinko-portal/key.pem
+    fi
+
+    # Cert must be readable by the service user (daphne runs as that user).
+    chown ${SERVICE_USER}:${SERVICE_USER} /etc/tinko-portal/key.pem 2>/dev/null || true
+
+    nmcli general reload 2>/dev/null || true
+}
+
+# Ensure tinko-wifi.service is installed and enabled, in sync with the
+# version written by install-raspberry-pi.sh / update.sh.
+ensure_wifi_service() {
+    log_info "Ensuring WiFi setup service is present and enabled..."
+    WIFI_DIR="/home/${SERVICE_USER}"
+
+    if [[ ! -f "$WIFI_DIR/startup_check.sh" ]]; then
+        log_warning "startup_check.sh not found in $WIFI_DIR, skipping service creation"
+        return
+    fi
+
+    tee /etc/systemd/system/tinko-wifi.service > /dev/null << EOF
+[Unit]
+Description=Tinko Wi-Fi Captive Portal Check
+After=NetworkManager.service
+Before=tinko.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/bin/bash $WIFI_DIR/startup_check.sh
+User=root
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=120
+StartLimitBurst=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable tinko-wifi.service
+    log_success "WiFi setup service ensured and enabled"
+}
+
 # Update wifi-connect files
 update_wifi_connect() {
     update_status "wifi_connect" "in_progress"
     log_info "Updating wifi-connect files..."
 
-    WIFI_DIR="$HOME"
+    # The daemon runs as root, so $HOME is /root — NOT the install user's
+    # home. The tinko-wifi.service unit points at /home/<user>/startup_check.sh,
+    # so wifi files MUST go to the service user's home or the boot-time portal
+    # silently keeps running stale scripts.
+    WIFI_DIR="/home/${SERVICE_USER}"
 
     if [[ ! -d "$INSTALL_DIR/wifi-connect" ]]; then
         log_warning "wifi-connect directory not found in repo, skipping"
@@ -195,9 +341,13 @@ update_wifi_connect() {
     sudo chmod +x "$WIFI_DIR/startup_check.sh"
     sudo chmod +x "$WIFI_DIR/wifi_worker.sh"
 
-    sudo chown $USER:$USER "$WIFI_DIR/portal.py"
-    sudo chown $USER:$USER "$WIFI_DIR/startup_check.sh"
-    sudo chown $USER:$USER "$WIFI_DIR/wifi_worker.sh"
+    # $USER is empty inside the root daemon — always use the service user.
+    sudo chown ${SERVICE_USER}:${SERVICE_USER} "$WIFI_DIR/portal.py"
+    sudo chown ${SERVICE_USER}:${SERVICE_USER} "$WIFI_DIR/startup_check.sh"
+    sudo chown ${SERVICE_USER}:${SERVICE_USER} "$WIFI_DIR/wifi_worker.sh"
+
+    ensure_nm_configs
+    ensure_wifi_service
 
     log_success "wifi-connect files updated in $WIFI_DIR"
     update_status "wifi_connect" "completed"

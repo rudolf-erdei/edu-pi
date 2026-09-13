@@ -263,6 +263,8 @@ ExecStart=/bin/bash $WIFI_DIR/startup_check.sh
 User=root
 Restart=on-failure
 RestartSec=10
+StartLimitIntervalSec=120
+StartLimitBurst=3
 StandardOutput=journal
 StandardError=journal
 

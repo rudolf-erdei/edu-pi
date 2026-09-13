@@ -146,11 +146,24 @@ sudo systemctl restart tinko.service
 what happens now when a teacher plugs it in:
 
 - Power On: The Pi boots up.
-- The Wait: The system waits for the network to initialize (up to 120 seconds for `network-online.target`).
-- The Check (startup_check.sh): It pings the internet.
+- The Check (startup_check.sh): It waits for NetworkManager (`nm-online`), then
+  does a **retried HTTPS probe** (curl, not ping — ICMP is often blocked on
+  school networks).
     - If online: It exits immediately, systemd starts `tinko.service`, and the Django app boots safely. The teacher goes to http://tinko.local.
-    - If offline: It spins up the "Tinko-Setup" hotspot and the Flask portal. **Systemd waits for this service to finish** (Type=oneshot) before starting Django, preventing a port 80 conflict.
+    - If wlan0 is already on a real network but the probe fails: it STILL boots
+      normally — it never tears down a live connection (this was the false
+      "setup mode" bug).
+    - If truly offline: It spins up the "Tinko-Setup" hotspot and the Flask portal, **verifying each step** (hotspot IP, dnsmasq :53 bind, portal HTTP 200) and retrying before declaring failure. **Systemd waits for this service to finish** (Type=oneshot) before starting Django, preventing a port 80 conflict.
     - The Handoff (wifi_worker.sh): The teacher enters the credentials. The worker tears down the hotspot, connects to the school WiFi, and kills the Flask portal. The service exits, and Django starts via systemd ordering.
+    - Watchdog: after 10 minutes with no handoff, setup mode is torn down cleanly
+      (portal killed, dnsmasq stopped, hotspot dropped so a saved network can
+      reconnect), then Django starts.
+
+Debug the gate decision without touching the network:
+
+```bash
+sudo TINKO_DRY=1 /bin/bash /home/tinko/startup_check.sh
+```
 
 ## Hotspot Credentials
 
