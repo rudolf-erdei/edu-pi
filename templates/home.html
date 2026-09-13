@@ -79,25 +79,17 @@
     <div class="card-body p-4">
       <div class="card-actions justify-center">
         <span class="badge badge-xl py-6 shadow bg-gray-100">{% trans "Active Apps" %}: {{ plugin_count }}</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Power -->
-  <div class="card bg-base-100 shadow-lg mt-8">
-    <div class="card-body p-4">
-      <div class="card-actions justify-center flex-col">
         <button id="btn-shutdown" class="btn btn-error btn-outline"
           data-confirm="{% trans 'Turn off Tinko? All activities will stop.' %}">
           {% trans "Shutdown" %}
         </button>
-        <p id="shutdown-state" class="hidden text-sm text-success mt-1">
-          {% trans "Tinko is shutting down..." %}
-        </p>
-        <p id="shutdown-error" class="hidden text-sm text-error mt-1">
-          {% trans "Could not start shutdown. Try again." %}
-        </p>
       </div>
+      <p id="shutdown-state" class="hidden text-sm text-success text-center mt-2">
+        {% trans "Tinko is shutting down..." %}
+      </p>
+      <p id="shutdown-error" class="hidden text-sm text-error text-center mt-2">
+        {% trans "Could not start shutdown. Try again." %}
+      </p>
     </div>
   </div>
 </div>
