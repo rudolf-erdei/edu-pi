@@ -93,6 +93,28 @@ def test_failed_terminal_status_syncs_error(client, tmp_path):
     assert record.error_message == "uv: command not found"
 
 
+def test_javascript_catalog_serves_ro(client):
+    """The JS translation catalog (djangojs domain) serves the Romanian
+    translations used by update.js (stages, check result, confirmations)."""
+    from django.test import override_settings
+    from django.utils import translation
+
+    with override_settings(LANGUAGE_CODE="ro"):
+        with translation.override("ro"):
+            resp = client.get("/jsi18n/")
+
+    assert resp.status_code == 200, resp.content[:200]
+    # The catalog JSON escapes non-ASCII (ensure_ascii=True), e.g. ș -> ș.
+    # Browsers decode it; the test decodes it again to check readable output.
+    body = resp.content.decode().encode("utf-8").decode("unicode_escape")
+    for ro_string in (
+        '"Stop service": "Oprește serviciul"',
+        '"%s actualizare disponibilă"',
+        '"Aceasta va reporni serviciul. Continuați?"',
+    ):
+        assert ro_string in body, ro_string
+
+
 @pytest.mark.django_db
 def test_last_update_info_returns_completed_db_row(client, tmp_path):
     """The last-update endpoint reports the most recent completed row and does

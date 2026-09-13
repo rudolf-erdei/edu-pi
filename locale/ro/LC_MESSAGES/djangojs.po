@@ -1,0 +1,73 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Tinko\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1?0:(((n%100>19)||((n%100==0)&&(n!=0)))?2:1));\n"
+
+# JS strings (static/js/update.js) - djangojs domain
+# Update stage labels
+msgid "Check git repository"
+msgstr "Verifică repository-ul git"
+
+msgid "Stop service"
+msgstr "Oprește serviciul"
+
+msgid "Pull latest changes"
+msgstr "Descarcă ultimele modificări"
+
+msgid "Update dependencies"
+msgstr "Actualizează dependențele"
+
+msgid "Run migrations"
+msgstr "Rulează migrările"
+
+msgid "Collect static files"
+msgstr "Colectează fișierele statice"
+
+msgid "Compile translations"
+msgstr "Compilează traducerile"
+
+msgid "Update wifi-connect files"
+msgstr "Actualizează fișierele wifi-connect"
+
+msgid "Restart service"
+msgstr "Repornește serviciul"
+
+# Check result
+msgid "System is up to date!"
+msgstr "Sistemul este la zi!"
+
+msgid "%s update available"
+msgid_plural "%s updates available"
+msgstr[0] "%s actualizare disponibilă"
+msgstr[1] "%s actualizări disponibile"
+msgstr[2] "%s de actualizări disponibile"
+
+msgid "Error checking for updates"
+msgstr "Eroare la verificarea actualizărilor"
+
+msgid "Server error"
+msgstr "Eroare de server"
+
+# Start / fail
+msgid "This will restart the service. Continue?"
+msgstr "Aceasta va reporni serviciul. Continuați?"
+
+msgid "Error starting update"
+msgstr "Eroare la pornirea actualizării"
+
+msgid "Unknown error occurred during update."
+msgstr "A apărut o eroare necunoscută în timpul actualizării."
+
+# Backend error strings surfaced in the UI (views.py)
+msgid "Updates can only be run every 5 minutes"
+msgstr "Actualizările pot fi rulate doar la fiecare 5 minute"
+
+msgid "Update already in progress"
+msgstr "O actualizare este deja în curs"
+
+msgid "Git fetch timed out — check internet connection"
+msgstr "Expirare la descărcarea datelor git — verificați conexiunea la internet"
