@@ -37,6 +37,11 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Load update infrastructure setup (tinko-update.service daemon install)
+# Requires INSTALL_DIR and the log functions above.
+# shellcheck source=scripts/update_infra.sh
+source "$INSTALL_DIR/scripts/update_infra.sh"
+
 # Check if running as root
 check_root() {
     if [[ $EUID -eq 0 ]]; then
@@ -446,6 +451,8 @@ ExecStart=/bin/bash $WIFI_DIR/startup_check.sh
 User=root
 Restart=on-failure
 RestartSec=10
+StartLimitIntervalSec=120
+StartLimitBurst=3
 StandardOutput=journal
 StandardError=journal
 
@@ -878,6 +885,7 @@ main() {
     setup_wifi_connect
     test_installation
     setup_systemd_service
+    setup_update_infrastructure
     restart_service_after_update
     
     print_summary

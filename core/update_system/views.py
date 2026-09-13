@@ -18,6 +18,41 @@ def write_trigger_file(update_id):
     with open(TRIGGER_FILE, 'w') as f:
         json.dump({"update_id": str(update_id), "created_at": datetime.utcnow().isoformat() + "Z"}, f)
 
+def reconcile_update_records():
+    """Sync UpdateStatus DB rows with the daemon's status file.
+
+    The daemon (a stdlib-only process) writes the final result to status.json
+    but cannot touch the DB, so we reconcile here on the next request:
+    - a terminal status.json (completed/failed) with an update_id syncs its row;
+    - in-progress rows older than 24h are marked failed (abandoned after a
+      daemon crash). Running updates are never touched.
+    """
+    try:
+        if STATUS_FILE.exists():
+            with open(STATUS_FILE, 'r') as f:
+                data = json.load(f)
+            update_id = data.get("update_id")
+            final_status = data.get("status")
+            if update_id is not None and final_status in ("completed", "failed"):
+                updates = {
+                    "status": final_status,
+                    "completed_at": timezone.now(),
+                }
+                if final_status == "failed":
+                    updates["error_message"] = data.get("error")
+                UpdateStatus.objects.filter(id=update_id, status="in_progress").update(**updates)
+    except (json.JSONDecodeError, IOError):
+        pass
+
+    UpdateStatus.objects.filter(
+        status="in_progress",
+        started_at__lt=timezone.now() - timedelta(hours=24),
+    ).update(
+        status="failed",
+        completed_at=timezone.now(),
+        error_message="Update abandoned (stale record)",
+    )
+
 def check_for_updates():
     """Runs git commands to see if the repo is ahead of origin/master."""
     repo_path = Path("/home/tinko/edu-pi")
@@ -54,6 +89,10 @@ def check_updates(request):
 
 def start_update(request):
     """Trigger the system update process."""
+    # 0. Reconcile DB records with the daemon's last result first, so a
+    # previous run (even one that died) never blocks future updates.
+    reconcile_update_records()
+
     # 1. Rate limit check (5 minutes)
     last_update = UpdateStatus.objects.filter(
         status__in=['completed', 'in_progress']
@@ -85,6 +124,8 @@ def start_update(request):
 
 def get_update_status(request):
     """Poll the current status from the status file."""
+    reconcile_update_records()
+
     if not STATUS_FILE.exists():
         return JsonResponse({'status': 'idle', 'stage': None})
 

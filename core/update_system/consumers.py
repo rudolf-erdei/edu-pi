@@ -1,5 +1,5 @@
+import asyncio
 import json
-import os
 from pathlib import Path
 from channels.generic.websocket import AsyncWebsocketConsumer
 
@@ -8,17 +8,15 @@ STATUS_FILE = Path("/run/tinko-update/status.json")
 
 class SystemUpdateConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        # Simple auth check (assumed handled by AuthMiddlewareStack)
-        self.group_name = "system_updates"
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
-
-        # Send initial status
-        status = self.get_status()
-        await self.send(text_data=json.dumps(status))
+        # Push live status to this client every second. The daemon is a
+        # separate process and cannot broadcast over the channels layer, so
+        # we poll the status file the daemon owns.
+        self._poll_task = asyncio.ensure_future(self._poll_status())
 
     async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        if hasattr(self, "_poll_task"):
+            self._poll_task.cancel()
 
     def get_status(self):
         """Reads the current status from the JSON file."""
@@ -30,19 +28,10 @@ class SystemUpdateConsumer(AsyncWebsocketConsumer):
         except Exception:
             return {"status": "idle", "stage": None}
 
-    async def update_message(self, event):
-        """Handle status updates broadcast from the daemon."""
-        # In this implementation, the daemon doesn't use channel_layer.group_send
-        # since it's a separate process.
-        # Instead, the consumer will poll the file.
-        pass
-
-    async def stream_logs(self):
-        """
-        The daemon writes to status.json.
-        We can use a simple loop to poll the file and send updates.
-        This is more efficient than a full-blown watchdog in a consumer.
-        """
-        # This logic is actually triggered by a separate loop or
-        # the consumer simply polls.
-        pass
+    async def _poll_status(self):
+        try:
+            while True:
+                await self.send(text_data=json.dumps(self.get_status()))
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            pass
