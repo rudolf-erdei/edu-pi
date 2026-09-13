@@ -15,11 +15,11 @@ const STAGES = [
 
 let socket = null;
 let pollingInterval = null;
+let currentUpdateId = null;
 
 const elements = {
     idle: document.getElementById('state-idle'),
     checking: document.getElementById('state-checking'),
-    available: document.getElementById('state-available'),
     updating: document.getElementById('state-updating'),
     reconnecting: document.getElementById('state-reconnecting'),
     completed: document.getElementById('state-completed'),
@@ -27,11 +27,12 @@ const elements = {
 
     btnCheck: document.getElementById('btn-check'),
     btnUpdate: document.getElementById('btn-update'),
-    btnUpdateConfirm: document.getElementById('btn-update-confirm'),
     btnRetry: document.getElementById('btn-retry'),
 
+    checkResult: document.getElementById('check-result'),
+    checkResultBox: document.getElementById('check-result-box'),
+    commitListWrap: document.getElementById('commit-list-wrap'),
     commitList: document.getElementById('commit-list'),
-    updateInfo: document.getElementById('update-info-text'),
     stagesList: document.getElementById('stages-list'),
     progressCount: document.getElementById('progress-count'),
     updateLog: document.getElementById('update-log'),
@@ -40,18 +41,49 @@ const elements = {
 };
 
 function showState(state) {
-    Object.values(elements).forEach(el => {
-        if (el && el.id && el.classList && el.classList.contains('hidden')) {
-            // ignore logic
-        }
-    });
-
-    const states = ['idle', 'checking', 'available', 'updating', 'reconnecting', 'completed', 'failed'];
+    const states = ['idle', 'checking', 'updating', 'reconnecting', 'completed', 'failed'];
     states.forEach(s => {
         if (elements[s]) elements[s].classList.add('hidden');
     });
 
     if (elements[state]) elements[state].classList.remove('hidden');
+}
+
+// Show the result of "Check for Updates" inline. Enables "Update Now" only
+// when an update is actually available (`type === 'available'`).
+function showCheckResult(type, message) {
+    const box = elements.checkResultBox;
+    box.className = 'flex items-center gap-4 p-4 rounded-lg border';
+    if (type === 'available') {
+        box.classList.add('bg-info/10', 'border-info/20', 'text-info');
+    } else if (type === 'error') {
+        box.classList.add('bg-error/10', 'border-error/20', 'text-error');
+    } else {
+        box.classList.add('bg-success/10', 'border-success/20', 'text-success');
+    }
+    box.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span class="font-semibold">${message}</span>`;
+    elements.checkResult.classList.remove('hidden');
+    if (type !== 'available') {
+        elements.commitListWrap.classList.add('hidden');
+    }
+}
+
+function setUpdateEnabled(enabled) {
+    elements.btnUpdate.disabled = !enabled;
+    elements.btnUpdate.classList.toggle('opacity-50', !enabled);
+}
+
+// True when the status belongs to the run we started (or carries no id).
+// The status file keeps the PREVIOUS run's terminal state until the daemon
+// overwrites it, so we must not treat a stale completed/failed as ours.
+function isCurrentUpdate(data) {
+    return currentUpdateId === null
+        || data.update_id === undefined
+        || String(data.update_id) === String(currentUpdateId);
 }
 
 function initStages() {
@@ -99,24 +131,25 @@ async function checkUpdates() {
         const res = await fetch(`${API_BASE}/check/`);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alert(err.error || 'Server error');
+            showCheckResult('error', err.error || 'Server error');
             showState('idle');
             return;
         }
         const data = await res.json();
 
         if (data.available) {
-            showState('available');
-            elements.updateInfo.innerText = `Update available (${data.commits.length} commits ahead)`;
+            const n = data.commits.length;
+            showCheckResult('available', `${n} update${n === 1 ? '' : 's'} available`);
             elements.commitList.innerHTML = data.commits.map(c => `<li>${c}</li>`).join('');
-            elements.btnUpdate.disabled = false;
-            elements.btnUpdate.classList.remove('opacity-50');
+            elements.commitListWrap.classList.remove('hidden');
+            setUpdateEnabled(true);
         } else {
-            alert('System is up to date!');
-            showState('idle');
+            showCheckResult('ok', 'System is up to date!');
+            setUpdateEnabled(false);
         }
+        showState('idle');
     } catch (e) {
-        alert('Error checking for updates');
+        showCheckResult('error', 'Error checking for updates');
         showState('idle');
     }
 }
@@ -126,12 +159,14 @@ async function startUpdate() {
 
     try {
         const res = await fetch(`${API_BASE}/start/`, { method: 'POST' });
+        const resJson = await res.json().catch(() => ({}));
         if (!res.ok) {
-            const err = await res.json();
-            alert(err.error);
+            alert(resJson.error);
             return;
         }
 
+        if (socket) socket.close();
+        currentUpdateId = resJson.update_id;
         showState('updating');
         initStages();
         connectWebSocket();
@@ -146,6 +181,10 @@ function connectWebSocket() {
 
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        // Ignore the previous run's leftover terminal state (race right after
+        // starting a new update) and never react to a different run's result.
+        if (!isCurrentUpdate(data)) return;
+
         updateProgressUI(data);
 
         if (data.status === 'completed') {
@@ -173,6 +212,8 @@ function startPolling() {
         try {
             const res = await fetch(`${API_BASE}/status/`);
             const data = await res.json();
+
+            if (!isCurrentUpdate(data)) return;
 
             if (data.status === 'completed') {
                 stopPolling();
@@ -222,5 +263,5 @@ function failUpdate(error) {
 }
 
 elements.btnCheck.onclick = checkUpdates;
-elements.btnUpdateConfirm.onclick = startUpdate;
+elements.btnUpdate.onclick = startUpdate;
 elements.btnRetry.onclick = startUpdate;

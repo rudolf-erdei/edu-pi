@@ -15,9 +15,19 @@
                     </div>
                 </div>
                 <p class="text-lg mb-8 opacity-70">{% trans "Keep your system up to date for the best experience." %}</p>
+
+                <!-- Check result: shown after "Check for Updates" -->
+                <div id="check-result" class="hidden mb-6 text-left">
+                    <div id="check-result-box" class="flex items-center gap-4 p-4 rounded-lg border"></div>
+                    <div id="commit-list-wrap" class="hidden mt-4 bg-base-200 p-4 rounded-lg">
+                        <h3 class="text-sm font-bold uppercase opacity-50 mb-2">{% trans "Recent Changes" %}</h3>
+                        <ul id="commit-list" class="text-sm space-y-1 font-mono"></ul>
+                    </div>
+                </div>
+
                 <div class="flex justify-center gap-4">
                     <button id="btn-check" class="btn btn-primary">{% trans "Check for Updates" %}</button>
-                    <button id="btn-update" class="btn btn-outline opacity-50" disabled>{% trans "Update Now" %}</button>
+                    <button id="btn-update" class="btn btn-outline opacity-50" disabled title="{% trans 'Check for updates first' %}">{% trans "Update Now" %}</button>
                 </div>
             </div>
 
@@ -25,23 +35,6 @@
             <div id="state-checking" class="hidden text-center py-12">
                 <span class="loading loading-spinner loading-lg"></span>
                 <p class="mt-4 text-lg">{% trans "Checking for available updates..." %}</p>
-            </div>
-
-            <!-- Update Available State -->
-            <div id="state-available" class="hidden space-y-6">
-                <div class="bg-info/10 p-4 rounded-lg border border-info/20 flex items-center gap-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span class="font-semibold" id="update-info-text">{% trans "Update available!" %}</span>
-                </div>
-                <div class="bg-base-200 p-4 rounded-lg overflow-hidden">
-                    <h3 class="text-sm font-bold uppercase opacity-50 mb-2">{% trans "Recent Changes" %}</h3>
-                    <ul id="commit-list" class="text-sm space-y-1 font-mono"></ul>
-                </div>
-                <div class="flex justify-center gap-4">
-                    <button id="btn-update-confirm" class="btn btn-primary">{% trans "Update Now" %}</button>
-                </div>
             </div>
 
             <!-- Updating State -->
