@@ -49,6 +49,11 @@ WorkingDirectory=$INSTALL_DIR
 ExecStart=/usr/bin/python3 $DAEMON_PATH
 Restart=always
 RestartSec=5
+# The daemon streams the update script's output into the status file and, in
+# passing, to its own stdout. Python block-buffers stdout when it is not a
+# terminal, so without this the journal shows nothing until the buffer flushes
+# -- and a daemon that dies mid-update leaves no trace at all in the log.
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
@@ -61,7 +66,14 @@ EOF
     # Start (or restart) the service. Restarting picks up new daemon code
     # after an update; recover_interrupted_update() in the daemon handles any
     # trigger left in-flight.
-    if sudo systemctl is-active --quiet tinko-update.service; then
+    #
+    # Never restart while an update is in flight. This function also runs at the
+    # start of a CLI update, so running update.sh by hand on a Pi that is
+    # updating itself from the dashboard would kill the running update and leave
+    # the dashboard saying "Update already in progress" with nothing behind it.
+    if [ -f /run/tinko-update/trigger ]; then
+        log_warning "An update is in flight; leaving tinko-update.service running"
+    elif sudo systemctl is-active --quiet tinko-update.service; then
         sudo systemctl restart tinko-update.service
     else
         sudo systemctl start tinko-update.service

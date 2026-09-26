@@ -1096,6 +1096,70 @@ needs it to exist; `migrate` creates it on a fresh install. Its untracked
 state is enforced by `.gitignore`, which also ignores the `.update-tmp-*`
 names the scripts use while the file is moved aside.
 
+#### Uploaded Files Are Never Touched by an Update
+
+`media/` holds what the running app writes for the teacher: the school logo
+uploaded from Settings → Global, and the audio the routines plugin speaks. The
+logo was tracked in git, so an update stashed the teacher's upload, the merge
+checked the committed copy back out over it, and the logo the school had chosen
+was replaced — the same class of bug as the database.
+
+Both update scripts therefore move **every file git still tracks under
+`media/`** out of the working tree for the duration of the pull
+(`hide_media`) and back afterwards on both paths (`restore_media`), with
+`recover_orphaned_media` putting back a file left aside by an update that died
+mid-pull. Like the database guard it never deletes: if a live file is present
+too, the leftover is kept as `*.update-tmp-*.recovered`.
+
+Two properties worth keeping:
+
+- The list of guarded files comes from `git ls-files`, not from a hard-coded
+  path, so generated audio (never tracked) is not copied around on every update
+  and a future upload location is covered automatically.
+- The guard **retires itself**. It exists because of one commit — the one that
+  untracks `media/` — whose merge deletes the tracked files from the working
+  tree. After that commit there is nothing tracked, the guard does nothing on
+  every later update, and there is no leftover mechanism to remove.
+
+Untracking is a deliberate two-step order, as it was for the database: the
+protection must be **running on the Pi** before the untrack commit lands, or
+that update's merge deletes the live logo before any code can save it. Step one
+ships the guard; step two (`git rm --cached media/…`, with `media/` in
+`.gitignore`) follows once the Pi has run the first.
+
+`media/` is consequently not tracked in git. Nothing needs it to exist up
+front: the logo upload and the TTS cache both create their directories, and a
+fresh clone simply has no `media/` until the first upload.
+
+#### An Interrupted Update Does Not Block the Next One
+
+The dashboard tracks an update with an `UpdateStatus` row (it must survive a
+reboot), while the run itself is tracked by the `trigger` and `status.json`
+files under `/run/tinko-update`, which does **not** survive a reboot. Switching
+the Pi off mid-update therefore left a row saying *in progress* with nothing
+behind it, and **Update Now** answered *Update already in progress* to every
+later attempt until the row was a day old — the only reconciliation rule was
+that 24-hour backstop.
+
+A run that is really in progress leaves both files behind, so
+`views.update_is_running()` asks for both: no trigger file (the daemon removes
+it only after the script is finished with it) or no `status.json` reading
+`in_progress` means nothing is running, and `reconcile_update_records()` marks
+such rows failed. The grace period before a row may be abandoned — two minutes
+— covers the moment between creating the row and the daemon reading the trigger,
+and a second teacher clicking at the same time. Failed rows do not count toward
+the 5-minute rate limit, so an abandoned attempt does not also cost the teacher
+five minutes. The 24-hour rule remains as a backstop for the case where the
+files are present but the daemon is permanently stuck.
+
+`tinko-update.service` sets `PYTHONUNBUFFERED=1`: Python block-buffers stdout
+when it is not a terminal, so without it the daemon's streamed log never reached
+the journal and an update that died mid-run left no trace to diagnose. For the
+same reason `setup_update_infrastructure()` no longer restarts the daemon while
+a trigger file is present — a CLI `update.sh` run on a Pi that is updating
+itself from the dashboard would otherwise kill the running update and leave
+exactly the abandoned record above.
+
 #### The Trigger Directory Is Owned by Two Users
 
 Web updates pass through `/run/tinko-update`: `tinko.service` (the web app, an

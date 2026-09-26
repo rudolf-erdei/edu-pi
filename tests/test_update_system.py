@@ -372,3 +372,143 @@ def test_daemon_survives_a_failed_chmod(tmp_path):
         update_daemon.ensure_directories()
 
     assert trigger.parent.is_dir()
+
+
+# --- Abandoned updates ------------------------------------------------------
+#
+# A run leaves two marks: the trigger file, which the daemon removes only after
+# the script has finished, and the status file it rewrites as it goes. Both live
+# on /run — a tmpfs. Switching the Pi off in the middle of an update wipes them
+# while the database row stays, and the dashboard then said "Update already in
+# progress" with nothing behind it until the 24h backstop expired.
+
+
+def _run_dir(tmp_path):
+    """Patch the trigger and status paths at a tmp directory."""
+    run_dir = tmp_path / "tinko-update"
+    run_dir.mkdir(exist_ok=True)
+    return (
+        mock.patch("core.update_system.views.TRIGGER_FILE", run_dir / "trigger"),
+        mock.patch("core.update_system.views.STATUS_FILE", run_dir / "status.json"),
+    )
+
+
+@pytest.mark.django_db
+def test_update_after_a_reboot_is_not_blocked(client, tmp_path):
+    """The reported bug: the row survived a reboot, /run did not."""
+    stale = UpdateStatus.objects.create(status="in_progress")
+    UpdateStatus.objects.filter(pk=stale.pk).update(
+        started_at=timezone.now() - timedelta(minutes=10)
+    )
+    trigger_patch, status_patch = _run_dir(tmp_path)  # both files absent
+
+    with trigger_patch, status_patch, mock.patch(
+        "core.update_system.views.write_trigger_file"
+    ) as trigger:
+        resp = client.post("/updates/start/")
+
+    assert resp.status_code == 200, resp.content
+    assert trigger.call_count == 1
+    stale.refresh_from_db()
+    assert stale.status == "failed"
+    assert "abandoned" in stale.error_message.lower()
+    assert UpdateStatus.objects.filter(status="in_progress").count() == 1
+
+
+@pytest.mark.django_db
+def test_a_running_update_is_still_refused(client, tmp_path):
+    """The check that matters: a real update must not be double-started."""
+    running = UpdateStatus.objects.create(status="in_progress")
+    UpdateStatus.objects.filter(pk=running.pk).update(
+        started_at=timezone.now() - timedelta(minutes=10)
+    )
+    trigger_patch, status_patch = _run_dir(tmp_path)
+    (tmp_path / "tinko-update" / "trigger").write_text("{}")
+    (tmp_path / "tinko-update" / "status.json").write_text(
+        json.dumps({"status": "in_progress", "stage": "dependencies"})
+    )
+
+    with trigger_patch, status_patch, mock.patch(
+        "core.update_system.views.write_trigger_file"
+    ) as trigger:
+        resp = client.post("/updates/start/")
+
+    assert resp.status_code == 409, resp.content
+    trigger.assert_not_called()
+    running.refresh_from_db()
+    assert running.status == "in_progress", "a running update must not be abandoned"
+
+
+@pytest.mark.django_db
+def test_a_just_started_update_is_not_abandoned(client, tmp_path):
+    """The row is created a moment before the daemon picks the trigger up, and
+    two teachers clicking at once must not abandon each other's run."""
+    fresh = UpdateStatus.objects.create(status="in_progress")
+    trigger_patch, status_patch = _run_dir(tmp_path)
+
+    with trigger_patch, status_patch:
+        resp = client.post("/updates/start/")
+
+    # Either the rate limit or the in-progress check refuses it; what matters is
+    # that the run it belongs to is left alone.
+    assert resp.status_code in (409, 429), resp.content
+    fresh.refresh_from_db()
+    assert fresh.status == "in_progress"
+
+
+@pytest.mark.django_db
+def test_a_stale_trigger_alone_does_not_keep_an_update_alive(client, tmp_path):
+    """A trigger the daemon never consumed (it was not running) is not progress;
+    the run it belonged to is abandoned like any other."""
+    stale = UpdateStatus.objects.create(status="in_progress")
+    UpdateStatus.objects.filter(pk=stale.pk).update(
+        started_at=timezone.now() - timedelta(minutes=10)
+    )
+    trigger_patch, status_patch = _run_dir(tmp_path)
+    (tmp_path / "tinko-update" / "trigger").write_text("{}")
+
+    with trigger_patch, status_patch, mock.patch(
+        "core.update_system.views.write_trigger_file"
+    ):
+        resp = client.post("/updates/start/")
+
+    assert resp.status_code == 200, resp.content
+    stale.refresh_from_db()
+    assert stale.status == "failed"
+
+
+@pytest.mark.django_db
+def test_abandoned_updates_do_not_count_toward_the_rate_limit(client, tmp_path):
+    """A failed attempt must not also cost the teacher five minutes."""
+    stale = UpdateStatus.objects.create(status="in_progress")
+    UpdateStatus.objects.filter(pk=stale.pk).update(
+        started_at=timezone.now() - timedelta(minutes=3)
+    )
+    trigger_patch, status_patch = _run_dir(tmp_path)
+
+    with trigger_patch, status_patch, mock.patch(
+        "core.update_system.views.write_trigger_file"
+    ):
+        resp = client.post("/updates/start/")
+
+    assert resp.status_code == 200, resp.content
+
+
+def test_update_is_running_reads_the_two_files(tmp_path):
+    """The predicate on its own: no trigger means nothing is running."""
+    from core.update_system import views
+
+    trigger_patch, status_patch = _run_dir(tmp_path)
+    trigger = tmp_path / "tinko-update" / "trigger"
+    status = tmp_path / "tinko-update" / "status.json"
+
+    with trigger_patch, status_patch:
+        assert views.update_is_running() is False, "no files at all"
+        trigger.write_text("{}")
+        assert views.update_is_running() is False, "trigger but no status yet"
+        status.write_text("not json")
+        assert views.update_is_running() is False, "unreadable status"
+        status.write_text(json.dumps({"status": "completed"}))
+        assert views.update_is_running() is False, "a finished run"
+        status.write_text(json.dumps({"status": "in_progress"}))
+        assert views.update_is_running() is True

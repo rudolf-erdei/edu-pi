@@ -14,6 +14,11 @@ TRIGGER_FILE = Path("/run/tinko-update/trigger")
 
 RUN_DIR = TRIGGER_FILE.parent
 
+# How old an in_progress record must be before a missing trigger and a missing
+# status file are read as "this update is not running any more" rather than as
+# the gap between creating the record and the daemon picking it up.
+ABANDONED_AFTER = timedelta(minutes=2)
+
 
 def _write_trigger(payload):
     """Create the run directory if needed and write the trigger file."""
@@ -56,14 +61,40 @@ def write_trigger_file(update_id):
     _repair_run_directory()
     _write_trigger(payload)
 
+
+def update_is_running():
+    """Whether an update is genuinely in flight right now.
+
+    A running update leaves two marks: the trigger file the UI wrote, which the
+    daemon removes only after the script has finished with it, and the status
+    file it rewrites as it goes. No trigger means the daemon has already
+    finished (or never picked it up); no status file means the run never
+    started. Either way nothing is running, and a row claiming otherwise is a
+    leftover.
+
+    This matters because the run directory is on /run, a tmpfs: switch the Pi
+    off in the middle of an update and the status file is gone while the
+    database row stays, saying "Update already in progress" for as long as the
+    row is left alone.
+    """
+    if not TRIGGER_FILE.exists():
+        return False
+    try:
+        with open(STATUS_FILE, "r") as f:
+            return json.load(f).get("status") == "in_progress"
+    except (json.JSONDecodeError, IOError):
+        return False
+
+
 def reconcile_update_records():
     """Sync UpdateStatus DB rows with the daemon's status file.
 
     The daemon (a stdlib-only process) writes the final result to status.json
     but cannot touch the DB, so we reconcile here on the next request:
     - a terminal status.json (completed/failed) with an update_id syncs its row;
-    - in-progress rows older than 24h are marked failed (abandoned after a
-      daemon crash). Running updates are never touched.
+    - an in-progress row with no run behind it is marked failed (abandoned);
+    - in-progress rows older than 24h are marked failed. Running updates are
+      never touched.
     """
     try:
         if STATUS_FILE.exists():
@@ -81,6 +112,20 @@ def reconcile_update_records():
                 UpdateStatus.objects.filter(id=update_id, status="in_progress").update(**updates)
     except (json.JSONDecodeError, IOError):
         pass
+
+    # An in-progress row that no run is behind. The grace period covers the
+    # moment between this app creating the row and the daemon reading the
+    # trigger, and a second teacher clicking Update while the first run is
+    # still starting.
+    if not update_is_running():
+        UpdateStatus.objects.filter(
+            status="in_progress",
+            started_at__lt=timezone.now() - ABANDONED_AFTER,
+        ).update(
+            status="failed",
+            completed_at=timezone.now(),
+            error_message="Update abandoned (nothing was running)",
+        )
 
     UpdateStatus.objects.filter(
         status="in_progress",
