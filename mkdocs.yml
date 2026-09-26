@@ -87,6 +87,13 @@ extra:
       link: https://github.com/rudolf-erdei/edu-pi
 
 
+# Files mkdocs must not publish. `superpowers/` is local design history and is
+# gitignored, but mkdocs renders every .md under docs_dir whether or not the nav
+# lists it — so a plain `mkdocs gh-deploy` on a machine that has those notes
+# would publish them to the public site. Keep this in step with .gitignore.
+exclude_docs: |
+  superpowers/
+
 # Markdown Extensions
 markdown_extensions:
   - pymdownx.highlight:

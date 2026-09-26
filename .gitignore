@@ -43,6 +43,14 @@ media/
 *.mo
 entities.json
 mempalace.yaml
+
+# MkDocs build output. Same class as the .mo files above: `mkdocs build` and
+# `mkdocs gh-deploy` rewrite all of it, so a tracked copy left the working tree
+# dirty after every documentation change. It is published to the gh-pages branch
+# — which is what GitHub Pages actually serves — so nothing needs it in git.
+# `mkdocs gh-deploy` writes here on its way to gh-pages; the build is safe to
+# delete at any time.
+site/
 /docs/superpowers/
 /.serena/
 /.claude/
