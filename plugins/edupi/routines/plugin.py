@@ -44,6 +44,28 @@ class Plugin(PluginBase):
         else:
             logger.warning(f"{self.name} plugin booted - USB presenter unavailable")
 
+        # Presenter monitoring is left out on purpose: it listens to a remote,
+        # it does not use the speaker, so it is not in anyone's way. What is
+        # registered is the playback a routine drives through the speaker.
+        self.register_activity(
+            "routine_playback",
+            self._stop_playback,
+            description=_("Routine playback"),
+        )
+
+    def _stop_playback(self) -> None:
+        """Stop a routine mid-line, and the audio it started.
+
+        The player stops its own audio, but only when it has a session loaded;
+        the player service underneath is stopped too, so a routine that was
+        torn down some other way still releases the speaker.
+        """
+        from .services.audio_player import audio_player
+        from .services.routine_player import routine_player
+
+        routine_player.stop()
+        audio_player.stop()
+
     def register(self) -> None:
         """Register models, URLs, and admin menus."""
         from django.urls import include, path

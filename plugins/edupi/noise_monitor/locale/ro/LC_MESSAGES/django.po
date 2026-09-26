@@ -500,3 +500,7 @@ msgstr ""
 
 msgid "Start monitoring as soon as the plugin loads"
 msgstr "Pornește monitorizarea imediat ce modulul este încărcat"
+
+# plugin.py - the activity another plugin can stop
+msgid "Noise monitoring and LEDs"
+msgstr "Monitorizarea zgomotului și LED-urile"

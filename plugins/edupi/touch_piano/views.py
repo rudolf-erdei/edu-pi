@@ -14,6 +14,7 @@ from django.utils.translation import gettext as _
 from .models import PianoConfig, PianoSession, PianoKey, KeyPress
 from .forms import PianoConfigForm, QuickPlayForm
 from .piano_service import piano_service, DEFAULT_KEY_MAPPING
+from .startup import prepare_for_piano
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +153,12 @@ class PianoStartSessionView(View):
             piano_service.initialize_gpio(key_mapping)
             piano_service.load_note_sounds(key_mapping)
             piano_service.start_monitoring()
+
+            # The session is up; now claim the room. Stopping the other
+            # activities after the piano's own hardware is running means a
+            # failure over there cannot leave the session half-started, and
+            # prepare_for_piano() never raises.
+            prepare_for_piano()
 
             return JsonResponse(
                 {

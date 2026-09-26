@@ -48,7 +48,23 @@ class Plugin(PluginBase):
             }
         )
 
+        # A countdown owns its LED and the buzzer it will sound, so another
+        # plugin starting an activity has to be able to call it off.
+        self.register_activity(
+            "timer", self._stop_timer, description=_("Running countdown")
+        )
+
         logger.info(f"{self.name} plugin booted - GPIO pins registered")
+
+    def _stop_timer(self) -> None:
+        """Cancel the countdown and darken its LED.
+
+        Safe to call with no timer running: the service then just has nothing
+        to cancel and clears the LED, which is the state we want anyway.
+        """
+        from .timer_service import timer_service
+
+        timer_service.stop_timer()
 
     def register(self) -> None:
         """Register models, URLs, and admin menus."""

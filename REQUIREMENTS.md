@@ -91,6 +91,13 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
 - [x] Instructions page with circuit diagram and learning objectives
 - [x] Auto-cleanup of stuck notes (5-second timeout)
 - [x] Translations support (English, Romanian)
+- [x] **Starting a session claims the room**: the noise monitor (its LEDs go
+      dark and the microphone is released), a running countdown and a routine
+      being read aloud are all stopped; the LCD display is never stopped
+- [x] **The robot face is set to happy for the session** — set after the others
+      stop, since the noise monitor hands the face back as it shuts down
+- [x] A missing or disabled display, or a service that will not stop, does not
+      fail the session
 
 **Technical Notes**:
 
@@ -433,6 +440,13 @@ As a teacher, I want to be able to change the robot's name, so I can adapt it to
   - Frontend assets (JS/CSS)
   - WebSocket handlers
 - [x] Plugin lifecycle hooks: `boot()`, `register()`, `uninstall()`
+- [x] **One activity at a time**: a plugin can stop what the others are running
+  - [x] `PluginBase.register_activity(name, stop)` — a plugin declares in `boot()` how to stop what it runs
+  - [x] `PluginBase.stop_activities()` — each stop callable called on its own, so one failure cannot leave the rest running
+  - [x] `PluginManager.stop_other_activities(except_plugins, reason)` — skips disabled plugins and plugins with nothing to stop
+  - [x] Exemptions are the caller's decision: the LCD display is shared output, not a competing activity
+  - [x] Noise Monitor, Activity Timer and Routines declare their activity; Touch Piano claims the room on session start
+  - [x] The robot face is set **after** the others stop — the noise monitor hands it back to its own default as it shuts down
 - [x] Dependency management (plugins can depend on other plugins)
 - [x] Version compatibility checks with core platform
 - [x] Enable/disable plugins via admin interface

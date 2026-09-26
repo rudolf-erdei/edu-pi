@@ -547,3 +547,7 @@ msgstr "min"
 
 msgid "minutes"
 msgstr "minute"
+
+# plugin.py - the activity another plugin can stop
+msgid "Running countdown"
+msgstr "Cronometru în desfășurare"

@@ -559,3 +559,7 @@ msgstr "Browserul dumneavoastră nu acceptă elementul audio."
 
 msgid "lines"
 msgstr "linii"
+
+# plugin.py - the activity another plugin can stop
+msgid "Routine playback"
+msgstr "Redarea rutinei"
