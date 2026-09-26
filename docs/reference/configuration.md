@@ -37,6 +37,20 @@ TIME_ZONE=Europe/Bucharest
 | `STATIC_ROOT` | staticfiles/ | Static files directory |
 | `MEDIA_ROOT` | media/ | Uploaded files directory |
 
+### Uploaded Files Are Served in Production Too
+
+`STATIC_ROOT` (the CSS, JS and icons that ship with the code) is served by
+WhiteNoise, which indexes it at startup. `MEDIA_ROOT` (the school logo, and the
+audio the routines plugin generates) is different: it is written by the running
+application, so it is served by the app itself from `MEDIA_URL`, through the
+`media` URL pattern in `config/urls.py`. The pattern is built from `MEDIA_URL`,
+so changing the setting moves the route with it.
+
+This matters because WhiteNoise can only serve files that existed when the
+service started: a logo uploaded through Settings would 404 until the next
+restart. The route is not gated on `DEBUG` — a Pi runs with `DEBUG=False`, and
+gating it there is what made logo uploads appear to do nothing.
+
 ## Django Settings
 
 Key settings in `config/settings.py`:

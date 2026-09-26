@@ -387,6 +387,13 @@ As a teacher, I want to be able to change the robot's name, so I can adapt it to
 - [x] Settings can be read with a special model defined at the plugin level in the `plugin_settings.py` file
 - [x] Global settings and each plugin settings are separated in different tabs
 - [x] School name and logo can be configured in Global Settings
+- [x] The uploaded logo is served in production, not only with `DEBUG` on: it
+      is written at runtime, so it cannot go through WhiteNoise (which serves
+      `STATIC_ROOT` and indexes it at startup). `config/urls.py` serves
+      `MEDIA_URL` from `MEDIA_ROOT` through the `media` route, built from the
+      setting so the route and the template URLs cannot drift. Until this was
+      fixed, an upload wrote the file and saved the setting but the `<img>` got
+      a 404, so the logo appeared not to upload at all
 - [x] Robot name can be customized in Global Settings
 - [x] Settings support nested sections using arrow notation (e.g., "Audio > TTS")
 - [x] Settings values are cached for performance with automatic cache invalidation

@@ -665,6 +665,46 @@ cd /home/tinko/edu-pi && uv sync --extra pi
 
 The LCD is not required to finish setup — the hotspot name and password are fixed (`Tinko-Setup` / `tinko1234`) and the setup page still works.
 
+### School logo uploads but never appears
+
+**Problem:** On Settings → Global, a logo is chosen and **Save Settings** is
+pressed. The page reloads, says the settings were saved, and the logo is still
+not shown — in the settings page's preview box or in the header of any page.
+It looks as if the upload does not work.
+
+**Explanation:** The upload itself works. The file is written to
+`media/site/logos/logo.png` and its path is saved in the
+`tinko.global.logo_path` setting. What fails is *serving* it: the file is
+requested from `/media/...`, and nothing answers that URL. `Static` files are
+handled by WhiteNoise (which only serves `STATIC_ROOT`), while the media route
+used to be added only when `DEBUG` was on — and a Pi runs with `DEBUG=False`.
+The image URL therefore returned 404, and the browser showed an empty box.
+
+**Solutions:**
+
+1. **Confirm it is this** — the upload leaves evidence behind even when the
+   image never appears:
+```bash
+ls -l /home/tinko/edu-pi/media/site/logos/
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1/media/site/logos/logo.png
+```
+A file with a recent timestamp (upload worked) and `404` (serving does not) is
+the signature. A working install returns `200`.
+
+2. **Update the software.** `config/urls.py` serves `MEDIA_URL` regardless of
+   `DEBUG`; run `bash update.sh` on the Pi to pick it up.
+
+3. **Check the stored path matches the file:**
+```bash
+sqlite3 /home/tinko/edu-pi/db.sqlite3 \
+  "SELECT key, value FROM plugin_system_sitesetting WHERE key='tinko.global.logo_path'"
+```
+The value is relative to `MEDIA_ROOT` (`site/logos/logo.png`).
+
+4. **If the file is missing altogether**, the upload did fail — check the size
+   (5 MB maximum) and the format (PNG, JPG or GIF), and re-upload. A phone
+   screenshot saved as HEIC or WebP is refused with an error on the page.
+
 ### Update from the web UI fails with "Permission denied"
 
 **Problem:** Settings → Updates → **Update Now** shows
