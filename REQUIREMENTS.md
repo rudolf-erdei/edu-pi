@@ -556,6 +556,10 @@ if lcd_service.is_initialized():
 - Database backups
 - **Captive portal WiFi setup** — Pi creates "Tinko-Setup" hotspot when no internet is available, allowing headless WiFi configuration from any phone
 - **Type=oneshot service ordering** — systemd waits for captive portal to finish before starting Django, preventing port 80 conflicts
+- **Saved networks are remembered** — `wifi_worker.sh` matches profiles on the SSID they carry (not the profile name, which is `netplan-wlan0-<SSID>` on an Imager/netplan Pi and used to cause a duplicate profile per network), reuses the stored password before the one just typed, restores the old password if the new one fails, and never deletes a profile. A network configured once is rejoined at the next boot with no setup page.
+- **Netplan profile persistence** — a `/run` profile is rebuilt from `/etc/netplan/*.yaml` at every boot, so an `nmcli` password change on it is lost at the next restart. When one is changed, the working credential is also copied into `Tinko-WiFi-<SSID>` in `/etc` with `autoconnect-priority 10`, which wins the next boot. Verified against NetworkManager 1.52 on Debian 13.
+- **Hotspot autoconnect is off** — the hotspot profile is brought up by `startup_check.sh` and taken down by `wifi_worker.sh`; left to autoconnect it could claim the radio at boot before a saved school network associates
+- **`TINKO_DRY=1`** — both `startup_check.sh` and `wifi_worker.sh` report the decision they would make and change nothing, so either can be run on a live Pi
 
 ### Security
 
@@ -1085,6 +1089,14 @@ The install script creates two systemd services that work together:
   (`portal.py` `_show_wifi_on_lcd`). The portal switches itself to the project
   venv's interpreter for this, because the adafruit/PIL LCD stack is not in the
   system Python that `startup_check.sh` launches it with
+- `wifi_worker.sh` (run by the portal with the typed SSID and password) tears the
+  hotspot down, joins the network, kills the portal and stops dnsmasq. It matches
+  existing profiles on the SSID they carry, tries the stored password before the
+  typed one, restores the old password if the new one fails, and reports whether
+  the internet is actually reachable afterwards (a network with its own sign-in
+  page fails this probe and is logged as such)
+- `sudo TINKO_DRY=1 bash wifi_worker.sh <SSID> <PASSWORD>` prints what it would do
+  and touches nothing, as `startup_check.sh` already could
 
 ```ini
 [Unit]
