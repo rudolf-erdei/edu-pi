@@ -44,7 +44,7 @@ The misleading "no internet" message is itself part of the bug: it turned a
 loud, diagnosable failure into a silent one. Worth separating the exit-reason
 in the message when this is next touched.
 
-## Open — the live database is replaced on every successful update
+## Open — untrack `db.sqlite3` (protection ready, untrack deliberately NOT done)
 
 `db.sqlite3` is tracked in git *and* written at runtime, so it is always
 "modified" when an update runs. `pull_latest` in both `update.sh` and
@@ -66,29 +66,51 @@ Verified on the field Pi:
 
 So the risk is **latent, not active**: it bites once a teacher accumulates real
 data (noise readings, new routines, changed settings) and an update then runs.
-Options, none chosen yet:
 
-- Stop tracking `db.sqlite3` and ship initial data as a fixture/migration.
-- Back the database up before stashing, and restore it after the pull.
-- Pop the stash on success too (careful: after a pull the stash may conflict).
+**Step 1 — done in repo, not yet on the Pi.** Both scripts now move the live
+database out of the working tree for the duration of the pull and move it back
+on every path (`hide_live_db` / `restore_live_db`), with
+`recover_orphaned_db` for a database left aside by an interrupted update. This
+also removes the stash-eats-the-DB behaviour above: the stash can no longer
+capture the database because it is not in the tree when the stash runs.
 
-## Open — 67 accumulated stashes on the field Pi
+**Step 2 — `git rm --cached db.sqlite3` — must NOT run until Step 1 is running
+on the Pi.** The commit that untracks the file makes the merge delete it from
+the working tree. With no protection in the running script, that deletes the
+live database and Django starts with nothing — the locked-out scenario. The
+installing run is always the *old* script, so the guard has to be in force
+first.
 
-Every successful update leaves one stash behind (same root cause as above).
-The Pi currently holds **67**, each a snapshot of `.mo` files and sometimes the
+`.gitignore` already lists `db.sqlite3` (it did three times over; the duplicates
+are gone) plus `db.sqlite3.update-tmp-*` for the moved-aside names.
+
+No fixture is needed for a fresh install: `install-raspberry-pi.sh` runs
+`migrate --noinput`, which builds the schema from migrations.
+
+## Open — accumulated stashes on the field Pi
+
+Every successful update left one stash behind (same root cause as above). The
+Pi currently holds **67**, each a snapshot of `.mo` files and sometimes the
 database, all still reachable from `HEAD` and never pruned. This is dead weight
 in `.git` that grows without bound on an SD card, and it makes the stash list
-useless as signal. Needs a cleanup pass plus a decision on the behaviour above.
+useless as signal.
 
-## Open — the Pi is 2 commits behind `master`
+Step 1 removes the cause (nothing is stashed on a clean tree any more), but the
+existing 67 need a one-off prune once the protection is deployed. Nothing in
+them is a unique copy of anything current — the live database is the live
+database, and the `.mo` files are rebuilt by every update.
+
+## Open — the Pi is behind `master`
 
 The field Pi tracks `master`; work is committed to `development` and reaches
-`master` only through a pull request. Today's commit `bc2fd47` is already on
-`origin/master` (via PR #20), but the Pi has not taken it — the pull failed
-for the reason above.
+`master` only through a pull request. `bc2fd47` is already on `origin/master`
+(via PR #20), but the Pi has not taken it — the web pull failed for the reason
+above, and the web button has since been pressed to no effect on the git side.
+The web path **cannot** pull its own fix: the broken `update-web.sh` is the one
+running the pull, so the fix has to arrive by CLI first.
 
 One CLI `bash update.sh` run is enough to close this: the pull works on that
-path, and `bc2fd47` contains the guard, `settings_test.py`, `test_home_view.py`
+path, and the commit contains the guard, `settings_test.py`, `test_home_view.py`
 and the docs. Nothing in it needs a second run to "apply" — the guard only
 takes effect the next time a pull changes `update.sh` itself.
 

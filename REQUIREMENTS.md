@@ -1004,6 +1004,23 @@ would keep executing the pre-pull code and any change the script makes to
 its own logic would silently wait for the next run. The re-executed run is
 marked with `TINKO_UPDATE_REEXEC=1` so it cannot loop.
 
+#### The Live Database Is Never Touched by an Update
+
+`db.sqlite3` is written by the running application, so it is always modified
+when an update runs. Git must never stash, merge or check out that file —
+doing so replaces the teacher's live data with whatever was last committed.
+Both update scripts therefore move it out of the working tree before the
+stash (`hide_live_db`), and move it back on **both** the success and failure
+paths (`restore_live_db`). `recover_orphaned_db` puts back a database left
+aside by an update that died mid-pull; it never deletes anything, and if a
+live database is present too it keeps both, the leftover renamed to
+`db.sqlite3.update-tmp-*.recovered`.
+
+The database is consequently **not tracked in git**. The working tree only
+needs it to exist; `migrate` creates it on a fresh install. Its untracked
+state is enforced by `.gitignore`, which also ignores the `.update-tmp-*`
+names the scripts use while the file is moved aside.
+
 #### Systemd Services
 
 The install script creates two systemd services that work together:
