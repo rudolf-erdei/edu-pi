@@ -1092,6 +1092,19 @@ would keep executing the pre-pull code and any change the script makes to
 its own logic would silently wait for the next run. The re-executed run is
 marked with `TINKO_UPDATE_REEXEC=1` so it cannot loop.
 
+The guard watches two files, not one: the running script **and**
+`scripts/update_infra.sh`, which the scripts `source` before the pull. A
+sourced file is parsed once, into functions, so a pull that changes a helper
+in it leaves the run calling the old body — the same staleness one layer
+deeper. It is the reason the dashboard power helper was silently not
+installed on the field Pi on 2026-09-26 (the pull landed
+`install_power_helper()` at 18:12:15, the run then called the *old*
+`setup_update_infrastructure()` and rewrote `/etc/sudoers.d/tinko-update`
+with the pre-fix contents at 18:12:31, and the update still reported
+success: `update.sh` itself had not changed, so a one-file digest matched).
+The log names whichever watched file moved, rather than assuming it was the
+script.
+
 #### The Live Database Is Never Touched by an Update
 
 `db.sqlite3` is written by the running application, so it is always modified

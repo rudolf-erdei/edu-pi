@@ -72,9 +72,17 @@ log_error() {
 # the systemd unit blocks and the dnsutils guard did not (code, already
 # parsed before the pull).
 #
-# Record the digest at startup, then re-exec once after the pull if it moved.
+# The same staleness applies one layer deeper, to scripts/update_infra.sh: it is
+# `source`d -- parsed into functions -- BEFORE the pull, so a pull that changes a
+# helper in it leaves this run calling the OLD body. Observed 2026-09-26: the
+# dashboard power helper and its sudoers rule were never installed, and the
+# update still reported success. Both files are watched for exactly that reason.
+#
+# Record the digests at startup, then re-exec once after the pull if any moved.
 SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
 SCRIPT_ARGS=("$@")
+
+WATCHED_FILES=("$SCRIPT_PATH" "$INSTALL_DIR/scripts/update_infra.sh")
 
 script_digest() {
     if command -v sha256sum &> /dev/null; then
@@ -84,7 +92,11 @@ script_digest() {
     fi
 }
 
-SCRIPT_DIGEST_AT_START="$(script_digest "$SCRIPT_PATH" || true)"
+WATCHED_DIGESTS_AT_START=()
+for _watched in "${WATCHED_FILES[@]}"; do
+    WATCHED_DIGESTS_AT_START+=("$(script_digest "$_watched" || true)")
+done
+unset _watched
 
 reexec_if_self_changed() {
     # The re-executed run must never re-exec again, or a script that keeps
@@ -93,15 +105,29 @@ reexec_if_self_changed() {
         return 0
     fi
 
-    local now
-    now="$(script_digest "$SCRIPT_PATH" || true)"
+    # Name the file that moved rather than asserting it was this script: "what
+    # changed" is what the reader needs, and a hardcoded name would be wrong
+    # half the time now that two files are watched.
+    local i file now before
+    local moved=()
+    for i in "${!WATCHED_FILES[@]}"; do
+        file="${WATCHED_FILES[$i]}"
+        now="$(script_digest "$file" || true)"
+        before="${WATCHED_DIGESTS_AT_START[$i]}"
+        # An empty digest on either side means the file could not be read (no
+        # sha256sum/md5sum, or the pull deleted it) -- not a change, since the
+        # new run would read the same nothing.
+        if [[ -n "$now" && -n "$before" && "$now" != "$before" ]]; then
+            moved+=("$file")
+        fi
+    done
 
-    if [[ -z "$now" || -z "$SCRIPT_DIGEST_AT_START" || "$now" == "$SCRIPT_DIGEST_AT_START" ]]; then
+    if [[ ${#moved[@]} -eq 0 ]]; then
         return 0
     fi
 
-    log_warning "update.sh was replaced by the pull — this run is still on the old copy."
-    log_info "Re-executing with the new version so its changes take effect now..."
+    log_warning "Replaced by the pull: ${moved[*]}"
+    log_info "This run is still on the old copy; re-executing so the changes take effect now..."
 
     export TINKO_UPDATE_REEXEC=1
     # exec replaces this process, so the EXIT trap does NOT fire and the

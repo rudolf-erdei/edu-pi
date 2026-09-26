@@ -95,9 +95,19 @@ log_error() {
 # in-flight run keeps executing the PRE-pull function bodies: any change this
 # script makes to its own logic silently waits for the NEXT run.
 #
-# Record the digest at startup, then re-exec once after the pull if it moved.
+# The same staleness applies one layer deeper, to scripts/update_infra.sh: it is
+# `source`d -- parsed into functions -- BEFORE the pull, so a pull that changes a
+# helper in it leaves this run calling the OLD body. That is the web path's own
+# version of the gap this script had: update-web.sh never called the infra
+# helpers at all until 2026-09-26, so a Pi updated only from the dashboard had no
+# power helper and no install_power_helper() to call from the new copy. Both
+# files are watched for exactly that reason.
+#
+# Record the digests at startup, then re-exec once after the pull if any moved.
 SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
 SCRIPT_ARGS=("$@")
+
+WATCHED_FILES=("$SCRIPT_PATH" "$INSTALL_DIR/scripts/update_infra.sh")
 
 script_digest() {
     if command -v sha256sum &> /dev/null; then
@@ -107,7 +117,11 @@ script_digest() {
     fi
 }
 
-SCRIPT_DIGEST_AT_START="$(script_digest "$SCRIPT_PATH" || true)"
+WATCHED_DIGESTS_AT_START=()
+for _watched in "${WATCHED_FILES[@]}"; do
+    WATCHED_DIGESTS_AT_START+=("$(script_digest "$_watched" || true)")
+done
+unset _watched
 
 reexec_if_self_changed() {
     # The re-executed run must never re-exec again, or a script that keeps
@@ -116,15 +130,29 @@ reexec_if_self_changed() {
         return 0
     fi
 
-    local now
-    now="$(script_digest "$SCRIPT_PATH" || true)"
+    # Name the file that moved rather than asserting it was this script: "what
+    # changed" is what the reader needs, and a hardcoded name would be wrong
+    # half the time now that two files are watched.
+    local i file now before
+    local moved=()
+    for i in "${!WATCHED_FILES[@]}"; do
+        file="${WATCHED_FILES[$i]}"
+        now="$(script_digest "$file" || true)"
+        before="${WATCHED_DIGESTS_AT_START[$i]}"
+        # An empty digest on either side means the file could not be read (no
+        # sha256sum/md5sum, or the pull deleted it) -- not a change, since the
+        # new run would read the same nothing.
+        if [[ -n "$now" && -n "$before" && "$now" != "$before" ]]; then
+            moved+=("$file")
+        fi
+    done
 
-    if [[ -z "$now" || -z "$SCRIPT_DIGEST_AT_START" || "$now" == "$SCRIPT_DIGEST_AT_START" ]]; then
+    if [[ ${#moved[@]} -eq 0 ]]; then
         return 0
     fi
 
-    log_warning "update-web.sh was replaced by the pull — this run is still on the old copy."
-    log_info "Re-executing with the new version so its changes take effect now..."
+    log_warning "Replaced by the pull: ${moved[*]}"
+    log_info "This run is still on the old copy; re-executing so the changes take effect now..."
 
     # The environment is inherited across exec, so TINKO_UPDATE_DAEMON (which
     # drives stage telemetry) survives into the new run.

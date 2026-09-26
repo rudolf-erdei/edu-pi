@@ -848,6 +848,40 @@ cd ~/edu-pi/media/site/logos && mv logo.png.update-tmp-* logo.png
 See also [School logo uploads but never appears](#school-logo-uploads-but-never-appears),
 which is the other half of logo trouble: the file saved but not served.
 
+### An update reported success but a change did not take effect
+
+**Problem:** The update log ends with success, the Pi restarts, and the feature
+the update was supposed to bring is simply not there — no error, no warning.
+Seen on 2026-09-26 with the dashboard Power button: the update pulled the new
+files, then rewrote `/etc/sudoers.d/tinko-update` with its *old* contents and
+never installed `/usr/local/sbin/tinko-poweroff`.
+
+**Explanation:** bash reads a running script from its open file descriptor, and
+`git pull` replaces files by atomic rename, so the in-flight run keeps executing
+the code it had already parsed. That applies to the update scripts themselves —
+and one layer deeper, to `scripts/update_infra.sh`, which they `source` before
+the pull: the sourced helpers are parsed once, into functions, so a pull that
+changes one leaves that run calling the old body. If the update script itself did
+not change in that pull, nothing noticed and nothing re-executed.
+
+**Solutions:**
+
+1. **Update the software.** Both update paths now watch the running script *and*
+   `scripts/update_infra.sh`, and re-execute themselves once after the pull if
+   either moved, naming the file in the log. The change then takes effect in the
+   same run.
+2. **On a Pi that still has the old guard, run the update once more.** The new
+   file is already on disk, so the second run parses it at startup and installs
+   everything it was meant to. Check that the helper appeared:
+```bash
+ls -l /usr/local/sbin/tinko-poweroff
+sudo -n /usr/local/sbin/tinko-poweroff --check
+```
+3. **Spot it in the log.** With the fix, the line to look for is
+   `[WARNING] Replaced by the pull: <path>` followed by
+   `Re-executing with the new version...`. Its absence in an update that changed
+   either file is what the old guard looked like.
+
 ### Update reports "Project translations did not compile"
 
 **Problem:** An install or update log ends with
