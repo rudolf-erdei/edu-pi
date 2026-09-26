@@ -1121,11 +1121,15 @@ Two properties worth keeping:
   tree. After that commit there is nothing tracked, the guard does nothing on
   every later update, and there is no leftover mechanism to remove.
 
-Untracking is a deliberate two-step order, as it was for the database: the
-protection must be **running on the Pi** before the untrack commit lands, or
-that update's merge deletes the live logo before any code can save it. Step one
-ships the guard; step two (`git rm --cached media/…`, with `media/` in
-`.gitignore`) follows once the Pi has run the first.
+Untracking was a deliberate two-step order, as it was for the database: the
+protection had to be **running on the Pi** before the untrack commit landed, or
+that update's merge would have deleted the live logo before any code could save
+it. Step one shipped the guard (verified running on the Pi); step two,
+`git rm --cached media/site/logos/…` with `media/` in `.gitignore`, followed in
+its own commit. That is the one update in which the guard does its work — its
+log reads *"Moved 2 uploaded file(s) aside for the pull"* and then
+*"Restored media/site/logos/logo.png"* — and every later update finds nothing
+tracked there and leaves `media/` entirely alone.
 
 `media/` is consequently not tracked in git. Nothing needs it to exist up
 front: the logo upload and the TTS cache both create their directories, and a
