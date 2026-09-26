@@ -214,3 +214,72 @@ Investigation on the field Pi showed this section is largely obsolete there:
 No action needed on the field Pi. Only if swap is later reconfigured to a
 file-based mechanism (`Mechanism=file` in `/etc/rpi/swap.conf`) do the
 SD-wear concerns return.
+
+## Web Update — "Eroare de server" on Update Now (found and FIXED 2026-09-26)
+
+### Symptom
+
+Settings → Updates detected the available updates correctly, but clicking
+**Update Now** showed the alert `Eroare de server` and nothing happened. No
+update ran, no stage progressed.
+
+### Root cause
+
+`static/js/update.js` posted to the start endpoint **without a CSRF token**:
+
+```js
+const res = await fetch(`${API_BASE}/start/`, { method: 'POST' });
+```
+
+Django's `CsrfViewMiddleware` refused it, and daphne logged exactly that:
+
+```
+WARNING Forbidden (CSRF token missing.): /updates/start/
+```
+
+So the response was **403, not 500** — the server was behaving correctly the
+whole time. Two things then conspired to hide it:
+
+1. `update.js` did `await res.json().catch(() => ({}))`. A Django 403 body is
+   HTML, so `json()` threw, the catch produced `{}`, `resJson.error` was
+   `undefined`, and the alert fell through to the generic
+   `gettext('Server error')` → "Eroare de server".
+2. The test suite could not catch it: Django's test client defaults to
+   `enforce_csrf_checks=False`, so the existing `POST /updates/start/` tests
+   passed whether or not a real browser would be allowed through.
+
+### Fix
+
+- `static/js/update.js`: `startUpdate()` now sends
+  `headers: { 'X-CSRFToken': csrfToken() }` with `credentials: 'same-origin'`,
+  using the same `csrfToken()` cookie helper already used by
+  `templates/home.html` for the shutdown button.
+- The non-JSON fallback now shows `` `HTTP ${res.status}` `` instead of the
+  misleading "Server error", so a future refusal is diagnosable on sight.
+
+Only two `POST` fetches exist in the shipped UI (`update.js`, `home.html`) and
+both now carry the header.
+
+### Tests added (`tests/test_update_system.py`)
+
+- `test_update_js_sends_csrf_token_to_start_endpoint` — static check of the
+  shipped JavaScript. The defect was client-side, so pinning the header in the
+  source is the only automated guard. This test fails on the pre-fix file.
+- `test_start_update_rejects_post_without_csrf_token` — documents the 403.
+- `test_start_update_accepts_post_with_valid_csrf_token` — cookie + header
+  passes and the trigger file is written.
+
+### Deployment note
+
+`static/js/update.js` ships through `CompressedManifestStaticFilesStorage`, so
+`collectstatic` must run for the browser to pick the new file up — the service's
+`ExecStartPre` already does this on restart, and `update-web.sh` runs it as a
+stage.
+
+### Unrelated test-environment finding
+
+`GET /` raises `ValueError: Missing staticfiles manifest entry for
+'images/favicon.svg'` under pytest, because the manifest only exists after a
+`collectstatic` on a deployed install. This means no test currently renders
+`home.html` through the home view. Worth addressing separately — it is why the
+dashboard's own JavaScript is untested.
