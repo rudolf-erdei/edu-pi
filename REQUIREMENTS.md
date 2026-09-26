@@ -1075,6 +1075,27 @@ needs it to exist; `migrate` creates it on a fresh install. Its untracked
 state is enforced by `.gitignore`, which also ignores the `.update-tmp-*`
 names the scripts use while the file is moved aside.
 
+#### The Trigger Directory Is Owned by Two Users
+
+Web updates pass through `/run/tinko-update`: `tinko.service` (the web app, an
+unprivileged user) writes `trigger`, and `tinko-update.service` (root) consumes
+it and writes `status.json`/`stage.json`. `/run` is a tmpfs, so the directory is
+gone after every boot and is recreated by the root daemon — and a directory
+root creates under root's umask is `drwxr-xr-x`, which the web app cannot write
+to. The install-time `chmod 777` is lost at the first reboot, which broke every
+web update with `Permission denied: '/run/tinko-update/trigger'`.
+
+Two things keep it working, because either alone leaves a case uncovered:
+
+- `update_daemon.py` `ensure_directories()` sets the mode itself (0777) each
+  time it starts, since it is the process that recreates the directory.
+- `views.write_trigger_file()` repairs the directory with the passwordless
+  `mkdir -p` / `chmod 777` the installer's sudoers file grants, and retries the
+  write once, so a Pi running an older daemon still recovers from the web UI.
+
+The failure is reported with the directory and the fix in the message rather
+than as a bare errno, and only after the repair has been tried.
+
 #### Systemd Services
 
 The install script creates two systemd services that work together:

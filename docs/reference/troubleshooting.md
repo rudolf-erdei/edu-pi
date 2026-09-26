@@ -665,6 +665,48 @@ cd /home/tinko/edu-pi && uv sync --extra pi
 
 The LCD is not required to finish setup — the hotspot name and password are fixed (`Tinko-Setup` / `tinko1234`) and the setup page still works.
 
+### Update from the web UI fails with "Permission denied"
+
+**Problem:** Settings → Updates → **Update Now** shows
+
+```
+Failed to trigger update daemon: [Errno 13] Permission denied: '/run/tinko-update/trigger'
+```
+
+**Explanation:** Two processes share `/run/tinko-update`, and they run as
+different users. The daemon (`tinko-update.service`) runs as **root** and owns
+the directory; the web app (`tinko.service`) runs as the unprivileged service
+user and is the one that writes the trigger file. `/run` is a tmpfs, so the
+directory does not survive a reboot — the daemon recreates it at every boot, and
+a directory created by root under root's umask is `drwxr-xr-x root root`, which
+the web app cannot write to. The world-writable mode set at install time is lost
+at the first reboot, so this surfaces on any Pi that has been restarted since it
+was set up or last updated.
+
+**Solutions:**
+
+1. **Just try again.** The web app repairs the directory itself with the
+   passwordless `mkdir`/`chmod` the installer granted it, and retries the write,
+   so a current install recovers on its own.
+
+2. **Check the state:**
+```bash
+ls -ld /run/tinko-update     # needs to be drwxrwxrwx, not drwxr-xr-x
+systemctl is-active tinko-update
+```
+
+3. **Fix it by hand** (this is all the repair does):
+```bash
+sudo chmod 777 /run/tinko-update
+```
+
+4. **If it comes back after every reboot**, the daemon is older than the fix
+   that makes it set the mode itself. Run the update from the command line
+   once — it reinstalls and restarts the daemon:
+```bash
+cd ~/edu-pi && bash update.sh
+```
+
 ### Service won't start
 
 **Problem:** systemd service fails
@@ -811,6 +853,9 @@ sudo systemctl restart tinko
 
 ### "PermissionError: [Errno 13] Permission denied"
 **Fix:** `sudo usermod -a -G gpio $USER`
+
+If the path in the message is `/run/tinko-update/trigger`, the fix is different:
+see [Update from the web UI fails with "Permission denied"](#update-from-the-web-ui-fails-with-permission-denied).
 
 ### "ImproperlyConfigured: The SECRET_KEY setting must not be empty"
 **Fix:** Set SECRET_KEY in .env file
