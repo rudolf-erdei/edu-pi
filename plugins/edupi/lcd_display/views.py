@@ -2,7 +2,8 @@
 
 import logging
 
-from django.shortcuts import render
+from django.contrib import messages
+from django.shortcuts import redirect, render
 from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
@@ -24,20 +25,26 @@ class LCDDisplayView(TemplateView):
         """Add LCD config and status to context."""
         context = super().get_context_data(**kwargs)
 
-        # Get or create default config
-        config, created = LCDConfig.objects.get_or_create(
-            name="Default",
-            defaults={
-                "rotation": LCDConfig.Rotation.ROTATION_0,
-                "backlight": 100,
-                "contrast": 1.0,
-            },
-        )
+        # Read the configuration; do not create one.
+        #
+        # This used to be a get_or_create with rotation 0 in the defaults, so
+        # merely opening this page wrote a row that the next start read back
+        # and initialised the panel from — turning a working landscape display
+        # into a portrait one with nothing on screen to explain why. The page
+        # has no way to save the form either, so that value could never be
+        # corrected from the interface.
+        #
+        # Rendering an unsaved instance shows the effective defaults without
+        # writing anything, and leaves the boot path on the code default until
+        # someone deliberately saves a configuration.
+        config = LCDConfig.objects.filter(name="Default").first() or LCDConfig()
 
         context["config"] = config
         context["is_initialized"] = lcd_service.is_initialized()
         context["resolution"] = lcd_service.get_resolution()
-        context["config_form"] = LCDConfigForm(instance=config)
+        # A bound form passed from post() keeps its errors and the values that
+        # were typed; otherwise render a fresh one from the stored config.
+        context.setdefault("config_form", LCDConfigForm(instance=config))
         context["text_form"] = ShowTextForm()
 
         # Add mood information
@@ -47,6 +54,59 @@ class LCDDisplayView(TemplateView):
         context["is_misbehaving"] = lcd_service.is_misbehaving()
 
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Save the configuration form the page has always rendered.
+
+        The template has posted to this URL since it was written, but the view
+        was a plain TemplateView, so every submit came back 405 and the stored
+        rotation could only be changed by editing the database by hand.
+        """
+        config = LCDConfig.objects.filter(name="Default").first()
+        if config is None:
+            config = LCDConfig(name="Default")
+
+        previous_rotation = config.rotation
+        form = LCDConfigForm(request.POST, instance=config)
+
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(config_form=form))
+
+        config = form.save()
+
+        if config.rotation != previous_rotation:
+            self._apply_rotation(config)
+
+        messages.success(request, _("Display settings saved."))
+        return redirect("lcd_display:index")
+
+    @staticmethod
+    def _apply_rotation(config: LCDConfig) -> None:
+        """Re-initialise the panel so a new rotation shows up right away.
+
+        The service ignores initialize() on a panel that is already up, so the
+        device has to be torn down first. The mood is carried across because
+        the noise monitor only repaints when its colour changes, which would
+        leave a reset face on screen until the room got louder or quieter.
+        """
+        if not lcd_service.is_initialized():
+            return
+
+        mood = lcd_service.get_current_mood()
+        animating = lcd_service.is_animation_running()
+
+        try:
+            lcd_service.stop_face_animation()
+            lcd_service.cleanup()
+            lcd_service.initialize(
+                rotation=config.rotation,
+                backlight=config.backlight,
+            )
+            lcd_service.set_mood(mood)
+            if animating:
+                lcd_service.start_face_animation()
+        except Exception as e:
+            logger.error(f"Error applying display rotation: {e}")
 
 
 class ShowSmileView(View):

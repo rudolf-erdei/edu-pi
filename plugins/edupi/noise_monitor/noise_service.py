@@ -98,6 +98,9 @@ MIC_BLOCK_SECONDS = 0.05
 MIC_FLOOR_DBFS = -60.0
 MIC_CEILING_DBFS = 0.0
 
+# How often a reading is written to the history table while monitoring.
+READING_SAVE_INTERVAL_SECONDS = 5.0
+
 # The face shown for each colour, keyed by the same colour names the LEDs use.
 # Values are Mood values from the display plugin (lcd_display/mood.py), matched
 # by name so this module does not have to import it.
@@ -195,6 +198,11 @@ class NoiseMonitorService:
         # colour changes, not on every 10 Hz sample: each redraw is a full
         # panel write over SPI.
         self._last_face_color: Optional[str] = None
+
+        # History storage. Monitoring runs continuously once the plugin loads,
+        # so readings are written on an interval rather than on every sample.
+        self._persist: bool = False
+        self._last_persist_at: Optional[datetime] = None
 
         # Audio device settings. _device_index/_device_name are what the
         # teacher configured; _resolved_index/_resolved_name are what the
@@ -538,12 +546,13 @@ class NoiseMonitorService:
         level = (dbfs - MIC_FLOOR_DBFS) / span * 100.0
         return int(min(100, max(0, level)))
 
-    def start_monitoring(self, callback: Callable = None) -> None:
+    def start_monitoring(self, callback: Callable = None, persist: bool = False) -> None:
         """
         Start noise monitoring.
 
         Args:
             callback: Optional callback function(levels_dict) called on each update
+            persist: Store readings for the history table while monitoring runs
         """
         if self._is_monitoring:
             logger.warning("Noise monitoring already running")
@@ -551,6 +560,10 @@ class NoiseMonitorService:
 
         self._stop_event.clear()
         self._callback = callback
+        self._persist = persist
+        # Nothing stored yet this run, so the first reading is written at once
+        # rather than after a full interval of an empty table.
+        self._last_persist_at = None
 
         # Start monitoring thread
         self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
@@ -632,6 +645,9 @@ class NoiseMonitorService:
 
                 # Face follows LED 2
                 self._update_face()
+
+                # History, at its own slower interval
+                self._persist_reading(timestamp)
 
                 # Call callback if provided
                 if self._callback:
@@ -754,6 +770,45 @@ class NoiseMonitorService:
             return "yellow"
         else:
             return "green"
+
+    def _persist_reading(self, timestamp: datetime) -> None:
+        """Store one reading for the history table, on an interval.
+
+        The monitor samples at 10 Hz and now runs continuously, so writing on
+        every sample would put 36,000 rows an hour into the database and leave
+        the "recent readings" table spanning five seconds. One row per
+        ``READING_SAVE_INTERVAL_SECONDS`` keeps that table readable and the
+        database small.
+        """
+        if not self._persist:
+            return
+
+        if self._last_persist_at is not None:
+            elapsed = (timestamp - self._last_persist_at).total_seconds()
+            if elapsed < READING_SAVE_INTERVAL_SECONDS:
+                return
+
+        try:
+            from .models import NoiseMonitorConfig, NoiseReading
+
+            config = NoiseMonitorConfig.objects.filter(is_active=True).first()
+            if not config:
+                return
+
+            NoiseReading.objects.create(
+                config=config,
+                raw_level=self._instant_average,
+                instant_average=self._instant_average,
+                session_average=self._session_average,
+                instant_color=self._instant_color,
+                session_color=self._session_color,
+            )
+            self._last_persist_at = timestamp
+        except Exception as e:
+            # The meter keeps working whether or not the row goes in; losing
+            # history is not worth stopping the LEDs and the face for.
+            logger.error(f"Error saving noise reading: {e}")
+            self._last_persist_at = timestamp
 
     @staticmethod
     def _lcd():

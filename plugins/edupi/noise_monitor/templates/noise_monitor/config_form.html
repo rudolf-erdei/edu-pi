@@ -102,6 +102,17 @@
                             {{ form.audio_input_device }}
                             {{ form.audio_input_device_index }}
                         </div>
+
+                        <!-- Auto-start -->
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-3">
+                                {{ form.auto_start }}
+                                <span class="label-text font-semibold">{{ form.auto_start.label }}</span>
+                            </label>
+                            <label class="label">
+                                <span class="label-text-alt">{{ form.auto_start.help_text }}</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="mt-6">

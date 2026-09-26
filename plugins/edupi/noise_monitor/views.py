@@ -17,6 +17,7 @@ from datetime import timedelta
 from .forms import ProfileSelectForm, CustomThresholdForm, NoiseMonitorControlForm
 from .models import NoiseProfile, NoiseMonitorConfig, NoiseReading
 from .noise_service import noise_service
+from .startup import start_monitoring as start_configured_monitoring
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,10 @@ class NoiseMonitorConfigView(FormView):
             initial["instant_window_seconds"] = config.instant_window_seconds
             initial["session_window_minutes"] = config.session_window_minutes
             initial["led_brightness"] = config.led_brightness
+            # Left at the field default, the checkbox would come up ticked on a
+            # configuration that has auto-start switched off, and the next
+            # submit would switch it back on.
+            initial["auto_start"] = config.auto_start
             initial["audio_input_device"] = config.audio_input_device
             initial["audio_input_device_index"] = config.audio_input_device_index
             if config.profile_id:
@@ -173,6 +178,7 @@ class NoiseMonitorConfigView(FormView):
             config.name = f"Profile: {profile.name}"
 
         # Update settings
+        config.auto_start = form.cleaned_data.get("auto_start", False)
         config.instant_window_seconds = form.cleaned_data["instant_window_seconds"]
         config.session_window_minutes = form.cleaned_data["session_window_minutes"]
         config.led_brightness = form.cleaned_data["led_brightness"]
@@ -359,38 +365,10 @@ class NoiseMonitorControlView(View):
 
     def _start_monitoring(self):
         """Start noise monitoring."""
-        # Initialize GPIO if not already done
-        noise_service.initialize_gpio(
-            instant_red_pin=5,
-            instant_green_pin=6,
-            instant_blue_pin=13,
-            session_red_pin=19,
-            session_green_pin=26,
-            session_blue_pin=16,
-        )
-
-        # Get config and configure service
+        # Same call the plugin makes at boot, so a teacher pressing Start gets
+        # exactly what the Pi would have started on its own.
         config = NoiseMonitorConfig.objects.filter(is_active=True).first()
-        if config:
-            noise_service.configure(
-                yellow_threshold=config.profile.yellow_threshold
-                if config.profile
-                else 40,
-                red_threshold=config.profile.red_threshold if config.profile else 70,
-                instant_window_seconds=config.instant_window_seconds,
-                session_window_minutes=config.session_window_minutes,
-                brightness=config.led_brightness,
-            )
-
-            # Applied here as well as at plugin boot: the stream is opened
-            # lazily on the first read, so this is what makes a saved choice
-            # take effect on a service that was restarted since.
-            noise_service.set_device(
-                config.audio_input_device_index, config.audio_input_device
-            )
-
-        # Start monitoring
-        noise_service.start_monitoring(callback=self._on_noise_update)
+        start_configured_monitoring(config)
         logger.info("Noise monitoring started")
 
     def _stop_monitoring(self):
@@ -410,23 +388,6 @@ class NoiseMonitorControlView(View):
             self._start_monitoring()
 
         logger.info("Session reset")
-
-    def _on_noise_update(self, data):
-        """Callback when noise levels update."""
-        # Save reading to database
-        config = NoiseMonitorConfig.objects.filter(is_active=True).first()
-        if config:
-            try:
-                NoiseReading.objects.create(
-                    config=config,
-                    raw_level=data["instant_average"],  # Use instant as raw
-                    instant_average=data["instant_average"],
-                    session_average=data["session_average"],
-                    instant_color=data["instant_color"],
-                    session_color=data["session_color"],
-                )
-            except Exception as e:
-                logger.error(f"Error saving noise reading: {e}")
 
 
 class NoiseLevelAPIView(View):

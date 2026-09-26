@@ -464,3 +464,12 @@ msgstr "Acesta este singurul profil rămas. Creați altul înainte de a-l șterg
 
 msgid "Profile “%(name)s” deleted."
 msgstr "Profilul „%(name)s” a fost șters."
+
+msgid "Start Automatically"
+msgstr "Pornește automat"
+
+msgid "Start monitoring as soon as the Pi is switched on, without anyone having to open this page and press Start."
+msgstr "Pornește monitorizarea imediat ce Raspberry Pi este pornit, fără ca cineva să deschidă această pagină și să apese Pornește."
+
+msgid "Start monitoring as soon as the plugin loads"
+msgstr "Pornește monitorizarea imediat ce modulul este încărcat"

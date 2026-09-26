@@ -328,8 +328,26 @@ Disable Touch Piano plugin when using LCD.
 ### Face Looks Wrong
 
 - Different LCD module may have different orientation
-- Try changing rotation in settings (0, 90, 180, 270)
 - Check backlight is connected
+
+### The Picture Is On Its Side
+
+The panel is a portrait module mounted sideways, so it is shown upright at
+**90**. If the picture is rotated a quarter turn, change **Rotation** on the
+LCD Display page and save: the setting is stored, and the panel re-draws at the
+new angle straight away — no restart.
+
+The four settings on that page are:
+
+| Rotation | What it is for |
+|----------|----------------|
+| 0 | Portrait, as the module comes out of the box |
+| 90 | **Default.** Upright in the usual sideways mounting |
+| 180 | Upside down, for a module fitted the other way up |
+| 270 | The other landscape direction |
+
+A display with no saved configuration comes up at 90, the same as a display
+with one, so an untouched Pi shows correctly without anyone configuring it.
 
 ## Technical Details
 

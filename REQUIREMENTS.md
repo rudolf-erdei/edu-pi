@@ -39,6 +39,7 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
   - `Custom`: User-defined thresholds
 - [x] Teacher can rename and delete profiles (one profile per type, addressed by id)
 - [x] Robot face on the LCD mirrors the session LED (green/happy, yellow/neutral, red/sad), reset to happy on stop
+- [x] Noise monitoring starts automatically when the Pi is switched on (`auto_start` on the configuration, on by default), skipped for batch management commands
 - [x] Real-time updates via WebSocket
 - [x] Web interface displays both noise metrics separately
 - [x] LED brightness control (10-100%)
@@ -674,6 +675,10 @@ Disable conflicting plugins in the admin panel when using specific hardware comb
 - [x] Web-based controls to show/hide smiley, display text, clear screen
 - [x] Backlight brightness control via web interface
 - [x] Mock mode for development on non-Pi systems
+- [x] Rotation saved from the LCD page applies to the panel immediately, without a restart
+- [x] A display with no saved configuration and one with a saved configuration both come up at 90°, the upright angle for the sideways mounting
+- [x] Opening the LCD page never writes configuration
+- [x] Only the server process initializes the panel; `collectstatic` (the service's ExecStartPre) leaves it alone
 
 **Technical Implementation:**
 - Uses luma.lcd library for ILI9341 driver
@@ -922,7 +927,9 @@ The following features have been implemented:
   - Historical readings table (last 50 readings)
 - ✅ LED brightness control (10-100%)
 - ✅ Session reset functionality
-- ✅ Historical noise data tracking with database storage
+- ✅ Historical noise data tracking with database storage (one reading every 5 seconds)
+- ✅ Starts on its own when the Pi is switched on; switchable off from the dashboard
+- ✅ Skipped in processes that are not the server: management commands, and the test run
 
 **Technical Implementation:**
 - Django Channels for WebSocket support

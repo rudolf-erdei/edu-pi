@@ -113,6 +113,11 @@ class NoiseMonitorConfig(models.Model):
         help_text=_("LED brightness percentage (10-100)"),
     )
 
+    auto_start = models.BooleanField(
+        default=True,
+        help_text=_("Start monitoring as soon as the plugin loads"),
+    )
+
     is_active = models.BooleanField(
         default=True,
         help_text=_("Whether this configuration is active"),
