@@ -16,12 +16,16 @@ Including another URLconf
 """
 
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, re_path, include
 from django.views.i18n import JavaScriptCatalog
 
-from core.edupi_core.views import home_view, settings_view, power_shutdown
+from core.edupi_core.views import (
+    home_view,
+    serve_media,
+    settings_view,
+    power_shutdown,
+)
 from core.plugin_system.views import (
     plugin_dashboard_view,
     enable_plugin_view,
@@ -55,10 +59,20 @@ urlpatterns = [
     ),
     # Settings page
     path("settings/", settings_view, name="settings"),
+    # Uploaded files (school logo, generated audio), under MEDIA_URL rather
+    # than a hard-coded "media/" so the route and the URLs the templates build
+    # cannot drift apart. Deliberately not gated on DEBUG: the logo is
+    # uploaded through the settings page on a Pi running with DEBUG=False, and
+    # until this route existed every logo upload looked like it did nothing —
+    # the file was written and the setting saved, but the <img> pointing at it
+    # got a 404. WhiteNoise cannot cover this either: it serves STATIC_ROOT and
+    # indexes it at startup, so a file written at runtime would not be found
+    # until the service restarted.
+    re_path(
+        r"^{}(?P<path>.*)$".format(settings.MEDIA_URL.lstrip("/")),
+        serve_media,
+        name="media",
+    ),
     # Django admin - catch-all must be last
     path("admin/", admin.site.urls),
 ]
-
-# Serve media files in development
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

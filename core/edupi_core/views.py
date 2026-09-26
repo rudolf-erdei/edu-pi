@@ -4,6 +4,7 @@ Views for the Tinko core application.
 
 from django.shortcuts import render
 from django.http import HttpRequest, HttpResponse, JsonResponse, HttpResponseNotAllowed
+from django.views.static import serve as static_serve
 import subprocess
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
@@ -183,6 +184,22 @@ class GlobalSettingsFormImpl(GlobalSettingsForm):
         initial="UTC",
         help_text=_("Select your local timezone"),
     )
+
+
+def serve_media(request: HttpRequest, path: str) -> HttpResponse:
+    """Serve an uploaded file (school logo, generated audio) from MEDIA_ROOT.
+
+    MEDIA_ROOT is read per request rather than captured in the URLconf, so
+    `override_settings(MEDIA_ROOT=...)` works in tests and a moved media
+    directory takes effect without a restart.
+
+    Django's `serve` view is not meant for a busy site, but here the media is
+    a handful of files written by this same application on a classroom Pi and
+    fetched over the local network: it reads the file per request, which is
+    what an upload-then-view flow needs, and `safe_join` refuses any path that
+    escapes MEDIA_ROOT.
+    """
+    return static_serve(request, path, document_root=settings.MEDIA_ROOT)
 
 
 def settings_view(request: HttpRequest) -> HttpResponse:
