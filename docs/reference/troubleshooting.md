@@ -747,6 +747,107 @@ sudo chmod 777 /run/tinko-update
 cd ~/edu-pi && bash update.sh
 ```
 
+### Update Now says an update is already running
+
+**Problem:** Settings → Updates → **Update Now** is refused with *Update already
+in progress*, and keeps being refused. Nothing is updating: the stage list is
+empty and `systemctl status tinko-update` shows the daemon sitting idle.
+
+**Explanation:** The dashboard tracks an update with a row in the database (it
+must, so the page still knows what happened after a reboot), while the run
+itself is tracked by two files under `/run/tinko-update/` — the `trigger` file
+the dashboard writes and the `status.json` the daemon rewrites as it goes. `/run`
+is a tmpfs: switching the Pi off while an update is running wipes both files,
+while the database row survives and still says *in progress*. Nothing was left
+to reconcile the two, so the row blocked every later attempt until it was a day
+old.
+
+A run that is really in progress leaves both files behind, so the dashboard can
+tell an abandoned record from a live one: with no trigger file and no running
+`status.json`, the record is marked failed and the update can be started again.
+A two-minute grace period covers the moment between writing the record and the
+daemon picking it up, and a second teacher clicking at the same time.
+
+**Solutions:**
+
+1. **Wait two minutes and reload the page.** The check runs on every status
+   request, so the abandoned record is cleared on the next one and the button
+   works again. This is what is supposed to happen — if it does, nothing is
+   wrong.
+2. **Check whether a run really is in progress:**
+```bash
+ls -l /run/tinko-update/
+cat /run/tinko-update/status.json 2>/dev/null
+journalctl -u tinko-update -n 30
+```
+A `trigger` file plus a `status.json` reading `"in_progress"` means an update
+*is* running — leave it alone. If the directories are empty, the record is
+stale.
+3. **Clear the record by hand** (equivalent to waiting, for an install that
+   predates the fix, or to do it immediately):
+```bash
+cd ~/edu-pi && uv run python manage.py shell -c "
+from core.update_system.models import UpdateStatus
+from django.utils import timezone
+UpdateStatus.objects.filter(status='in_progress').update(
+    status='failed', completed_at=timezone.now(),
+    error_message='Cleared by hand')
+"
+```
+4. **Update the software** to get the reconciliation, and so the daemon's log is
+   readable — the unit now sets `PYTHONUNBUFFERED=1`, without which Python
+   buffers the daemon's output and `journalctl -u tinko-update` shows nothing
+   even while it works.
+
+!!! note "Do not run `update.sh` by hand while a web update is running"
+    A CLI update reinstalls and restarts `tinko-update.service`, which kills
+    whatever the daemon was running and leaves exactly the abandoned record
+    described above. Current installs skip that restart while a trigger file is
+    present.
+
+### The school logo disappears after an update
+
+**Problem:** A logo is uploaded on Settings → Global and appears in the header.
+After an update it is back to the previous one — or gone — although the settings
+page still says the upload was saved. Uploading it again works until the next
+update.
+
+**Explanation:** `media/site/logos/logo.png` was tracked in git. An update
+stashes local changes, pulls, and pops the stash, so a file the *app* writes was
+being managed by git: the pull checked the committed copy out over the one the
+school had uploaded, and the merge then saw the teacher's file as a change to
+resolve. The logo does not vanish — it is replaced by whatever was last
+committed, which is why it sometimes looks like an older logo rather than
+nothing.
+
+**Solutions:**
+
+1. **Update the software.** `update.sh` and `update-web.sh` now move every file
+   git still tracks under `media/` out of the way of the pull and back
+   afterwards, on both the success and failure path, exactly as they already do
+   for `db.sqlite3`. Upload the logo once more and it stays.
+2. **Check what is tracked:**
+```bash
+cd ~/edu-pi && git ls-files media
+```
+Files listed there are the ones at risk. Once `media/` is untracked the list is
+empty and the guard has nothing to do.
+3. **Recover a logo left aside by an update that was interrupted** mid-pull —
+   the file is still on the Pi, next to where it belongs:
+```bash
+ls -l ~/edu-pi/media/site/logos/
+```
+A `logo.png.update-tmp-<pid>` beside a missing `logo.png` is moved back by the
+next update automatically; to do it now:
+```bash
+cd ~/edu-pi/media/site/logos && mv logo.png.update-tmp-* logo.png
+```
+4. **Re-upload** if it is genuinely gone (Settings → Global → School Logo). The
+   upload itself was never the problem.
+
+See also [School logo uploads but never appears](#school-logo-uploads-but-never-appears),
+which is the other half of logo trouble: the file saved but not served.
+
 ### Service won't start
 
 **Problem:** systemd service fails

@@ -23,6 +23,16 @@ db.sqlite3-journal
 db.sqlite3-wal
 db.sqlite3-shm
 db.sqlite3.update-tmp-*
+
+# Uploaded files are written by the running app, and are deliberately NOT
+# tracked for the same reason: the school's logo is uploaded from the settings
+# page, so any commit of it is a placeholder, and every update used to stash the
+# teacher's upload and merge the placeholder back over it — the logo appeared to
+# vanish. Nothing under media/ belongs in git.
+#
+# The `.update-tmp-*` pattern is the name update.sh / update-web.sh give a file
+# while they move it out of the working tree for the duration of the pull.
+media/
 *.sqlite3
 entities.json
 mempalace.yaml

@@ -216,6 +216,82 @@ restore_live_db() {
     DB_SAVED_PATH=""
 }
 
+# --- Uploaded files protection --------------------------------------------
+#
+# media/ holds what the running app writes for the teacher: the school logo
+# they uploaded, and the audio the routines plugin speaks. The logo was tracked
+# in git, so every update stashed the teacher's upload, the merge checked the
+# committed copy back out over it, and the logo the school had chosen was gone.
+# The fix is to stop tracking media/ — and this guard is what makes that safe,
+# because the commit that untracks those files makes the merge DELETE them from
+# the working tree. Every file git still tracks under media/ is therefore moved
+# out of the tree for the duration of the pull and moved back after it, on
+# every path, exactly as the database is.
+#
+# The list comes from git, so this retires itself: after the untracking commit
+# lands there is nothing tracked under media/ any more, the guard does nothing
+# on every later update, and there is no leftover machinery to remove.
+MEDIA_DIR="media"
+MEDIA_SAVED_PATHS=()
+
+# Recover files left aside by an update that died mid-pull. Never deletes
+# anything — if a live file is present too, the leftover is kept beside it.
+recover_orphaned_media() {
+    local leftover live kept
+    while IFS= read -r leftover; do
+        [[ -n "$leftover" ]] || continue
+        live="${leftover%%.update-tmp-*}"
+        if [[ -e "$live" ]]; then
+            kept="${leftover}.recovered"
+            mv -f "$leftover" "$kept"
+            log_warning "Orphaned uploaded file found next to a live one; kept as $(basename "$kept")"
+        else
+            mv -f "$leftover" "$live"
+            log_warning "Recovered an uploaded file left aside by an interrupted update"
+        fi
+    done < <(find "$INSTALL_DIR/$MEDIA_DIR" -name '*.update-tmp-*' 2>/dev/null)
+}
+
+media_tracked_files() {
+    git -C "$INSTALL_DIR" ls-files -- "$MEDIA_DIR" 2>/dev/null
+}
+
+hide_media() {
+    MEDIA_SAVED_PATHS=()
+    local tracked saved
+    while IFS= read -r tracked; do
+        [[ -n "$tracked" ]] || continue
+        [[ -e "$INSTALL_DIR/$tracked" ]] || continue
+        saved="$tracked.update-tmp-$$"
+        if mv "$INSTALL_DIR/$tracked" "$INSTALL_DIR/$saved"; then
+            MEDIA_SAVED_PATHS+=("$saved")
+        else
+            log_error "Could not move $tracked aside — the pull may delete it"
+        fi
+    done < <(media_tracked_files)
+    if [[ ${#MEDIA_SAVED_PATHS[@]} -gt 0 ]]; then
+        log_info "Moved ${#MEDIA_SAVED_PATHS[@]} uploaded file(s) aside for the pull"
+    fi
+}
+
+restore_media() {
+    [[ ${#MEDIA_SAVED_PATHS[@]} -gt 0 ]] || return 0
+    local saved original
+    for saved in "${MEDIA_SAVED_PATHS[@]}"; do
+        original="${saved%%.update-tmp-*}"
+        # Overwrite whatever the merge left behind: the upload wins. The
+        # directory is recreated because the merge may have removed it along
+        # with the file it checked out.
+        mkdir -p "$(dirname "$INSTALL_DIR/$original")"
+        if mv -f "$INSTALL_DIR/$saved" "$INSTALL_DIR/$original"; then
+            log_success "Restored $original"
+        else
+            log_error "FAILED to restore $original — it is still at $saved"
+        fi
+    done
+    MEDIA_SAVED_PATHS=()
+}
+
 # Pull latest changes from git
 pull_latest() {
     update_status "pull" "in_progress"
@@ -227,8 +303,10 @@ pull_latest() {
     export GIT_TERMINAL_PROMPT=0
 
     recover_orphaned_db
-    # Before the stash, so the stash cannot capture the live database.
+    recover_orphaned_media
+    # Before the stash, so neither the stash nor the merge can touch them.
     hide_live_db
+    hide_media
 
     # Stash any local changes
     STASHED=0
@@ -257,6 +335,7 @@ pull_latest() {
 
     # Always, on both paths.
     restore_live_db
+    restore_media
 }
 
 # Update Python dependencies

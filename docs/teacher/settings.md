@@ -147,6 +147,13 @@ On failure:
 
 Updates can only be triggered every 5 minutes to prevent abuse.
 
+If a previous attempt stopped without finishing — the Pi was switched off
+while it was updating, for instance — the page says an update is already
+running even though nothing is. That clears by itself at the next check, about
+two minutes later, and the update can then be started again; see
+[Update Now says an update is already running](../reference/troubleshooting.md#update-now-says-an-update-is-already-running)
+if it does not.
+
 ### When the Update Changes the Updater
 
 Some updates modify the update script itself. Because a running script cannot
@@ -166,6 +173,11 @@ it different from the stored copy. Rather than trying to merge the two, the
 update sets the database aside while it fetches new code and puts it back
 afterwards, on both the success and the failure path. Timers, routines,
 readings and settings survive every update.
+
+Uploaded files are treated the same way. The school logo you chose in
+[Global Settings](#school-logo) lives in `media/`, and the update moves whatever
+the app wrote there out of the way of the new code and puts it back afterwards.
+The logo you uploaded stays the logo after an update.
 
 The one thing that does not survive is a factory-style reinstall that wipes
 the database outright — back it up first if that is what you want to do (see
