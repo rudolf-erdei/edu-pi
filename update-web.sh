@@ -174,7 +174,14 @@ pull_latest() {
         STASHED=1
     fi
 
-    if run_as_user "cd '$INSTALL_DIR' && timeout 60 GIT_TERMINAL_PROMPT=0 git pull"; then
+    # The env assignment must come BEFORE `timeout`, not after. `timeout` does
+    # not accept a VAR=value prefix the way a shell does — written the other
+    # way round it tries to exec a program literally named
+    # "GIT_TERMINAL_PROMPT=0" and fails with "No such file or directory",
+    # which the branch below reports as "no internet" and the update then
+    # continues on the OLD version. That silently disabled the web update's
+    # pull entirely.
+    if run_as_user "cd '$INSTALL_DIR' && GIT_TERMINAL_PROMPT=0 timeout 60 git pull"; then
         log_success "Latest changes pulled successfully"
         update_status "pull" "completed"
     else
