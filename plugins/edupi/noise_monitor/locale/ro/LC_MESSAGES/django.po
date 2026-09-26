@@ -245,3 +245,21 @@ msgstr "Activează monitorizarea zgomotului"
 
 msgid "Start monitoring when plugin is enabled"
 msgstr "Pornește monitorizarea când modulul este activat"
+# Microphone selection and state (config_form.html, dashboard.html)
+msgid "Microphone"
+msgstr "Microfon"
+
+msgid "Automatic (recommended)"
+msgstr "Automat (recomandat)"
+
+msgid "Automatic uses the first USB microphone it finds. Leave this alone unless the room has more than one."
+msgstr "Automat folosește primul microfon USB găsit. Nu modificați decât dacă în clasă există mai multe microfoane."
+
+msgid "Could not list the microphones on this device."
+msgstr "Microfoanele acestui dispozitiv nu au putut fi listate."
+
+msgid "No microphone support on this device - the levels shown are simulated."
+msgstr "Acest dispozitiv nu are suport pentru microfon - nivelurile afișate sunt simulate."
+
+msgid "Microphone unavailable - the levels shown are the last ones measured."
+msgstr "Microfonul nu este disponibil - nivelurile afișate sunt ultimele măsurate."

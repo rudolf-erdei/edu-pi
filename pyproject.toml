@@ -34,6 +34,12 @@ pi = [
     "spidev>=3.5",
     "luma.core>=2.4.0",
     "luma.lcd>=2.11.0",
+    # Microphone input for the noise monitor. sounddevice talks to ALSA through
+    # libportaudio2 (installed with the other apt packages), and numpy turns the
+    # samples into a level. Without both, the noise monitor silently reports
+    # simulated data instead of the real room.
+    "sounddevice>=0.5.0",
+    "numpy>=1.26",
 ]
 
 [dependency-groups]
@@ -48,3 +54,7 @@ pythonpath = ["."]
 # a manifest-free one, so templates render without a collectstatic run.
 DJANGO_SETTINGS_MODULE = "config.settings_test"
 django_find_project = false
+# Plugins keep their tests in tests.py, which pytest's default test_*.py
+# pattern does not match — so `uv run pytest` was collecting none of them and
+# the Noise Monitor suite had never run.
+python_files = ["test_*.py", "tests.py"]

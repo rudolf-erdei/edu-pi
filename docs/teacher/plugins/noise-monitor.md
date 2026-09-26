@@ -55,28 +55,72 @@ Shows the **overall** noise level for the session:
 - **Purpose**: Track overall session noise quality
 - **Use Case**: Reward quiet sessions, identify problematic periods
 
+## Microphone
+
+The monitor records from a USB sound card. No configuration is normally needed:
+on startup it picks the first USB capture device it finds, and on a Tinko Pi that
+is the classroom microphone.
+
+### Choosing a Microphone
+
+The **Microphone** picker on the configuration page lists every device that can
+record, plus an **Automatic** entry. Automatic is right unless the room has more
+than one microphone — the Pi's HDMI output cannot capture at all and is never
+offered.
+
+The choice is stored as a **name** as well as an index. ALSA renumbers the sound
+cards when a USB microphone is replugged, so a saved index can end up pointing at
+a device that cannot record; matching on the name instead means the choice
+survives being unplugged and moved to another port.
+
+### Levels, Not Decibels
+
+The 0-100 number on the dashboard and the thresholds in the profiles are a
+**relative level**, not dB SPL. There is no calibrated sound-pressure reading:
+the microphone has no absolute reference, so 40 means "the same loudness as when
+40 was useful to you", not "40 decibels".
+
+Internally the microphone's RMS amplitude is converted to dBFS and mapped across
+a 60 dB window (`-60 dBFS` → 0, `0 dBFS` → 100). With the reference USB
+microphone that puts a quiet classroom around 15-25, normal conversation in the
+yellow band, and a loud room in the red.
+
+### If the Microphone Stops
+
+The dashboard says so plainly rather than showing a plausible-looking number:
+
+| Banner | Meaning |
+|--------|---------|
+| *(none)* | Levels on screen come from the microphone |
+| **Microphone unavailable** | Monitoring is running but no device could be opened; the readings shown are the last ones measured |
+| **No microphone support** | The audio library is missing on this device; the readings are simulated |
+
+Readings are never invented when a real microphone is expected. If the
+microphone is unplugged mid-session the display holds its last values and the
+banner explains why.
+
 ## Noise Profiles
 
 Choose from four preset noise profiles or create custom thresholds:
 
 ### Test Profile
-- **Yellow Threshold**: 30 dB
-- **Red Threshold**: 50 dB
+- **Yellow Threshold**: Level 30
+- **Red Threshold**: Level 50
 - **Use Case**: Silent mode, testing
 
 ### Teaching Profile
-- **Yellow Threshold**: 40 dB
-- **Red Threshold**: 70 dB
+- **Yellow Threshold**: Level 40
+- **Red Threshold**: Level 70
 - **Use Case**: Normal classroom teaching
 
 ### Group Work Profile
-- **Yellow Threshold**: 50 dB
-- **Red Threshold**: 80 dB
+- **Yellow Threshold**: Level 50
+- **Red Threshold**: Level 80
 - **Use Case**: Collaborative activities, discussions
 
 ### Custom Profile
-- **Yellow Threshold**: User-defined
-- **Red Threshold**: User-defined
+- **Yellow Threshold**: User-defined (0-100)
+- **Red Threshold**: User-defined (0-100)
 - **Use Case**: Specific classroom acoustics
 
 ## LED Color Coding
@@ -98,7 +142,7 @@ Both LEDs use the same color scheme:
 
 - **Instant Noise Bar**: Visual representation of current noise (0-100%)
 - **Session Average Bar**: Visual representation of session average
-- **Digital Readings**: Numeric dB values
+- **Digital Readings**: Numeric level, 0-100
 - **LED Indicators**: On-screen LEDs matching physical LEDs
 
 ### Historical Data
@@ -127,6 +171,10 @@ Access settings at `/plugins/edupi/noise_monitor/config/`:
 
 - **Instant Window**: Seconds for instant average (5-60s)
 - **Session Window**: Minutes for session average (1-30min)
+
+### Microphone
+
+- **Microphone**: Which capture device to record from (Automatic by default)
 
 ### LED Settings
 
@@ -221,10 +269,15 @@ The Noise Monitor uses WebSocket for real-time updates:
 
 ### No Noise Readings
 
-1. Check USB microphone connection
-2. Verify microphone is not muted
-3. Check system audio settings
-4. Test microphone with: `arecord -l`
+The dashboard banner says which of these applies, so read it first.
+
+1. Check the USB microphone connection
+2. List the capture devices: `arecord -l`
+   — the classroom microphone appears as `card 1: Device [USB PnP Sound Device]`
+3. Check the service log: `journalctl -u tinko -n 50 | grep -i micro`
+4. Check the audio library is installed: `ldconfig -p | grep portaudio`
+5. Confirm the selected device on the configuration page is still present; set it
+   back to **Automatic** if the room has only one microphone
 
 ### WebSocket Disconnected
 
@@ -248,8 +301,10 @@ The Noise Monitor uses WebSocket for real-time updates:
 
 ## Technical Details
 
-- **Audio Sampling**: 10 times per second
-- **Averaging**: Exponential moving average
+- **Audio Sampling**: 44.1 kHz mono, 50 ms blocks, read 10 times per second
+- **Microphone Access**: `sounddevice` over ALSA (apt package `libportaudio2`)
+- **Averaging**: Mean of the readings inside the configured time window
+- **Level Scale**: RMS → dBFS, mapped over a 60 dB window to 0-100
 - **WebSocket Protocol**: Django Channels
 - **Database**: Stores last 1000 readings
 - **GPIO Control**: PWM for smooth color transitions

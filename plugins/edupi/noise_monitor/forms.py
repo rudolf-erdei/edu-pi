@@ -111,18 +111,11 @@ class CustomThresholdForm(forms.Form):
         help_text=_("Brightness percentage for RGB LEDs"),
     )
 
-    audio_input_device = forms.CharField(
-        required=False,
-        max_length=255,
-        label=_("Audio Input Device"),
-        help_text=_("Select the microphone device to use"),
-        widget=forms.TextInput(attrs={'readonly': True, 'id': 'audio-device-name'}),
-    )
-
-    audio_input_device_index = forms.IntegerField(
-        required=False,
-        widget=forms.HiddenInput(attrs={'id': 'audio-device-index'}),
-    )
+    # No microphone fields here on purpose. The device is a property of the
+    # room, not of a noise threshold profile, and this form sits on the same
+    # page as the profile form — carrying the fields in both meant a submit
+    # here posted an empty selection and silently reset the microphone to
+    # automatic.
 
     def clean(self):
         """Validate that yellow threshold is less than red threshold."""

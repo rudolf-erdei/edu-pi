@@ -23,7 +23,7 @@
                     <i class="fas fa-list mr-2"></i>{% trans "Select Profile" %}
                 </h2>
                 
-                <form method="post" action="{% url 'noise_monitor:config' %}">
+                <form method="post" action="{% url 'noise_monitor:config' %}" id="noise-profile-form">
                     {% csrf_token %}
                     
                     <div class="space-y-4">
@@ -83,8 +83,27 @@
                                 </label>
                             {% endif %}
                         </div>
+
+                        <!-- Microphone -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold">{% trans "Microphone" %}</span>
+                            </label>
+                            <select name="audio_device_choice" id="audio-device-select"
+                                    class="select select-bordered w-full">
+                                <option value="">{% trans "Automatic (recommended)" %}</option>
+                            </select>
+                            <label class="label">
+                                <span class="label-text-alt" id="audio-device-help">
+                                    {% trans "Automatic uses the first USB microphone it finds. Leave this alone unless the room has more than one." %}
+                                </span>
+                            </label>
+                            {# The service stores the device name as well as the index: ALSA renumbers the cards when a USB microphone is replugged, and a saved index then points at a device that cannot record. #}
+                            {{ form.audio_input_device }}
+                            {{ form.audio_input_device_index }}
+                        </div>
                     </div>
-                    
+
                     <div class="mt-6">
                         <button type="submit" class="btn btn-primary btn-block btn-lg">
                             <i class="fas fa-save mr-2"></i>{% trans "Apply Profile" %}
@@ -218,5 +237,84 @@
 input[type="number"], select {
     @apply input input-bordered w-full;
 }
+/* Django renders the device fields itself; the picker below is the visible
+   one, so the hidden inputs must not take up space. */
+#audio-device-name { display: none; }
 </style>
+
+<script>
+// The microphone picker.
+//
+// The select is not a Django field: the form posts the two fields the service
+// actually stores, and this keeps them in step with the picker. The saved
+// device name is posted alongside the index because ALSA renumbers the sound
+// cards when a USB microphone is replugged, and an index on its own then
+// points at a device that cannot record.
+(function () {
+    const form = document.getElementById('noise-profile-form');
+    const select = document.getElementById('audio-device-select');
+    const nameField = document.getElementById('audio-device-name');
+    const indexField = document.getElementById('audio-device-index');
+    const help = document.getElementById('audio-device-help');
+
+    if (!form || !select || !nameField || !indexField) {
+        return;
+    }
+
+    // Mirrors NoiseMonitorService._normalize_device_name: the card number in
+    // the "(hw:N,0)" tail is what changes when the microphone is replugged, so
+    // only the head of the name is compared.
+    function normalize(name) {
+        return String(name || '').split('(')[0].trim().toLowerCase();
+    }
+
+    form.addEventListener('submit', function () {
+        const chosen = select.selectedOptions[0];
+        indexField.value = select.value;
+        nameField.value = chosen && select.value ? chosen.dataset.name : '';
+    });
+
+    fetch('{% url "noise_monitor:api_audio_devices" %}')
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            if (!data.success) {
+                help.textContent = data.error;
+                return;
+            }
+
+            data.devices.forEach(function (device) {
+                const option = document.createElement('option');
+                option.value = String(device.index);
+                option.dataset.name = device.name;
+                option.textContent = device.name;
+                select.appendChild(option);
+            });
+
+            // Show the saved device as selected. The index is tried first and
+            // the saved name is the fallback: a microphone replugged into a
+            // different port keeps its name but not its index, and falling
+            // through to "Automatic" here would silently drop the choice on
+            // the next submit.
+            if (indexField.value !== '') {
+                select.value = indexField.value;
+
+                if (select.value !== indexField.value) {
+                    const wanted = normalize(nameField.value);
+                    const match = Array.prototype.find.call(
+                        select.options,
+                        function (option) {
+                            return normalize(option.dataset.name) === wanted;
+                        }
+                    );
+                    if (match) {
+                        select.value = match.value;
+                    }
+                }
+            }
+        })
+        .catch(function () {
+            help.textContent = '{% trans "Could not list the microphones on this device." %}';
+        });
+})();
+</script>
 {% endblock %}
