@@ -443,6 +443,10 @@ EOF
 Description=Tinko Wi-Fi Captive Portal Check
 After=NetworkManager.service
 Before=tinko.service
+# StartLimit* belong in [Unit]; in [Service] systemd ignores them ("Unknown
+# key ... ignoring"), which silently disables the retry bound.
+StartLimitIntervalSec=120
+StartLimitBurst=3
 
 [Service]
 Type=oneshot
@@ -451,8 +455,6 @@ ExecStart=/bin/bash $WIFI_DIR/startup_check.sh
 User=root
 Restart=on-failure
 RestartSec=10
-StartLimitIntervalSec=120
-StartLimitBurst=3
 StandardOutput=journal
 StandardError=journal
 
@@ -467,6 +469,14 @@ EOF
     # Install Flask for the captive portal
     log_info "Installing Flask for captive portal..."
     sudo apt-get install -y python3-flask || pip3 install Flask
+
+    # dnsutils (dig/nslookup) lets startup_check.sh actually verify that
+    # dnsmasq answers on the hotspot IP; without it the check degrades to a
+    # bare socket-bind test that never proves DNS resolution works.
+    if ! command -v dig &> /dev/null; then
+        log_info "Installing dnsutils for dnsmasq verification..."
+        sudo apt-get install -y dnsutils
+    fi
 
     # Generate self-signed TLS cert for HTTPS captive portal checks
     log_info "Generating self-signed TLS certificate for captive portal..."
@@ -567,6 +577,9 @@ setup_systemd_service() {
 [Unit]
 Description=Tinko Educational Platform
 After=network.target
+# StartLimit* belong in [Unit]; in [Service] systemd ignores them.
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -582,8 +595,6 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 Restart=always
 RestartSec=5
-StartLimitBurst=5
-StartLimitIntervalSec=60
 
 [Install]
 WantedBy=multi-user.target

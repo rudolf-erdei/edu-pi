@@ -74,7 +74,8 @@ code; verification status is listed on each.
 11. **SSID scan in AP mode was a doomed blocking call.** (`wifi-connect/portal.py`)
     — FIXED. Scan is skipped (`_in_hotspot_mode()` guard); scan has a timeout.
 
-12. **Boot ordering relied on `Before=` alone; no retry bound.** — MITIGATED.
+12. **Boot ordering relied on `Before=` alone; no retry bound.** — MITIGATED,
+    but the bound was inert until 2026-09-26 (see the verification pass below).
     `StartLimitBurst=3` bounds retry spinning; a failed `tinko-wifi` does not
     block `tinko` (ordering only, not an After/Requires dependency) so the Pi
     can never be locked out of the dashboard. Residual reliance on `Before=`
@@ -97,11 +98,85 @@ code; verification status is listed on each.
   `/hotspot-detect.html` 302 (captive detection works).
 - Service unit + scripts deployed to `/home/tinko/` on the Pi.
 
+## Captive Portal — verification pass (2026-09-26, field Pi)
+
+### Defect found and fixed: `StartLimitIntervalSec` was in the wrong section
+
+Every boot logged:
+
+```
+tinko-wifi.service:13: Unknown key 'StartLimitIntervalSec' in section [Service], ignoring.
+```
+
+`StartLimitIntervalSec` is a `[Unit]` directive. systemd ignored it, so the
+interval fell back to the 10 s default while `RestartSec=10` spaces restarts
+10 s apart — the 3-restart burst could effectively never trip. The retry
+bound credited to issue #12 above was therefore **not actually in force**.
+
+Fixed by moving `StartLimitIntervalSec`/`StartLimitBurst` into `[Unit]`, for
+both units, in all three unit writers (6 blocks):
+
+| File | Units |
+|------|-------|
+| `install-raspberry-pi.sh` | `tinko-wifi.service`, `tinko.service` |
+| `update.sh` | `tinko-wifi.service`, `tinko.service` |
+| `update-web.sh` | `tinko-wifi.service`, `tinko.service` |
+
+Docs brought in line: `docs/teacher/installation.md`, `wifi-connect/docs.md`,
+`REQUIREMENTS.md`, and the captive-portal architecture memory.
+
+### Defect found and fixed: `dig` absent, so dnsmasq verification was hollow
+
+`dnsutils` was not installed, so `start_dnsmasq`'s `dig`/`nslookup` branch
+never ran and the function fell through to the socket-bound-only branch —
+dnsmasq was confirmed *listening* but never confirmed *answering*. Both `dig`
+and `nslookup` ship in `dnsutils`; neither was present on the Pi.
+
+Fixed: an `apt-get install -y dnsutils` guard added to
+`install-raspberry-pi.sh`, `update.sh` and `update-web.sh`.
+
+### Zero-risk verification (run remotely, wlan0 untouched)
+
+Method: create a `dummy0` interface with `10.42.0.1/24`, run dnsmasq against
+that interface only, run `portal.py` with `PORTAL_PORT=8080` and
+`WIFI_WORKER_SCRIPT=/bin/true`. wlan0 was never touched, so the SSH session
+survived the whole test.
+
+Results:
+
+- dnsmasq bound `10.42.0.1:53` and the wildcard answered `anything.example.com`,
+  `clients3.google.com` and `captive.apple.com` → `10.42.0.1`. The real DNS
+  redirect path is proven, not just the socket bind.
+- All six captive-detection routes returned `302 -> http://10.42.0.1/`:
+  `/generate_204`, `/gen_204`, `/hotspot-detect.html`, `/connecttest.txt`,
+  `/ncsi.txt`, `/library/test/success.html`.
+- `GET /` → 200 serving the "Connect Tinko to Wi-Fi" form.
+- `POST /connect` → 400 for empty input, 400 for a 33-char SSID (length and
+  control-character guards hold), 200 + wait page for valid credentials.
+- Cleanup verified: `dummy0` deleted, wlan0 still connected, `dnsmasq`
+  service still inactive/disabled, `tinko` service still active.
+
+Side note, not a defect: `portal.py`'s HTTPS redirect server logged
+`could not bind port 443: [Errno 13] Permission denied`. Expected — the test
+ran the portal as `tinko`, not root. In real setup mode it runs as root and
+daphne is held back by `Before=tinko.service`, so :443 is free.
+
+### Not covered by the above (needs the radio)
+
+The `Tinko-Setup` access point itself, NetworkManager shared-mode NAT, and the
+credential handoff/revert in `wifi_worker.sh`. Those remain for the field test
+below.
+
 ## Still needs a field test (do on-site, not over SSH)
 
 **The offline/setup branch** (hotspot + dnsmasq + portal, handoff, failure
 revert) was NOT exercised on the live Pi — bringing the hotspot up would have
 dropped the SSH link. To test:
+
+**Shortcut that avoids the blind window:** plug an Ethernet cable into the Pi.
+`eth0` is free (`NO-CARRIER` on the field Pi 4), so SSH can ride the wire while
+wlan0 runs the hotspot — the entire branch becomes testable remotely with no
+risk of locking yourself out. Without a cable, do the run on-site.
 
 1. Put the Pi where its configured WiFi is unavailable (or disable the saved
    network), reboot, then on another device:

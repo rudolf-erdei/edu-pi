@@ -1011,6 +1011,8 @@ The install script creates two systemd services that work together:
 Description=Tinko Wi-Fi Captive Portal Check
 After=NetworkManager.service
 Before=tinko.service
+StartLimitIntervalSec=120
+StartLimitBurst=3
 
 [Service]
 Type=oneshot
