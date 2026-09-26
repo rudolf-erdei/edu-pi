@@ -566,7 +566,7 @@ Use the globe icon in the navigation bar to switch between languages. Translatio
 
 1. Create directory: `locale/xx/LC_MESSAGES/`
 2. Create translation file: `django.po`
-3. Compile translations: `uv run django-admin compilemessages`
+3. Compile translations: `uv run python compile_translations.py`
 
 ### Plugin Translations
 
