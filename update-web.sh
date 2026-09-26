@@ -265,6 +265,15 @@ update_dependencies() {
 
     # uv lives under the service user's ~/.local/bin; run as that user.
     if [[ -f /proc/device-tree/model ]] && grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
+        # libportaudio2 is what sounddevice loads to reach the noise monitor's
+        # microphone. Without it the import fails and the plugin quietly
+        # reports simulated noise instead of the real room.
+        if ! ldconfig -p 2>/dev/null | grep -q "libportaudio\.so\.2"; then
+            log_info "libportaudio2 not found, installing for the noise monitor..."
+            sudo apt-get install -y libportaudio2 || \
+                log_warning "Could not install libportaudio2 - the noise monitor will run without a microphone"
+        fi
+
         log_info "Installing all dependencies including Pi-specific extras..."
         run_as_user "cd '$INSTALL_DIR' && uv sync --all-extras"
     else

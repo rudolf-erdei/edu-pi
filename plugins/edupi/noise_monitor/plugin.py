@@ -118,12 +118,17 @@ class Plugin(PluginBase):
             from .noise_service import noise_service
 
             config = NoiseMonitorConfig.objects.filter(is_active=True).first()
-            if config and config.audio_input_device_index is not None:
+            if config:
+                # Called even when nothing is configured, so that an empty
+                # selection means "choose automatically" rather than "keep
+                # whatever the last process left behind".
                 noise_service.set_device(
                     config.audio_input_device_index,
-                    config.audio_input_device
+                    config.audio_input_device,
                 )
-                logger.info(f"Loaded device config: {config.audio_input_device}")
+                logger.info(
+                    f"Microphone config: {config.audio_input_device or 'automatic'}"
+                )
         except Exception as e:
             logger.warning(f"Could not load device config: {e}")
 

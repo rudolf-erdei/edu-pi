@@ -87,6 +87,53 @@ are gone) plus `db.sqlite3.update-tmp-*` for the moved-aside names.
 No fixture is needed for a fresh install: `install-raspberry-pi.sh` runs
 `migrate --noinput`, which builds the schema from migrations.
 
+## Open — noise monitor microphone (fixed in repo, not yet on the Pi)
+
+Found 2026-09-26 while setting up the USB microphone that was plugged into the
+Pi. The microphone had **never** produced a reading on any Tinko install, and
+four separate defects were behind it.
+
+**1. The audio libraries were never declared.** `pyproject.toml` did not list
+`sounddevice` or `numpy` anywhere, not even in the `pi` extra, so
+`uv sync --all-extras` installed neither. The plugin's import guard caught the
+`ImportError` and fell back to `_simulate_noise()` — plausible random numbers
+that look exactly like a working microphone. Nothing in the log, the dashboard
+or the API said "simulated". Fixed by adding both to the `pi` extra.
+
+**2. `libportaudio2` was never guaranteed.** `install-raspberry-pi.sh` installs
+it; `update.sh` did not, so an existing install could pull the new Python
+dependency and still have no sound library underneath it. `update.sh` and
+`update-web.sh` now check `ldconfig -p` and install it before `uv sync`.
+
+**3. The level calibration put a real room at zero.** The mapping was
+`rms * 200` on a 0..1 float. Room tone from the reference USB microphone
+measures ~0.002 RMS, i.e. level 0 — a classroom with people in it looked
+identical to a disconnected microphone, and the yellow threshold needed an RMS
+of 0.2 to trip. Replaced with RMS → dBFS mapped over a 60 dB window.
+
+**4. The dashboard could not tell real from simulated.** Both paths render the
+same numbers, which is what let 1-3 go unnoticed. The dashboard now carries a
+microphone banner, `get_current_levels()` and the WebSocket payload carry
+`device_status`/`microphone_available`, and a failed read holds the last values
+rather than inventing new ones.
+
+Two smaller fixes came with it: both forms on the configuration page carried the
+microphone fields, so submitting the *custom threshold* form posted an empty
+device and silently reset the monitor to automatic (the fields now live on the
+profile form only), and the selection is stored as a name as well as an index,
+because ALSA renumbers the cards when a USB microphone is replugged.
+
+**Verified on the hardware** (not inferred): `arecord -l` shows
+`card 1: Device [USB PnP Sound Device]`, and a 3-second capture through
+`sounddevice` on device 1 measures mean RMS 0.004 → level 19, which is the green
+band. Speech at ~0.02 RMS maps to 43, the yellow band. The old mapping would
+have reported 0 for both.
+
+**Not yet on the Pi**: `sounddevice`/`numpy` were installed into the Pi's venv
+by hand during the investigation, but the code changes need a commit, a push
+and one CLI `bash update.sh` before the microphone is actually used. Until
+then the Pi still runs the version that simulates.
+
 ## Open — accumulated stashes on the field Pi
 
 Every successful update left one stash behind (same root cause as above). The

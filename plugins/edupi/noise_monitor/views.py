@@ -59,6 +59,12 @@ class NoiseMonitorDashboardView(TemplateView):
         context["instant_color"] = levels["instant_color"]
         context["session_color"] = levels["session_color"]
 
+        # Whether those levels came from a microphone or from the simulated
+        # fallback, so the page can say so before the first WebSocket message.
+        context["microphone_available"] = levels["microphone_available"]
+        context["device_status"] = levels["device_status"]
+        context["device_name"] = levels["device_name"]
+
         # Recent readings (last 50)
         context["recent_readings"] = NoiseReading.objects.filter(
             config=config
@@ -73,6 +79,23 @@ class NoiseMonitorConfigView(FormView):
     template_name = "noise_monitor/config_form.html"
     form_class = ProfileSelectForm
     success_url = reverse_lazy("noise_monitor:dashboard")
+
+    def get_initial(self):
+        """Show the saved microphone, so a submit here cannot clear it.
+
+        The picker fills these from the API, but the form must already carry
+        the saved selection: without it, a page load before the request
+        finishes (or with JavaScript unavailable) posts an empty device and
+        quietly switches the monitor back to automatic.
+        """
+        initial = super().get_initial()
+
+        config = NoiseMonitorConfig.objects.filter(is_active=True).first()
+        if config:
+            initial["audio_input_device"] = config.audio_input_device
+            initial["audio_input_device_index"] = config.audio_input_device_index
+
+        return initial
 
     def get_context_data(self, **kwargs):
         """Add custom threshold form to context."""
@@ -114,9 +137,10 @@ class NoiseMonitorConfigView(FormView):
             brightness=config.led_brightness,
         )
 
-        # Set audio device if specified
-        if config.audio_input_device_index is not None:
-            noise_service.set_device(config.audio_input_device_index, config.audio_input_device)
+        # An empty selection means automatic, so this is called either way.
+        noise_service.set_device(
+            config.audio_input_device_index, config.audio_input_device
+        )
 
         logger.info(f"Noise monitor configured with profile: {profile.name}")
         return super().form_valid(form)
@@ -164,8 +188,8 @@ class CustomThresholdConfigView(FormView):
         config.instant_window_seconds = form.cleaned_data["instant_window_seconds"]
         config.session_window_minutes = form.cleaned_data["session_window_minutes"]
         config.led_brightness = form.cleaned_data["led_brightness"]
-        config.audio_input_device = form.cleaned_data.get("audio_input_device", "")
-        config.audio_input_device_index = form.cleaned_data.get("audio_input_device_index")
+        # The microphone selection is left alone: this form has no microphone
+        # field, and the device belongs to the profile form.
         config.save()
 
         # Update service
@@ -176,10 +200,6 @@ class CustomThresholdConfigView(FormView):
             session_window_minutes=config.session_window_minutes,
             brightness=config.led_brightness,
         )
-
-        # Set audio device if specified
-        if config.audio_input_device_index is not None:
-            noise_service.set_device(config.audio_input_device_index, config.audio_input_device)
 
         logger.info(
             f"Custom thresholds set: yellow={custom_profile.yellow_threshold}, red={custom_profile.red_threshold}"
@@ -231,6 +251,13 @@ class NoiseMonitorControlView(View):
                 instant_window_seconds=config.instant_window_seconds,
                 session_window_minutes=config.session_window_minutes,
                 brightness=config.led_brightness,
+            )
+
+            # Applied here as well as at plugin boot: the stream is opened
+            # lazily on the first read, so this is what makes a saved choice
+            # take effect on a service that was restarted since.
+            noise_service.set_device(
+                config.audio_input_device_index, config.audio_input_device
             )
 
         # Start monitoring
@@ -312,37 +339,32 @@ class AudioDevicesAPIView(View):
 
     def get(self, request, *args, **kwargs):
         """Return list of available audio input devices."""
-        try:
-            import sounddevice as sd
+        from .noise_service import MICROPHONE_AVAILABLE
 
-            devices = sd.query_devices()
-            input_devices = []
+        devices = noise_service.list_input_devices()
 
-            for idx, device in enumerate(devices):
-                if device['max_input_channels'] > 0:
-                    input_devices.append({
-                        'index': idx,
-                        'name': device['name'],
-                        'channels': device['max_input_channels'],
-                        'default_samplerate': int(device['default_samplerate']),
-                    })
+        if not MICROPHONE_AVAILABLE:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "sounddevice not available - running in simulation mode",
+                    "devices": [],
+                    "microphone_available": False,
+                },
+                status=200,
+            )
 
-            return JsonResponse({
-                'success': True,
-                'devices': input_devices,
-                'default_input_index': sd.default.device[0] if sd.default.device[0] is not None else None,
-            })
-        except ImportError:
-            return JsonResponse({
-                'success': False,
-                'error': 'sounddevice not available - running in simulation mode',
-                'devices': [],
-                'default_input_index': None,
-            }, status=200)
-        except Exception as e:
-            logger.error(f"Error listing audio devices: {e}")
-            return JsonResponse({
-                'success': False,
-                'error': str(e),
-                'devices': [],
-            }, status=500)
+        status = noise_service.get_device_status()
+        return JsonResponse(
+            {
+                "success": True,
+                "devices": devices,
+                "microphone_available": True,
+                # What the service is actually capturing from, which is not the
+                # same as the saved selection when that one is automatic or no
+                # longer resolves.
+                "active_index": status["device_index"],
+                "active_name": status["device_name"],
+                "device_status": status["device_status"],
+            }
+        )

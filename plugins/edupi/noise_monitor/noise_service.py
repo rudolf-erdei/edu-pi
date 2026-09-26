@@ -74,8 +74,52 @@ DEVICE_STATUS_DISCONNECTED = "disconnected"
 DEVICE_STATUS_RECONNECTING = "reconnecting"
 DEVICE_STATUS_DEFAULT = "default"  # Using system default
 
+# Microphone capture settings.
+#
+# A stream is held open rather than opened per reading: opening this USB sound
+# card costs about 15 ms, which at ten readings a second dominated the monitor
+# loop. Blocks are 50 ms, so the newest block the loop sees is at most that
+# stale while the loop itself still runs at 10 Hz.
+MIC_SAMPLE_RATE = 44100
+MIC_BLOCK_SECONDS = 0.05
+
+# Decibel floor of the 0-100 scale.
+#
+# The old mapping was `rms * 200` on a 0..1 float scale, which needed an RMS of
+# 0.2 just to reach the yellow threshold. Room tone from the reference USB
+# microphone (C-Media "USB PnP Sound Device") measures around 0.002 RMS, so that
+# mapping reported 0 for a room with people in it and real audio was
+# indistinguishable from a dead microphone. Mapping dBFS across a 60 dB window
+# instead gives the thresholds something to bite on:
+#
+#     0.002 RMS -> -54 dBFS -> level 10   quiet classroom
+#     0.02  RMS -> -34 dBFS -> level 43   normal talk, yellow
+#     0.2   RMS -> -14 dBFS -> level 77   loud, red
+MIC_FLOOR_DBFS = -60.0
+MIC_CEILING_DBFS = 0.0
+
 
 logger = logging.getLogger(__name__)
+
+
+def _query_devices() -> List[dict]:
+    """
+    List every audio device the sound library knows about.
+
+    Kept as a module-level function so the device-selection logic can be
+    exercised without a sound card present.
+
+    Returns:
+        List of device dicts, or an empty list when sounddevice is unavailable.
+    """
+    if not MICROPHONE_AVAILABLE:
+        return []
+
+    try:
+        return list(sd.query_devices())
+    except Exception as e:
+        logger.error(f"Could not enumerate audio devices: {e}")
+        return []
 
 
 class NoiseMonitorService:
@@ -140,11 +184,21 @@ class NoiseMonitorService:
         self._instant_color: str = "green"
         self._session_color: str = "green"
 
-        # Audio device settings
+        # Audio device settings. _device_index/_device_name are what the
+        # teacher configured; _resolved_index/_resolved_name are what the
+        # service actually opened, which differ when the selection is automatic
+        # or when ALSA has renumbered the cards since the choice was saved.
         self._device_index: Optional[int] = None
         self._device_name: str = ""
+        self._resolved_index: Optional[int] = None
+        self._resolved_name: str = ""
         self._device_status: str = DEVICE_STATUS_DEFAULT
         self._reconnect_interval: float = 2.0  # seconds
+        self._next_stream_attempt: float = 0.0
+
+        # Live audio stream (only when sounddevice is available)
+        self._stream = None
+        self._latest_block = None
 
     def initialize_gpio(
         self,
@@ -200,6 +254,8 @@ class NoiseMonitorService:
 
         if self._monitor_thread and self._monitor_thread.is_alive():
             self._monitor_thread.join(timeout=2)
+
+        self._close_stream()
 
         # Turn off LEDs
         self._set_instant_led_color(0, 0, 0)
@@ -267,22 +323,102 @@ class NoiseMonitorService:
 
     def set_device(self, device_index: Optional[int], device_name: str = "") -> None:
         """
-        Set the audio input device for monitoring.
+        Select the microphone to monitor.
 
         Args:
-            device_index: Device index from sounddevice, or None for default
-            device_name: Human-readable device name for display
+            device_index: Device index from sounddevice, or None to select
+                automatically.
+            device_name: Human-readable device name.
         """
-        if device_index is None:
+        # A different device means the stream already open is pointed at the
+        # old one, so drop it and let the next read open the right device.
+        self._close_stream()
+
+        if device_index is None and not device_name:
             self._device_index = None
             self._device_name = ""
             self._device_status = DEVICE_STATUS_DEFAULT
-            logger.info("Using system default audio input device")
+            logger.info("Microphone selection: automatic")
         else:
             self._device_index = device_index
             self._device_name = device_name
             self._device_status = DEVICE_STATUS_CONNECTED
-            logger.info(f"Audio input device set to: {device_name} (index {device_index})")
+            logger.info(
+                f"Microphone selected: {device_name or 'index ' + str(device_index)}"
+            )
+
+    @staticmethod
+    def _normalize_device_name(name: str) -> str:
+        """
+        Reduce a PortAudio device name to the part stable across renumbering.
+
+        ALSA names look like ``'USB PnP Sound Device: Audio (hw:1,0)'``. The
+        card number in the tail changes when the microphone is replugged or
+        another card appears, so only the head is compared.
+
+        Args:
+            name: Device name as reported by sounddevice.
+
+        Returns:
+            str: Lower-cased name without the changing tail.
+        """
+        return (name or "").split("(")[0].strip().casefold()
+
+    def list_input_devices(self) -> List[dict]:
+        """
+        List the devices that can capture audio.
+
+        Returns:
+            List of dicts with index, name, channels and default samplerate.
+        """
+        devices = []
+        for idx, device in enumerate(_query_devices()):
+            if device.get("max_input_channels", 0) > 0:
+                devices.append(
+                    {
+                        "index": idx,
+                        "name": device["name"],
+                        "channels": device["max_input_channels"],
+                        "default_samplerate": int(device["default_samplerate"]),
+                    }
+                )
+
+        return devices
+
+    def _resolve_device(self) -> Tuple[Optional[int], str]:
+        """
+        Work out which device to capture from.
+
+        The saved *name* is matched before the saved index, because ALSA
+        renumbers cards when a USB microphone is replugged: a saved index can
+        silently end up pointing at the HDMI output, whose capture side does
+        not exist. When nothing is configured, a USB microphone is preferred
+        over the Pi's own audio, which cannot capture at all.
+
+        Returns:
+            Tuple of (device index, device name), or (None, "") when no device
+            can capture.
+        """
+        devices = self.list_input_devices()
+        if not devices:
+            return None, ""
+
+        wanted = self._normalize_device_name(self._device_name)
+        if wanted:
+            for device in devices:
+                if self._normalize_device_name(device["name"]) == wanted:
+                    return device["index"], device["name"]
+
+        if self._device_index is not None:
+            for device in devices:
+                if device["index"] == self._device_index:
+                    return device["index"], device["name"]
+
+        for device in devices:
+            if "usb" in device["name"].casefold():
+                return device["index"], device["name"]
+
+        return devices[0]["index"], devices[0]["name"]
 
     def get_device_status(self) -> dict:
         """
@@ -292,10 +428,103 @@ class NoiseMonitorService:
             dict: Device status information
         """
         return {
-            "device_index": self._device_index,
-            "device_name": self._device_name,
+            "device_index": self._resolved_index,
+            "device_name": self._resolved_name,
+            "configured_device_index": self._device_index,
+            "configured_device_name": self._device_name,
             "device_status": self._device_status,
+            "microphone_available": MICROPHONE_AVAILABLE,
         }
+
+    def _on_audio_block(self, indata, frames, time_info, status) -> None:
+        """Keep the most recent block for the monitor loop to read."""
+        if status:
+            logger.debug(f"Audio stream status: {status}")
+        try:
+            self._latest_block = indata[:, 0].copy()
+        except Exception as e:
+            logger.debug(f"Could not copy audio block: {e}")
+
+    def _close_stream(self) -> None:
+        """Stop and release the microphone stream, if one is open."""
+        stream, self._stream = self._stream, None
+        self._latest_block = None
+        if stream is None:
+            return
+        try:
+            stream.stop()
+            stream.close()
+        except Exception as e:
+            logger.debug(f"Could not close the audio stream cleanly: {e}")
+
+    def _ensure_stream(self) -> bool:
+        """
+        Open the microphone stream if it is not already running.
+
+        Returns:
+            bool: True when a stream is available to read from.
+        """
+        if self._stream is not None:
+            return True
+
+        if time.time() < self._next_stream_attempt:
+            return False
+
+        index, name = self._resolve_device()
+        if index is None:
+            self._device_status = DEVICE_STATUS_DISCONNECTED
+            self._next_stream_attempt = time.time() + self._reconnect_interval
+            return False
+
+        try:
+            blocksize = int(MIC_SAMPLE_RATE * MIC_BLOCK_SECONDS)
+            stream = sd.InputStream(
+                device=index,
+                samplerate=MIC_SAMPLE_RATE,
+                channels=1,
+                dtype="float32",
+                blocksize=blocksize,
+                callback=self._on_audio_block,
+            )
+            stream.start()
+        except Exception as e:
+            logger.error(f"Could not open microphone {name!r} (index {index}): {e}")
+            self._close_stream()
+            self._device_status = DEVICE_STATUS_RECONNECTING
+            self._next_stream_attempt = time.time() + self._reconnect_interval
+            return False
+
+        self._stream = stream
+        self._latest_block = None
+        self._resolved_index = index
+        self._resolved_name = name
+        self._device_status = DEVICE_STATUS_CONNECTED
+        logger.info(f"Microphone open: {name} (index {index})")
+        return True
+
+    @staticmethod
+    def level_from_rms(rms: float) -> int:
+        """
+        Convert an RMS amplitude to a 0-100 noise level.
+
+        The scale is decibel-based: RMS is converted to dBFS (0 dBFS being a
+        full-scale signal) and mapped across ``MIC_FLOOR_DBFS`` (0) to
+        ``MIC_CEILING_DBFS`` (100). A linear mapping over the same range would
+        spend most of its resolution on levels no classroom reaches.
+
+        Args:
+            rms: Root-mean-square amplitude of the samples, on a 0..1 scale.
+
+        Returns:
+            int: Noise level 0-100.
+        """
+        if rms <= 0:
+            return 0
+
+        dbfs = 20.0 * math.log10(min(rms, 1.0))
+        span = MIC_CEILING_DBFS - MIC_FLOOR_DBFS
+        level = (dbfs - MIC_FLOOR_DBFS) / span * 100.0
+        return int(min(100, max(0, level)))
 
     def start_monitoring(self, callback: Callable = None) -> None:
         """
@@ -331,6 +560,8 @@ class NoiseMonitorService:
         if self._monitor_thread and self._monitor_thread.is_alive():
             self._monitor_thread.join(timeout=2)
 
+        self._close_stream()
+
         self._is_monitoring = False
 
         # Turn off LEDs
@@ -351,6 +582,14 @@ class NoiseMonitorService:
             try:
                 # Read noise level from microphone or simulate
                 raw_level = self._read_microphone()
+
+                if raw_level is None:
+                    # No microphone reading available. Hold the previous
+                    # averages and let device_status report the problem, rather
+                    # than feeding the buffer invented numbers.
+                    time.sleep(sample_interval)
+                    last_update = time.time()
+                    continue
 
                 # Add to buffers
                 timestamp = datetime.now()
@@ -412,53 +651,31 @@ class NoiseMonitorService:
                 logger.error(f"Error in monitor loop: {e}")
                 time.sleep(sample_interval)
 
-    def _read_microphone(self) -> int:
+    def _read_microphone(self) -> Optional[int]:
         """
-        Read noise level from microphone.
+        Read the current noise level from the microphone.
 
         Returns:
-            int: Noise level 0-100
+            int: Noise level 0-100, or None when no reading could be taken.
+                None is not zero: it means the loop should hold its last values
+                rather than report a number nothing measured.
         """
         if not MICROPHONE_AVAILABLE:
+            # Development machines without sounddevice still get a moving
+            # display, but a real microphone that has failed does not: making
+            # the two look alike is how a dead microphone went unnoticed.
             return self._simulate_noise()
 
-        try:
-            # Record a short sample using configured device
-            duration = 0.05  # 50ms
-            sample_rate = 44100
-            samples = int(duration * sample_rate)
+        if not self._ensure_stream():
+            return None
 
-            recording = sd.rec(
-                samples,
-                samplerate=sample_rate,
-                channels=1,
-                dtype="float32",
-                device=self._device_index,  # None uses default
-            )
-            sd.wait()
+        block = self._latest_block
+        if block is None or block.size == 0:
+            # The stream has just opened and its first block has not arrived.
+            return None
 
-            # Calculate RMS
-            rms = np.sqrt(np.mean(recording**2))
-
-            # Convert to 0-100 scale (assuming max RMS around 0.5)
-            level = int(min(100, max(0, rms * 200)))
-
-            # Update status on successful read
-            if self._device_index is not None and self._device_status != DEVICE_STATUS_CONNECTED:
-                self._device_status = DEVICE_STATUS_CONNECTED
-                logger.info(f"Audio device reconnected: {self._device_name}")
-
-            return level
-
-        except Exception as e:
-            logger.error(f"Error reading microphone: {e}")
-
-            # Update device status if using specific device
-            if self._device_index is not None:
-                self._device_status = DEVICE_STATUS_RECONNECTING
-                logger.warning(f"Audio device {self._device_name} unavailable, will retry in {self._reconnect_interval}s")
-
-            return self._simulate_noise()
+        rms = float(np.sqrt(np.mean(block**2)))
+        return self.level_from_rms(rms)
 
     def _simulate_noise(self) -> int:
         """
@@ -600,7 +817,8 @@ class NoiseMonitorService:
             "yellow_threshold": self._yellow_threshold,
             "red_threshold": self._red_threshold,
             "device_status": self._device_status,
-            "device_name": self._device_name,
+            "device_name": self._resolved_name or self._device_name,
+            "microphone_available": MICROPHONE_AVAILABLE,
         }
 
     def is_monitoring(self) -> bool:
@@ -623,7 +841,8 @@ class NoiseMonitorService:
                         "data": {
                             **data,
                             "device_status": self._device_status,
-                            "device_name": self._device_name,
+                            "device_name": self._resolved_name or self._device_name,
+                            "microphone_available": MICROPHONE_AVAILABLE,
                         },
                     },
                 )

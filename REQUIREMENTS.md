@@ -14,7 +14,11 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
 
 **Acceptance Criteria**:
 
-- [x] Continuously monitor ambient sound using microphone
+- [x] Continuously monitor ambient sound using a USB microphone
+- [x] Select the microphone from the web interface, with the first USB capture
+      device chosen automatically when the room has only one
+- [x] Say plainly on the dashboard when the levels shown did not come from a
+      microphone, instead of displaying invented numbers
 - [x] Calculate TWO rolling averages:
   - **Instant Noise**: Average over 10 seconds (teacher can modify)
   - **Session Average**: Average over 5-10 minutes (teacher can modify)
@@ -44,6 +48,16 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
 **Technical Notes**:
 
 - Use microphone module or USB microphone
+- Capture through `sounddevice` (declared in the `pi` extra alongside `numpy`),
+  which needs the apt package `libportaudio2` — installed by
+  `install-raspberry-pi.sh` and `update.sh`
+- One stream is held open for the life of the session: opening this USB sound
+  card costs ~15 ms, which at ten readings a second dominated the monitor loop
+- The 0-100 level is RMS converted to dBFS and mapped over a 60 dB window
+  (`-60 dBFS` → 0, `0 dBFS` → 100), not a linear RMS scale and not calibrated
+  dB SPL — a quiet classroom reads ~15-25, normal talk lands in the yellow band
+- The microphone choice is stored as a name alongside the index, because ALSA
+  renumbers the cards when a USB microphone is replugged
 - GPIO pins for TWO RGB LEDs (PWM support needed):
   - LED 1: Instant noise (10-second average)
   - LED 2: Session average (5-10 minute average)

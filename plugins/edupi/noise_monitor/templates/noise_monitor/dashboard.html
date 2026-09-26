@@ -27,6 +27,22 @@
         </span>
     </div>
 
+    <!-- Microphone State
+         The levels below look identical whether they came from the room or
+         from the simulated fallback, which is how a missing microphone went
+         unnoticed. This says which one is on screen. -->
+    <div id="mic-banner"
+         class="alert mb-6 {% if not microphone_available %}alert-warning{% elif is_monitoring and device_status != 'connected' %}alert-error{% else %}hidden{% endif %}">
+        <i class="fas fa-microphone-slash"></i>
+        <span id="mic-text">
+            {% if not microphone_available %}
+                {% trans "No microphone support on this device - the levels shown are simulated." %}
+            {% elif is_monitoring and device_status != 'connected' %}
+                {% trans "Microphone unavailable - the levels shown are the last ones measured." %}
+            {% endif %}
+        </span>
+    </div>
+
     <!-- Main Display Section -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <!-- Instant Noise Card -->
@@ -280,6 +296,31 @@ function updateDisplay(data) {
     } else {
         statusBanner.className = 'alert alert-info mb-6';
         statusText.textContent = '{% trans "Monitoring is currently stopped" %}';
+    }
+
+    updateMicrophone(data);
+}
+
+// Say plainly whether the displayed levels came from a microphone. The
+// monitoring-status message carries no device information, so leave the
+// banner alone in that case rather than guess.
+function updateMicrophone(data) {
+    const banner = document.getElementById('mic-banner');
+    const text = document.getElementById('mic-text');
+
+    if (!banner || !text || !('device_status' in data)) {
+        return;
+    }
+
+    if (data.microphone_available === false) {
+        banner.className = 'alert alert-warning mb-6';
+        text.textContent = '{% trans "No microphone support on this device - the levels shown are simulated." %}';
+    } else if (data.is_monitoring && data.device_status !== 'connected') {
+        banner.className = 'alert alert-error mb-6';
+        text.textContent = '{% trans "Microphone unavailable - the levels shown are the last ones measured." %}';
+    } else {
+        banner.className = 'alert mb-6 hidden';
+        text.textContent = '';
     }
 }
 
