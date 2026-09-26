@@ -38,6 +38,65 @@ def chart_reading_count() -> int:
     return int(CHART_WINDOW_MINUTES * 60 / READING_SAVE_INTERVAL_SECONDS)
 
 
+def active_config() -> NoiseMonitorConfig:
+    """The configuration in force, seeding one if the database has none."""
+    config = NoiseMonitorConfig.objects.filter(is_active=True).first()
+    if config:
+        return config
+
+    # Seeded in the active language, so a teacher whose interface is Romanian
+    # does not get an English profile name on a page that is otherwise
+    # translated. The name is stored data once written and does not follow a
+    # later language change.
+    # Not `_`: that name is gettext in this module, and binding it as the
+    # throwaway makes every gettext call above it raise UnboundLocalError.
+    profile, _created = NoiseProfile.objects.get_or_create(
+        profile_type=NoiseProfile.ProfileType.TEACHING,
+        defaults={
+            "name": _("Teaching"),
+            "description": _("Moderate noise levels for normal teaching"),
+            "yellow_threshold": 40,
+            "red_threshold": 70,
+        },
+    )
+    return NoiseMonitorConfig.objects.create(
+        name=_("Default"),
+        profile=profile,
+        is_default=True,
+    )
+
+
+def chart_context(config: NoiseMonitorConfig) -> dict:
+    """The history chart of ``config``, as template context.
+
+    Shared by the dashboard and the fragment the page re-fetches, so a
+    refreshed graph is drawn from exactly the same code as the first one and
+    the two can never drift apart.
+    """
+    # Oldest first so time runs left to right. Newest first is what the query
+    # wants for the LIMIT; the reverse is for the chart.
+    readings = list(
+        NoiseReading.objects.filter(config=config).order_by("-timestamp")[
+            :chart_reading_count()
+        ]
+    )
+    readings.reverse()
+
+    profile = config.profile
+    return {
+        "chart_window_minutes": CHART_WINDOW_MINUTES,
+        "chart": history_chart(
+            readings,
+            yellow_threshold=(
+                profile.yellow_threshold if profile else FALLBACK_YELLOW_THRESHOLD
+            ),
+            red_threshold=(
+                profile.red_threshold if profile else FALLBACK_RED_THRESHOLD
+            ),
+        ),
+    }
+
+
 class NoiseMonitorDashboardView(TemplateView):
     """Dashboard view for noise monitor."""
 
@@ -47,30 +106,7 @@ class NoiseMonitorDashboardView(TemplateView):
         """Add noise data to context."""
         context = super().get_context_data(**kwargs)
 
-        # Get or create default config
-        config = NoiseMonitorConfig.objects.filter(is_active=True).first()
-        if not config:
-            # Seeded in the active language, so a teacher whose interface is
-            # Romanian does not get an English profile name on a page that is
-            # otherwise translated. The name is stored data once written and
-            # does not follow a later language change.
-            # Not `_`: that name is gettext in this module, and binding it as
-            # the throwaway makes every gettext call above it raise
-            # UnboundLocalError.
-            profile, _created = NoiseProfile.objects.get_or_create(
-                profile_type=NoiseProfile.ProfileType.TEACHING,
-                defaults={
-                    "name": _("Teaching"),
-                    "description": _("Moderate noise levels for normal teaching"),
-                    "yellow_threshold": 40,
-                    "red_threshold": 70,
-                },
-            )
-            config = NoiseMonitorConfig.objects.create(
-                name=_("Default"),
-                profile=profile,
-                is_default=True,
-            )
+        config = active_config()
 
         context["config"] = config
         context["profile"] = config.profile
@@ -89,28 +125,28 @@ class NoiseMonitorDashboardView(TemplateView):
         context["device_status"] = levels["device_status"]
         context["device_name"] = levels["device_name"]
 
-        # The history chart covers the last CHART_WINDOW_MINUTES, oldest first
-        # so time runs left to right. Newest first is what the query wants for
-        # the LIMIT; the reverse is for the chart.
-        readings = list(
-            NoiseReading.objects.filter(config=config).order_by("-timestamp")[
-                :chart_reading_count()
-            ]
-        )
-        readings.reverse()
+        context.update(chart_context(config))
 
-        profile = config.profile
-        context["chart_window_minutes"] = CHART_WINDOW_MINUTES
-        context["chart"] = history_chart(
-            readings,
-            yellow_threshold=(
-                profile.yellow_threshold if profile else FALLBACK_YELLOW_THRESHOLD
-            ),
-            red_threshold=(
-                profile.red_threshold if profile else FALLBACK_RED_THRESHOLD
-            ),
-        )
+        return context
 
+
+class NoiseHistoryChartView(TemplateView):
+    """The history card on its own, for the dashboard to re-fetch.
+
+    The graph is drawn by the server, once per page load. That suits a Pi with
+    no internet, but it left the graph frozen while the numbers above it kept
+    moving: a lesson's readings never appeared, the window never slid, and the
+    value printed at the end of each line drifted away from the card beside it.
+    The page re-fetches this view to keep up. It renders the same template the
+    dashboard includes and the same geometry, so there is one chart, not two.
+    """
+
+    template_name = "noise_monitor/_history_chart.html"
+
+    def get_context_data(self, **kwargs):
+        """Build the chart exactly as the dashboard does."""
+        context = super().get_context_data(**kwargs)
+        context.update(chart_context(active_config()))
         return context
 
 

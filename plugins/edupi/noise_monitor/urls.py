@@ -8,6 +8,9 @@ app_name = "noise_monitor"
 
 urlpatterns = [
     path("", views.NoiseMonitorDashboardView.as_view(), name="dashboard"),
+    # The history card on its own, which the dashboard re-fetches to keep the
+    # graph current. Not under api/: it is a piece of page, not data.
+    path("chart/", views.NoiseHistoryChartView.as_view(), name="history_chart"),
     path("config/", views.NoiseMonitorConfigView.as_view(), name="config"),
     path(
         "config/custom/",

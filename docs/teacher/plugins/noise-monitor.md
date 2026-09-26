@@ -73,17 +73,20 @@ cards when a USB microphone is replugged, so a saved index can end up pointing a
 a device that cannot record; matching on the name instead means the choice
 survives being unplugged and moved to another port.
 
-### Levels, Not Decibels
+### The 0-100 Scale, Shown in dB
 
-The 0-100 number on the dashboard and the thresholds in the profiles are a
-**relative level**, not dB SPL. There is no calibrated sound-pressure reading:
-the microphone has no absolute reference, so 40 means "the same loudness as when
-40 was useful to you", not "40 decibels".
+The dashboard reads in **dB**, and the scale behind those numbers is the
+plugin's own **0-100 relative scale**. It is not calibrated dB SPL: the
+microphone has no absolute reference, so 21 dB on the graph means "the same
+loudness as when 21 was useful to you", and it will not agree with a phone
+sound-meter app in the same room. Use it to compare moments and lessons with
+each other, which is what the thresholds and the LED bands are for.
 
 Internally the microphone's RMS amplitude is converted to dBFS and mapped across
-a 60 dB window (`-60 dBFS` → 0, `0 dBFS` → 100). With the reference USB
-microphone that puts a quiet classroom around 15-25, normal conversation in the
-yellow band, and a loud room in the red.
+a 60 dB window (`-60 dBFS` → 0, `0 dBFS` → 100), so the scale is decibel-shaped
+and evenly spaced, with the microphone's own gain setting as its zero point.
+With the reference USB microphone that puts a quiet classroom around 15-25,
+normal conversation in the yellow band, and a loud room in the red.
 
 ### If the Microphone Stops
 
@@ -192,15 +195,29 @@ The **Noise Over Time** card draws the last **20 minutes** as a graph:
 - **Coloured bands** — the thresholds the LEDs use, so a line inside the green
   band means the LEDs were green at that moment
 - **Clock times** at each end, so it is clear how much time the window covers
+- **The value of each line, in dB**, printed at its right-hand end — the newest
+  session average and the newest instant average. The axis on the left is
+  labelled in dB too, so a height on the graph can be read as a number
 
 The graph is drawn by the server as part of the page. It needs no internet
-connection and no JavaScript, so it looks the same on a Pi with no network as it
-does on a laptop.
+connection and no charting library, so it looks the same on a Pi with no network
+as it does on a laptop.
+
+**It keeps up on its own.** Leave the page open during a lesson and the graph
+refreshes itself once a minute: readings taken since the page was opened appear,
+the window slides forward, and the clock at each end moves with it. Nothing has
+to be reloaded, and no button has to be pressed.
+
+A minute is the pace at which the graph moves, so it advances in steps of about
+a minute rather than smoothly. The two bars and the numbers above it are live, so
+they can read up to a minute ahead of the line on the graph. A hidden tab (one
+you have switched away from) is not refreshed, so that it does not make the Pi
+work for nobody; switching back to the tab refreshes it straight away.
 
 One reading is stored every 5 seconds while the meter runs, not one per
-measurement — 240 of them across the window. The measurement itself is ten times
-a second; storing all of them would fill the database and leave this window
-spanning a few seconds.
+measurement — 240 of them across the window, about twelve per refresh. The
+measurement itself is ten times a second; storing all of them would fill the
+database and leave this window spanning a few seconds.
 
 The exact numbers are still available to other software through
 `/plugins/edupi/noise_monitor/api/history/`.
@@ -373,7 +390,14 @@ The dashboard banner says which of these applies, so read it first.
 - **Audio Sampling**: 44.1 kHz mono, 50 ms blocks, read 10 times per second
 - **Microphone Access**: `sounddevice` over ALSA (apt package `libportaudio2`)
 - **Averaging**: Mean of the readings inside the configured time window
-- **Level Scale**: RMS → dBFS, mapped over a 60 dB window to 0-100
+- **Level Scale**: RMS → dBFS, mapped over a 60 dB window to 0-100, shown in dB
+  on the graph; relative to the microphone's gain, not calibrated to sound
+  pressure (see [The 0-100 Scale, Shown in dB](#the-0-100-scale-shown-in-db))
+- **Chart Readouts**: the newest value of each line, in dB, printed at the end of
+  the line it belongs to
+- **Chart Refresh**: the page re-fetches the card every 60 s and swaps it in by
+  id (`history-chart`); the server draws it, so the geometry stays in one place
+  and no charting library is needed
 - **WebSocket Protocol**: Django Channels
 - **Database**: Stores last 1000 readings
 - **GPIO Control**: PWM for smooth color transitions
