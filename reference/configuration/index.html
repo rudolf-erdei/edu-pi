@@ -16,7 +16,7 @@
         <link rel="prev" href="../../developer/contributing/">
       
       
-        <link rel="next" href="../api/">
+        <link rel="next" href="../update-system/">
       
       
         
@@ -827,6 +827,34 @@
     
   
     Noise Monitor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../teacher/plugins/lcd-display/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LCD Display
   
 
     
@@ -1703,6 +1731,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#uploaded-files-are-served-in-production-too" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uploaded Files Are Served in Production Too
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1813,6 +1852,17 @@
     <span class="md-ellipsis">
       
         Systemd Service
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#update-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update Service
       
     </span>
   </a>
@@ -2006,6 +2056,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../update-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Update System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../api/" class="md-nav__link">
         
   
@@ -2122,6 +2200,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#uploaded-files-are-served-in-production-too" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uploaded Files Are Served in Production Too
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2232,6 +2321,17 @@
     <span class="md-ellipsis">
       
         Systemd Service
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#update-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update Service
       
     </span>
   </a>
@@ -2504,6 +2604,17 @@
 </tr>
 </tbody>
 </table>
+<h3 id="uploaded-files-are-served-in-production-too">Uploaded Files Are Served in Production Too<a class="headerlink" href="#uploaded-files-are-served-in-production-too" title="Permanent link">&para;</a></h3>
+<p><code>STATIC_ROOT</code> (the CSS, JS and icons that ship with the code) is served by
+WhiteNoise, which indexes it at startup. <code>MEDIA_ROOT</code> (the school logo, and the
+audio the routines plugin generates) is different: it is written by the running
+application, so it is served by the app itself from <code>MEDIA_URL</code>, through the
+<code>media</code> URL pattern in <code>config/urls.py</code>. The pattern is built from <code>MEDIA_URL</code>,
+so changing the setting moves the route with it.</p>
+<p>This matters because WhiteNoise can only serve files that existed when the
+service started: a logo uploaded through Settings would 404 until the next
+restart. The route is not gated on <code>DEBUG</code> — a Pi runs with <code>DEBUG=False</code>, and
+gating it there is what made logo uploads appear to do nothing.</p>
 <h2 id="django-settings">Django Settings<a class="headerlink" href="#django-settings" title="Permanent link">&para;</a></h2>
 <p>Key settings in <code>config/settings.py</code>:</p>
 <h3 id="database-configuration">Database Configuration<a class="headerlink" href="#database-configuration" title="Permanent link">&para;</a></h3>
@@ -2563,28 +2674,50 @@
 <li>Example: <code>edupi.activity_timer.default_duration</code></li>
 </ul>
 <h2 id="systemd-service">Systemd Service<a class="headerlink" href="#systemd-service" title="Permanent link">&para;</a></h2>
-<p>Production service configuration (<code>/etc/systemd/system/tinko.service</code>):</p>
+<p>Production service configuration (<code>/etc/systemd/system/tinko.service</code>). The
+install and update scripts write this file — <code>$USER</code> is the service user and
+<code>$INSTALL_DIR</code> the repository checkout — so do not hand-edit it; edit the
+heredoc in <code>install-raspberry-pi.sh</code>, <code>update.sh</code> and <code>update-web.sh</code> instead.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[Unit]</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="na">Description</span><span class="o">=</span><span class="s">Tinko Educational Platform</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="na">After</span><span class="o">=</span><span class="s">network.target</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">[Service]</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="na">Type</span><span class="o">=</span><span class="s">simple</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="na">User</span><span class="o">=</span><span class="s">pi</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="na">WorkingDirectory</span><span class="o">=</span><span class="s">/home/pi/edu-pi</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="na">Environment</span><span class="o">=</span><span class="s">&quot;PATH=/home/pi/.local/bin&quot;</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="na">Environment</span><span class="o">=</span><span class="s">&quot;PYTHONPATH=/home/pi/edu-pi&quot;</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="na">Environment</span><span class="o">=</span><span class="s">&quot;DJANGO_SETTINGS_MODULE=config.settings&quot;</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="na">Environment</span><span class="o">=</span><span class="s">&quot;EDUPI_DEBUG=False&quot;</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="na">ExecStartPre</span><span class="o">=</span><span class="s">/home/pi/.cargo/bin/uv run python manage.py migrate --noinput</span>
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="na">ExecStartPre</span><span class="o">=</span><span class="s">/home/pi/.cargo/bin/uv run python manage.py collectstatic --noinput</span>
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">/home/pi/.cargo/bin/uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application</span>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="na">Restart</span><span class="o">=</span><span class="s">always</span>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="na">RestartSec</span><span class="o">=</span><span class="s">3</span>
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>
-<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="k">[Install]</span>
-<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="na">WantedBy</span><span class="o">=</span><span class="s">multi-user.target</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># StartLimit* belong in [Unit]; in [Service] systemd ignores them.</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="na">StartLimitIntervalSec</span><span class="o">=</span><span class="s">60</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="na">StartLimitBurst</span><span class="o">=</span><span class="s">5</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="k">[Service]</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="na">Type</span><span class="o">=</span><span class="s">simple</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="na">User</span><span class="o">=</span><span class="s">$USER</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="na">WorkingDirectory</span><span class="o">=</span><span class="s">$INSTALL_DIR</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="na">Environment</span><span class="o">=</span><span class="s">&quot;PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin&quot;</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="na">Environment</span><span class="o">=</span><span class="s">&quot;PYTHONPATH=$INSTALL_DIR&quot;</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="na">Environment</span><span class="o">=</span><span class="s">&quot;DJANGO_SETTINGS_MODULE=config.settings&quot;</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="na">Environment</span><span class="o">=</span><span class="s">&quot;EDUPI_DEBUG=False&quot;</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="na">ExecStartPre</span><span class="o">=</span><span class="s">$UV_PATH run python manage.py collectstatic --noinput</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">$UV_PATH run daphne -b 0.0.0.0 -p 80 </span>\
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">  </span><span class="s">-e ssl:443:privateKey=/etc/tinko-portal/key.pem:certKey=/etc/tinko-portal/cert.pem </span>\
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">  </span><span class="s">config.asgi:application</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="na">AmbientCapabilities</span><span class="o">=</span><span class="s">CAP_NET_BIND_SERVICE</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="na">CapabilityBoundingSet</span><span class="o">=</span><span class="s">CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_AUDIT_WRITE</span>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="na">Restart</span><span class="o">=</span><span class="s">always</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a><span class="na">RestartSec</span><span class="o">=</span><span class="s">5</span>
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="k">[Install]</span>
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="na">WantedBy</span><span class="o">=</span><span class="s">multi-user.target</span>
 </code></pre></div>
+<p>Migrations run at update time, not at service start, to keep boot fast.</p>
+<p><code>AmbientCapabilities</code> is what lets daphne bind ports 80 and 443 without
+<code>setcap</code>. The <code>CAP_SETUID</code>/<code>CAP_SETGID</code> pair is there because a bounding set
+also clamps what a <em>setuid</em> binary gains, and <code>sudo</code> is setuid root: without
+them, every <code>sudo</code> call the app makes fails with <em>unable to change to root gid</em>.
+Full explanation, and what these capabilities do not protect against, in
+<a href="../update-system/#services-capabilities-and-root-access">Update System</a>.</p>
+<h2 id="update-service">Update Service<a class="headerlink" href="#update-service" title="Permanent link">&para;</a></h2>
+<p><code>/etc/systemd/system/tinko-update.service</code> is a root-owned, stdlib-only daemon
+that runs web updates and owns the status file the dashboard reads. It is
+installed by <code>setup_update_infrastructure()</code> in <code>scripts/update_infra.sh</code>, along
+with the sudoers rules and the power helper. See
+<a href="../update-system/">Update System</a>.</p>
 <h2 id="logging-configuration">Logging Configuration<a class="headerlink" href="#logging-configuration" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">LOGGING</span> <span class="o">=</span> <span class="p">{</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="s1">&#39;version&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>

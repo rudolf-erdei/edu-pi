@@ -865,6 +865,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../lcd-display/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LCD Display
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../routines/" class="md-nav__link">
         
   
@@ -1066,6 +1094,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#starting-a-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Starting a Session
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2253,6 +2292,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../reference/update-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Update System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../reference/api/" class="md-nav__link">
         
   
@@ -2449,6 +2516,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#starting-a-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Starting a Session
+      
+    </span>
+  </a>
   
 </li>
       
@@ -3089,6 +3167,25 @@
 </tr>
 </tbody>
 </table>
+<h2 id="starting-a-session">Starting a Session<a class="headerlink" href="#starting-a-session" title="Permanent link">&para;</a></h2>
+<p>Pressing <strong>Start Session</strong> does two things beyond starting the piano.</p>
+<p><strong>It quiets the other activities.</strong> The Pi has one speaker and one set of
+lights, and a lesson runs one activity at a time, so a piano session stops
+whatever else is running: the noise monitor (its LEDs go dark and its
+microphone is released), the activity timer's countdown, and a routine being
+read aloud. This matters most for the noise monitor, which starts on its own
+when the Pi is switched on — without this, the meter's lights would keep
+changing colour while the class plays.</p>
+<p><strong>It puts the happy face on the display.</strong> A session shows the robot's happy
+face for as long as the class is playing. The face goes on <em>after</em> the other
+activities stop, because the noise monitor hands the display back to its own
+default as it shuts down.</p>
+<p>Nothing else is affected. The LCD display is never stopped — it is shared
+output, not a competing activity — and the piano does not need it: if the
+display is missing or disabled the notes still play.</p>
+<p>Stopping the session does <strong>not</strong> restart the other activities. The noise
+monitor stays off until someone presses Start Monitoring, or until the Pi is
+restarted.</p>
 <h2 id="building-the-circuit">Building the Circuit<a class="headerlink" href="#building-the-circuit" title="Permanent link">&para;</a></h2>
 <h3 id="option-1-simple-wire-connection">Option 1: Simple Wire Connection<a class="headerlink" href="#option-1-simple-wire-connection" title="Permanent link">&para;</a></h3>
 <ol>

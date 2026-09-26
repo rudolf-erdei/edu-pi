@@ -849,6 +849,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../teacher/plugins/lcd-display/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LCD Display
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../teacher/plugins/routines/" class="md-nav__link">
         
   
@@ -1940,6 +1968,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/update-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Update System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/api/" class="md-nav__link">
         
   
@@ -2326,9 +2382,38 @@
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="nv">msgstr</span> <span class="s">&quot;Oprire&quot;</span>
 </code></pre></div>
 <h3 id="3-compile-messages">3. Compile Messages<a class="headerlink" href="#3-compile-messages" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Compile .po to .mo</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>uv<span class="w"> </span>run<span class="w"> </span>django-admin<span class="w"> </span>compilemessages
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Project and every plugin, in one run</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>compile_translations.py
 </code></pre></div>
+<p>This is the only compiler the project needs, and it is the one the install and
+update scripts run. It uses <code>polib</code>, which is already a Python dependency, and
+needs no system package.</p>
+<p><code>uv run django-admin compilemessages</code> also compiles the project catalogue, but
+it shells out to GNU <code>msgfmt</code> from the <strong>gettext</strong> package. That is fine on a
+development machine and impossible on a Pi, where nothing installs gettext — so
+using it in the deploy meant the interface catalogue was never compiled there
+and the update log said translations compiled while the pages kept the text
+they were last built with. Both compilers write the same <code>.mo</code> files.</p>
+<p>Each <code>.po</code> compiles to a <code>.mo</code> of its <strong>own name</strong>: <code>django.po</code> → <code>django.mo</code>,
+<code>djangojs.po</code> → <code>djangojs.mo</code>. Django loads both side by side — <code>django.mo</code> for
+Python and templates, <code>djangojs.mo</code> for <code>JavaScriptCatalog</code>. Writing every <code>.po</code>
+in a directory to <code>django.mo</code> means the last one compiled wins, and since
+<code>djangojs.po</code> sorts after <code>django.po</code>, one careless run replaces the whole
+interface catalogue with the handful of strings the browser needs.</p>
+<p>Django reads the <code>.mo</code>, so <strong>editing a <code>.po</code> changes nothing until it is
+compiled</strong>. A catalogue that is ahead of its <code>.mo</code> shows the old text on the Pi
+and the new text in the repository.</p>
+<p>The <code>.mo</code> files are <strong>not tracked</strong> — they are build outputs, rewritten by every
+install and update. A fresh clone therefore has none until you run the compiler
+above, and Django serves the untranslated source text until you do. Do not commit
+them: a tracked build output leaves the working tree dirty after any translation
+change, and the next update stashes that (see <code>ISSUES.md</code> for what 79 of those
+look like on the field Pi).</p>
+<blockquote>
+<p><strong>Note:</strong> <code>compile_translations.py</code> finds each <code>locale/</code> directory itself —
+the project's and one per plugin — so a new plugin's catalogues are compiled
+without being listed anywhere. <code>makemessages</code> walks the tree the same way.</p>
+</blockquote>
 <h2 id="plugin-translations">Plugin Translations<a class="headerlink" href="#plugin-translations" title="Permanent link">&para;</a></h2>
 <h3 id="plugin-structure">Plugin Structure<a class="headerlink" href="#plugin-structure" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>plugins/acme/myplugin/
@@ -2341,15 +2426,26 @@
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>│           └── django.po
 </code></pre></div>
 <h3 id="compile-plugin-translations">Compile Plugin Translations<a class="headerlink" href="#compile-plugin-translations" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Compile all plugin translations</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>python<span class="w"> </span>scripts/compile_translations.py
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Every plugin, plus the project catalogue — use this one</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>compile_translations.py
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Compile specific plugin</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>python<span class="w"> </span>scripts/compile_translations.py<span class="w"> </span>--plugin<span class="w"> </span>acme/myplugin
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># One plugin, with a summary of what it compiled</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>python<span class="w"> </span>scripts/compile_translations.py<span class="w"> </span>--plugin<span class="w"> </span>edupi/noise_monitor
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># List plugins with translations</span>
 <a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>python<span class="w"> </span>scripts/compile_translations.py<span class="w"> </span>--list
 </code></pre></div>
+<p><code>scripts/compile_translations.py</code> is a development helper for a single plugin:
+it walks <code>plugins/*/*/locale</code> and writes <code>django.mo</code>. It is <strong>not</strong> part of any
+deploy, and it does not touch <code>djangojs.po</code>.</p>
+<p><strong>The deploy runs the root compiler only.</strong> <code>install-raspberry-pi.sh</code>,
+<code>update.sh</code> and <code>update-web.sh</code> all call
+<code>uv run python compile_translations.py</code>, which uses <code>polib</code> (already in the venv,
+so no <code>gettext</code> package is needed on the Pi), covers the project catalogue and
+every plugin catalogue, and writes <code>django.mo</code> and <code>djangojs.mo</code> side by side —
+the two must not land in the same file, or whichever compiled last wins.</p>
+<p>If you want exactly what the Pi gets, run the root compiler; treat the
+<code>scripts/</code> helper as a convenience while developing one plugin.</p>
 <h2 id="language-selection">Language Selection<a class="headerlink" href="#language-selection" title="Permanent link">&para;</a></h2>
 <h3 id="django-settings">Django Settings<a class="headerlink" href="#django-settings" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># config/settings.py</span>
@@ -2387,9 +2483,26 @@
 <a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s2">&quot;Start&quot;</span><span class="p">),</span> <span class="s2">&quot;Pornire&quot;</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="check-coverage">Check Coverage<a class="headerlink" href="#check-coverage" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Check for untranslated strings</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>uv<span class="w"> </span>run<span class="w"> </span>django-admin<span class="w"> </span>makemessages<span class="w"> </span>-l<span class="w"> </span>ro<span class="w"> </span>--no-obsolete
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Report every plugin string with no Romanian translation</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>translation_audit.py
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Machine-readable, for a script</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>translation_audit.py<span class="w"> </span>--json
 </code></pre></div>
+<p>Exit code is 1 when anything is missing, so it can gate a build.</p>
+<p><code>makemessages</code> is not a coverage check. Run it from the project root and it does
+walk the plugins — it collects every directory named <code>locale</code> it meets — but it
+only <em>adds</em> msgids, and it says nothing about the entries still sitting there
+with an empty <code>msgstr</code>. Nothing failed while the plugin catalogues fell 173
+strings behind, because gettext treats a missing msgid as normal and renders the
+English. The audit is what reports it, and it compares against what the code
+actually calls rather than against what a previous run happened to pick up.</p>
+<p>The audit reads Python with <code>ast</code> rather than a pattern, because Python joins
+adjacent string literals: a msgid split over several lines reaches gettext as
+one string, and a regular expression sees only the first line.</p>
+<p><code>tests/test_translation_coverage.py</code> runs the same audit over every plugin, and
+additionally checks that no catalogue entry is empty, that no msgid is defined
+twice, and that each <code>.mo</code> still matches its <code>.po</code>.</p>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Use <code>_lazy()</code> for module-level strings</li>

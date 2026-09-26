@@ -905,6 +905,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#shutting-down-tinko" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutting Down Tinko
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#troubleshooting" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1136,6 +1147,34 @@
     
   
     Noise Monitor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/lcd-display/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LCD Display
   
 
     
@@ -1942,6 +1981,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/update-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Update System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/api/" class="md-nav__link">
         
   
@@ -2208,6 +2275,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#shutting-down-tinko" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutting Down Tinko
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#troubleshooting" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2432,6 +2510,22 @@
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>http://pi-ip:8000/plugins/edupi/routines/
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>http://pi-ip:8000/plugins/edupi/touch_piano/
 </code></pre></div>
+<h2 id="shutting-down-tinko">Shutting Down Tinko<a class="headerlink" href="#shutting-down-tinko" title="Permanent link">&para;</a></h2>
+<p>The <strong>Shutdown</strong> button in Quick Actions powers the Raspberry Pi off safely, so
+the SD card is not left mid-write. Use it before unplugging the Pi.</p>
+<ol>
+<li>Press <strong>Shutdown</strong> and confirm.</li>
+<li>The button disappears and the message <em>Tinko is shutting down...</em> appears.</li>
+<li>Wait for the green activity light to stop blinking, then remove power.</li>
+</ol>
+<p>If the button instead shows <em>Could not start shutdown. Try again.</em>, Tinko could
+not reach the power helper. Nothing was turned off, so it is safe to keep using
+the dashboard — see
+<a href="../../reference/troubleshooting/#power-button-does-nothing">Power button does nothing</a>
+for what to check.</p>
+<p><strong>There is no way to turn the Pi back on remotely.</strong> A Raspberry Pi has no
+wake-on-LAN from a powered-off state — someone has to be at the Pi to unplug and
+replug it. Only press Shutdown when that is true.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="dashboard-not-loading">Dashboard Not Loading<a class="headerlink" href="#dashboard-not-loading" title="Permanent link">&para;</a></h3>
 <ol>

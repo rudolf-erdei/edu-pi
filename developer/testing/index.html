@@ -849,6 +849,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../teacher/plugins/lcd-display/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LCD Display
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../teacher/plugins/routines/" class="md-nav__link">
         
   
@@ -1769,6 +1797,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-server-process-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Server Process Guard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-the-captive-portal-without-losing-ssh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing the Captive Portal Without Losing SSH
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-the-field-pi-over-ssh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing the Field Pi Over SSH
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#best-practices" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1909,6 +1970,34 @@
     
   
     Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/update-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Update System
   
 
     
@@ -2218,6 +2307,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-server-process-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Server Process Guard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-the-captive-portal-without-losing-ssh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing the Captive Portal Without Losing SSH
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-the-field-pi-over-ssh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing the Field Pi Over SSH
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#best-practices" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2412,6 +2534,101 @@
 <a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
 <a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;temp&#39;</span><span class="p">],</span> <span class="mi">20</span><span class="p">)</span>
 </code></pre></div>
+<h2 id="the-server-process-guard">The Server Process Guard<a class="headerlink" href="#the-server-process-guard" title="Permanent link">&para;</a></h2>
+<p>The plugin system loads in <strong>every</strong> process that touches Django, not just the
+server: <code>collectstatic</code> (the service's <code>ExecStartPre</code>), <code>migrate</code> from the
+install and update scripts, any management command, and pytest itself. A plugin
+that starts background work or claims hardware on load must tell those apart —
+otherwise a two-second <code>collectstatic</code> grabs the microphone or paints the LCD
+panel while the real service is starting, and pytest leaves a 10 Hz sampling
+thread running through the whole session.</p>
+<p><code>core/server_process.py</code> is the single answer:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">core.server_process</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_server_process</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">boot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_server_process</span><span class="p">():</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>        <span class="k">return</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">start_background_service</span><span class="p">()</span>
+</code></pre></div>
+<ul>
+<li><code>is_server_process()</code> is False for anything whose <code>sys.argv[1]</code> is a batch
+  command in <code>BATCH_COMMANDS</code>, and False under pytest. Anything else counts as
+  the server, so a service whose command line changes keeps working instead of
+  quietly stopping.</li>
+<li><code>running_under_pytest()</code> exists separately so a test can say <em>"pretend this is
+  the server"</em> without pulling pytest out of <code>sys.modules</code>.</li>
+</ul>
+<p>This was a real flakiness source, not a hypothetical: before the pytest check,
+<code>sys.argv[1]</code> on a test run was a test path — not a management command — so the
+run counted as the server and the Noise Monitor started a real thread at Django
+setup, making whichever test next touched the display fail intermittently. There
+was also a <code>runserver --noreload</code> session that wrote ~200 readings into the
+tracked development DB before anyone noticed.</p>
+<p><strong>Rule for plugin authors:</strong> guard in <code>boot()</code> with <code>is_server_process()</code>, and
+prefer a plugin <code>tests.py</code> that asserts the guard (see the Noise Monitor's
+tests) over one that relies on the environment.</p>
+<h2 id="testing-the-captive-portal-without-losing-ssh">Testing the Captive Portal Without Losing SSH<a class="headerlink" href="#testing-the-captive-portal-without-losing-ssh" title="Permanent link">&para;</a></h2>
+<p>The captive portal's whole job is to take the network away, so <strong>bringing the
+hotspot up on <code>wlan0</code> drops the only link you have to the Pi.</strong> Do not test it
+that way on a device you cannot reach.</p>
+<p>Three routes, in order of preference:</p>
+<ol>
+<li><strong>Ethernet (best, zero risk).</strong> Plug a cable into the Pi. <code>eth0</code> is normally
+   free, so SSH rides the wire while <code>wlan0</code> runs the hotspot — the full branch
+   becomes testable remotely.</li>
+<li><strong>Dummy interface (what we use).</strong> No wifi hardware involved, and the Pi's own
+   link is untouched:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>sudo<span class="w"> </span>ip<span class="w"> </span>link<span class="w"> </span>add<span class="w"> </span>dummy0<span class="w"> </span><span class="nb">type</span><span class="w"> </span>dummy
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>sudo<span class="w"> </span>ip<span class="w"> </span>addr<span class="w"> </span>add<span class="w"> </span><span class="m">10</span>.42.0.1/24<span class="w"> </span>dev<span class="w"> </span>dummy0
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>sudo<span class="w"> </span>ip<span class="w"> </span>link<span class="w"> </span><span class="nb">set</span><span class="w"> </span>dummy0<span class="w"> </span>up
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>sudo<span class="w"> </span>dnsmasq<span class="w"> </span>-C<span class="w"> </span>/dev/null<span class="w"> </span>--interface<span class="o">=</span>dummy0<span class="w"> </span>--bind-interfaces<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">     </span>--address<span class="o">=</span>/#/10.42.0.1<span class="w"> </span>--port<span class="o">=</span><span class="m">53</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="nv">PORTAL_PORT</span><span class="o">=</span><span class="m">8080</span><span class="w"> </span><span class="nv">WIFI_WORKER_SCRIPT</span><span class="o">=</span>/bin/true<span class="w"> </span>python3<span class="w"> </span>wifi-connect/portal.py
+</code></pre></div>
+<p>This proves the wildcard DNS answers, that all six captive-detection routes
+   redirect to <code>http://10.42.0.1/</code>, that the form serves and the SSID/password
+   validators reject bad input. It does <strong>not</strong> prove AP creation, NetworkManager
+   shared-mode NAT, or the credential handoff/revert in <code>wifi_worker.sh</code> —
+   <code>WIFI_WORKER_SCRIPT=/bin/true</code> stands in for the worker precisely so nothing
+   reconfigures the network.
+3. <strong>A virtual radio (<code>mac80211_hwsim</code>)</strong> would cover AP creation and a real
+   client association with no risk, but it cannot run the shipped scripts
+   verbatim: <code>wlan0</code> is hardcoded in <code>startup_check.sh</code>, <code>portal.py</code> and
+   <code>/etc/dnsmasq.conf</code>, with no interface override. Declined so far for that
+   reason.</p>
+<p>Two findings from doing this that are worth keeping:</p>
+<ul>
+<li><strong><code>dig</code>/<code>nslookup</code> must exist.</strong> Without <code>dnsutils</code>, the dnsmasq check
+  degraded to a bare socket-bind test that never proved dnsmasq <em>answers</em> — the
+  install and update scripts now install it.</li>
+<li><strong><code>StartLimit*</code> belong in <code>[Unit]</code>.</strong> systemd logs <em>"Unknown key … ignoring"</em>
+  for them in <code>[Service]</code> and silently drops the retry bound.</li>
+</ul>
+<h2 id="accessing-the-field-pi-over-ssh">Accessing the Field Pi Over SSH<a class="headerlink" href="#accessing-the-field-pi-over-ssh" title="Permanent link">&para;</a></h2>
+<p>For work on the real device (the one in the classroom):</p>
+<ul>
+<li>Host <code>tinko.local</code>, user <code>tinko</code>, password <code>tinko</code>. The <strong>IP drifts</strong> — always
+  resolve the mDNS name, never cache an address.</li>
+<li><code>sshpass</code> does not exist in Git Bash on Windows. Use <code>paramiko</code> from Python
+  (<code>exec_command("bash -s")</code> to run a script over stdin), or a real
+  <code>ssh</code>/<code>sshpass</code> from a Linux shell.</li>
+<li>A <strong>non-interactive SSH PATH lacks <code>/usr/sbin</code></strong>, so <code>command -v nft</code> or
+  <code>command -v shutdown</code> can "fail" on a machine where the tool is present. Probe
+  absolute paths, or run the probe under <code>sudo</code>.</li>
+<li><code>sudo</code> needs no password on the Pi (<code>/etc/sudoers.d/010_pi-nopasswd</code>), which is
+  why install and update can run unattended — that file is deliberate, see
+  <a href="../../reference/update-system/#services-capabilities-and-root-access">Update System</a>.</li>
+<li>A shell over SSH is <strong>not</strong> inside any service's sandbox, so it will happily
+  report success for something the app itself cannot do. When the two disagree,
+  read the service journal instead.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">A halted Pi 4 cannot be woken remotely</p>
+<p>No wake-on-LAN after <code>halt</code>. Recovering means physically cutting and
+restoring power. Never test shutdown from somewhere you cannot reach the
+plug.</p>
+</div>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Test one thing per test</li>

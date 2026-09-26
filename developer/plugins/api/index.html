@@ -849,6 +849,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../teacher/plugins/lcd-display/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LCD Display
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../teacher/plugins/routines/" class="md-nav__link">
         
   
@@ -1722,6 +1750,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#activity-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Activity Methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Activity Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#register_activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_activity()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_activities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_activities()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stop_activities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stop_activities()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginmanagerstop_other_activities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PluginManager.stop_other_activities()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#utility-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2087,6 +2176,34 @@
     
   
     Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/update-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Update System
   
 
     
@@ -2524,6 +2641,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#activity-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Activity Methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Activity Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#register_activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_activity()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_activities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_activities()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stop_activities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stop_activities()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginmanagerstop_other_activities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PluginManager.stop_other_activities()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#utility-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2907,14 +3085,59 @@
 <a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>        <span class="n">timestamp</span><span class="o">=</span><span class="n">now</span><span class="p">()</span>
 <a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>    <span class="p">)</span>
 </code></pre></div>
+<h2 id="activity-methods">Activity Methods<a class="headerlink" href="#activity-methods" title="Permanent link">&para;</a></h2>
+<p>A classroom Pi runs one activity at a time: the speaker, the LEDs and the
+robot face are shared hardware, so a plugin that starts something has to be
+able to quiet whatever else is running. Each plugin declares how to stop what
+it runs, and the plugin that wants the room asks for it.</p>
+<h3 id="register_activity">register_activity()<a class="headerlink" href="#register_activity" title="Permanent link">&para;</a></h3>
+<p>Declare something this plugin runs that another can stop. Call it in <code>boot()</code>,
+once — not when the activity starts. The callable must therefore be safe to
+call while nothing is running.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">boot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">register_activity</span><span class="p">(</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>        <span class="s2">&quot;monitoring&quot;</span><span class="p">,</span>                 <span class="c1"># short name, unique in this plugin</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_stop_monitoring</span><span class="p">,</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>        <span class="n">description</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s2">&quot;Noise monitoring and LEDs&quot;</span><span class="p">),</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>    <span class="p">)</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="k">def</span><span class="w"> </span><span class="nf">_stop_monitoring</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">.noise_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">noise_service</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>    <span class="n">noise_service</span><span class="o">.</span><span class="n">stop_monitoring</span><span class="p">()</span>   <span class="c1"># already returns early if not running</span>
+</code></pre></div>
+<h3 id="get_activities">get_activities()<a class="headerlink" href="#get_activities" title="Permanent link">&para;</a></h3>
+<p>The activities this plugin registered, as <code>{name: {"stop", "description",
+"plugin"}}</code>.</p>
+<h3 id="stop_activities">stop_activities()<a class="headerlink" href="#stop_activities" title="Permanent link">&para;</a></h3>
+<p>Stop every activity this plugin registered, and return the names it stopped.
+Each callable is called on its own, so one that raises does not leave the
+others running — the error is logged instead.</p>
+<h3 id="pluginmanagerstop_other_activities">PluginManager.stop_other_activities()<a class="headerlink" href="#pluginmanagerstop_other_activities" title="Permanent link">&para;</a></h3>
+<p>Stop what every other plugin is running. Called by the plugin claiming the
+room, usually through a small module of its own so the decision is visible in
+one place:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">core.plugin_system.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">plugin_manager</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">plugin_manager</span><span class="o">.</span><span class="n">stop_other_activities</span><span class="p">(</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>    <span class="n">except_plugins</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;plugins.edupi.lcd_display&quot;</span><span class="p">,),</span>   <span class="c1"># shared output, not a competitor</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>    <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;Touch Piano&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="p">)</span>
+</code></pre></div>
+<p>Plugins that are disabled, and plugins that registered nothing, are skipped.</p>
+<p><strong>Order matters when the display is involved.</strong> A plugin that owns the robot
+face usually hands it back to the display's default as it stops, so set the
+face you want <em>after</em> calling this.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">plugin_manager</span><span class="o">.</span><span class="n">stop_other_activities</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">lcd_service</span><span class="o">.</span><span class="n">set_mood_by_name</span><span class="p">(</span><span class="s2">&quot;happy&quot;</span><span class="p">)</span>
+</code></pre></div>
 <h2 id="utility-methods">Utility Methods<a class="headerlink" href="#utility-methods" title="Permanent link">&para;</a></h2>
 <h3 id="get_identifier">get_identifier()<a class="headerlink" href="#get_identifier" title="Permanent link">&para;</a></h3>
 <p>Get plugin import path.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_identifier</span><span class="p">()</span>  <span class="c1"># &quot;plugins.acme.myplugin&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_identifier</span><span class="p">()</span>  <span class="c1"># &quot;plugins.acme.myplugin&quot;</span>
 </code></pre></div>
 <h3 id="get_namespace">get_namespace()<a class="headerlink" href="#get_namespace" title="Permanent link">&para;</a></h3>
 <p>Get plugin namespace.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">ns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_namespace</span><span class="p">()</span>  <span class="c1"># &quot;acme.myplugin&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">ns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_namespace</span><span class="p">()</span>  <span class="c1"># &quot;acme.myplugin&quot;</span>
 </code></pre></div>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ol>
@@ -2925,33 +3148,33 @@
 <li><strong>Document your plugin</strong></li>
 </ol>
 <h2 id="example-complete-plugin">Example: Complete Plugin<a class="headerlink" href="#example-complete-plugin" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">core.plugin_system.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">PluginBase</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">Plugin</span><span class="p">(</span><span class="n">PluginBase</span><span class="p">):</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Example Plugin&quot;</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;Demonstrates all API features&quot;</span>
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>    <span class="n">author</span> <span class="o">=</span> <span class="s2">&quot;Developer&quot;</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>    <span class="n">version</span> <span class="o">=</span> <span class="s2">&quot;1.0.0&quot;</span>
-<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>    <span class="n">icon</span> <span class="o">=</span> <span class="s2">&quot;star&quot;</span>
-<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>
-<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">boot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_gpio_pins</span><span class="p">({</span><span class="s1">&#39;led&#39;</span><span class="p">:</span> <span class="mi">17</span><span class="p">})</span>
-<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_schedule</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">)</span>
-<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>
-<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
-<a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">.views</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dashboard</span>
-<a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a>
-<a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_model</span><span class="p">(</span><span class="n">Data</span><span class="p">)</span>
-<a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_url_pattern</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">Dashboard</span><span class="o">.</span><span class="n">as_view</span><span class="p">())</span>
-<a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_setting</span><span class="p">(</span><span class="s1">&#39;interval&#39;</span><span class="p">,</span> <span class="s1">&#39;Interval&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
-<a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a>
-<a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">uninstall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-21-23" name="__codelineno-21-23" href="#__codelineno-21-23"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cleanup_gpio_pins</span><span class="p">()</span>
-<a id="__codelineno-21-24" name="__codelineno-21-24" href="#__codelineno-21-24"></a>
-<a id="__codelineno-21-25" name="__codelineno-21-25" href="#__codelineno-21-25"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-21-26" name="__codelineno-21-26" href="#__codelineno-21-26"></a>        <span class="c1"># Periodic update</span>
-<a id="__codelineno-21-27" name="__codelineno-21-27" href="#__codelineno-21-27"></a>        <span class="k">pass</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">core.plugin_system.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">PluginBase</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">Plugin</span><span class="p">(</span><span class="n">PluginBase</span><span class="p">):</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Example Plugin&quot;</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;Demonstrates all API features&quot;</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>    <span class="n">author</span> <span class="o">=</span> <span class="s2">&quot;Developer&quot;</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>    <span class="n">version</span> <span class="o">=</span> <span class="s2">&quot;1.0.0&quot;</span>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>    <span class="n">icon</span> <span class="o">=</span> <span class="s2">&quot;star&quot;</span>
+<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>
+<a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">boot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_gpio_pins</span><span class="p">({</span><span class="s1">&#39;led&#39;</span><span class="p">:</span> <span class="mi">17</span><span class="p">})</span>
+<a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_schedule</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">)</span>
+<a id="__codelineno-24-13" name="__codelineno-24-13" href="#__codelineno-24-13"></a>
+<a id="__codelineno-24-14" name="__codelineno-24-14" href="#__codelineno-24-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-24-15" name="__codelineno-24-15" href="#__codelineno-24-15"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
+<a id="__codelineno-24-16" name="__codelineno-24-16" href="#__codelineno-24-16"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">.views</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dashboard</span>
+<a id="__codelineno-24-17" name="__codelineno-24-17" href="#__codelineno-24-17"></a>
+<a id="__codelineno-24-18" name="__codelineno-24-18" href="#__codelineno-24-18"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_model</span><span class="p">(</span><span class="n">Data</span><span class="p">)</span>
+<a id="__codelineno-24-19" name="__codelineno-24-19" href="#__codelineno-24-19"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_url_pattern</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">Dashboard</span><span class="o">.</span><span class="n">as_view</span><span class="p">())</span>
+<a id="__codelineno-24-20" name="__codelineno-24-20" href="#__codelineno-24-20"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_setting</span><span class="p">(</span><span class="s1">&#39;interval&#39;</span><span class="p">,</span> <span class="s1">&#39;Interval&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+<a id="__codelineno-24-21" name="__codelineno-24-21" href="#__codelineno-24-21"></a>
+<a id="__codelineno-24-22" name="__codelineno-24-22" href="#__codelineno-24-22"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">uninstall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-24-23" name="__codelineno-24-23" href="#__codelineno-24-23"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cleanup_gpio_pins</span><span class="p">()</span>
+<a id="__codelineno-24-24" name="__codelineno-24-24" href="#__codelineno-24-24"></a>
+<a id="__codelineno-24-25" name="__codelineno-24-25" href="#__codelineno-24-25"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-24-26" name="__codelineno-24-26" href="#__codelineno-24-26"></a>        <span class="c1"># Periodic update</span>
+<a id="__codelineno-24-27" name="__codelineno-24-27" href="#__codelineno-24-27"></a>        <span class="k">pass</span>
 </code></pre></div>
 <h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
