@@ -346,6 +346,69 @@ def some_method(self):
     )
 ```
 
+## Activity Methods
+
+A classroom Pi runs one activity at a time: the speaker, the LEDs and the
+robot face are shared hardware, so a plugin that starts something has to be
+able to quiet whatever else is running. Each plugin declares how to stop what
+it runs, and the plugin that wants the room asks for it.
+
+### register_activity()
+
+Declare something this plugin runs that another can stop. Call it in `boot()`,
+once — not when the activity starts. The callable must therefore be safe to
+call while nothing is running.
+
+```python
+def boot(self):
+    self.register_activity(
+        "monitoring",                 # short name, unique in this plugin
+        self._stop_monitoring,
+        description=_("Noise monitoring and LEDs"),
+    )
+
+def _stop_monitoring(self):
+    from .noise_service import noise_service
+    noise_service.stop_monitoring()   # already returns early if not running
+```
+
+### get_activities()
+
+The activities this plugin registered, as `{name: {"stop", "description",
+"plugin"}}`.
+
+### stop_activities()
+
+Stop every activity this plugin registered, and return the names it stopped.
+Each callable is called on its own, so one that raises does not leave the
+others running — the error is logged instead.
+
+### PluginManager.stop_other_activities()
+
+Stop what every other plugin is running. Called by the plugin claiming the
+room, usually through a small module of its own so the decision is visible in
+one place:
+
+```python
+from core.plugin_system.base import plugin_manager
+
+plugin_manager.stop_other_activities(
+    except_plugins=("plugins.edupi.lcd_display",),   # shared output, not a competitor
+    reason="Touch Piano",
+)
+```
+
+Plugins that are disabled, and plugins that registered nothing, are skipped.
+
+**Order matters when the display is involved.** A plugin that owns the robot
+face usually hands it back to the display's default as it stops, so set the
+face you want *after* calling this.
+
+```python
+plugin_manager.stop_other_activities(...)
+lcd_service.set_mood_by_name("happy")
+```
+
 ## Utility Methods
 
 ### get_identifier()

@@ -244,6 +244,17 @@ Monitoring.
 The switch is per configuration, so the Start and Stop buttons keep working
 either way.
 
+### Stopped by Another Activity
+
+The meter does not run while another activity has claimed the room. Starting a
+Touch Piano session stops monitoring — the LEDs go dark, the microphone is
+released and the robot face is handed back — because the piano needs the
+speaker and the display for itself.
+
+It does not come back on when the piano session ends. Press **Start
+Monitoring** to resume, or restart the Pi and let the automatic start bring it
+up again.
+
 ## Configuration Options
 
 Access settings at `/plugins/edupi/noise_monitor/config/`:

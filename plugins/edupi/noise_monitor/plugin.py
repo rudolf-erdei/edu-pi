@@ -49,7 +49,27 @@ class Plugin(PluginBase):
             }
         )
 
+        # The monitor is the plugin most likely to be running when another one
+        # wants the room: it auto-starts at boot and holds the microphone, both
+        # LEDs and the robot face. Declaring how to stop it is what lets the
+        # touch piano (or anything else) claim the hardware cleanly.
+        self.register_activity(
+            "monitoring",
+            self._stop_monitoring,
+            description=_("Noise monitoring and LEDs"),
+        )
+
         logger.info(f"{self.name} plugin booted - GPIO pins registered")
+
+    def _stop_monitoring(self) -> None:
+        """Stop the meter, its LEDs and its hold on the robot face.
+
+        Safe to call when nothing is running — `stop_monitoring` returns early
+        — because the activity is registered at boot, not when it starts.
+        """
+        from .noise_service import noise_service
+
+        noise_service.stop_monitoring()
 
     def register(self) -> None:
         """Register models, URLs, and admin menus."""

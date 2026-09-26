@@ -81,6 +81,31 @@ Play using your computer keyboard:
 | G | Key 5 | G |
 | H | Key 6 | A |
 
+## Starting a Session
+
+Pressing **Start Session** does two things beyond starting the piano.
+
+**It quiets the other activities.** The Pi has one speaker and one set of
+lights, and a lesson runs one activity at a time, so a piano session stops
+whatever else is running: the noise monitor (its LEDs go dark and its
+microphone is released), the activity timer's countdown, and a routine being
+read aloud. This matters most for the noise monitor, which starts on its own
+when the Pi is switched on — without this, the meter's lights would keep
+changing colour while the class plays.
+
+**It puts the happy face on the display.** A session shows the robot's happy
+face for as long as the class is playing. The face goes on *after* the other
+activities stop, because the noise monitor hands the display back to its own
+default as it shuts down.
+
+Nothing else is affected. The LCD display is never stopped — it is shared
+output, not a competing activity — and the piano does not need it: if the
+display is missing or disabled the notes still play.
+
+Stopping the session does **not** restart the other activities. The noise
+monitor stays off until someone presses Start Monitoring, or until the Pi is
+restarted.
+
 ## Building the Circuit
 
 ### Option 1: Simple Wire Connection

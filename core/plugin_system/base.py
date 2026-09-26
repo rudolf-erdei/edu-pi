@@ -10,7 +10,7 @@ import inspect
 import logging
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Sequence, Type
 from django.apps import AppConfig
 from django.conf import settings
 from django.db import models
@@ -68,6 +68,7 @@ class PluginBase:
         self._admin_menus = []
         self._events: Dict[str, List[Callable]] = {}
         self._schedules: List[Dict] = []
+        self._activities: Dict[str, Dict] = {}
 
         logger.info(f"Initialized plugin: {self.name} ({self.plugin_path})")
 
@@ -80,6 +81,7 @@ class PluginBase:
         - Set up event listeners
         - Initialize hardware
         - Schedule background tasks
+        - Register the activities it runs (register_activity)
         """
         pass
 
@@ -280,6 +282,60 @@ class PluginBase:
     def get_schedules(self) -> List[Dict]:
         """Get all registered schedules."""
         return self._schedules
+
+    # Activity methods
+
+    def register_activity(
+        self, name: str, stop: Callable[[], None], description: str = ""
+    ) -> None:
+        """Register something this plugin is running that another can stop.
+
+        A classroom Pi has one set of hardware and one lesson at a time: the
+        speaker, the LEDs and the robot face are shared, so an activity that
+        starts has to be able to quiet the ones already running. Each plugin
+        declares its own stop callable here in ``boot()`` rather than being
+        stopped by whoever wants the hardware, which keeps the knowledge of how
+        to shut a service down inside the plugin that owns it — see
+        ``PluginManager.stop_other_activities()``.
+
+        The callable is expected to be safe to call when nothing is running:
+        it is registered once, at boot, and not only while the activity is
+        actually up.
+
+        Args:
+            name: Short name of the activity, unique within this plugin
+                (e.g. "monitoring", "timer").
+            stop: Called with no arguments to stop it.
+            description: Human-readable name, for logs and admin display.
+        """
+        self._activities[name] = {
+            "stop": stop,
+            "description": description or name,
+            "plugin": self.name,
+        }
+        logger.info(f"Plugin {self.name} registered activity: {name}")
+
+    def get_activities(self) -> Dict[str, Dict]:
+        """Get all activities this plugin has registered."""
+        return self._activities.copy()
+
+    def stop_activities(self) -> List[str]:
+        """Stop every activity this plugin registered.
+
+        One failing stop callable must not leave the rest running, so each is
+        called on its own and the error is logged rather than raised.
+
+        Returns:
+            The names of the activities that were asked to stop.
+        """
+        stopped = []
+        for name, activity in self._activities.items():
+            try:
+                activity["stop"]()
+                stopped.append(name)
+            except Exception as e:
+                logger.error(f"Error stopping {self.name} activity {name}: {e}")
+        return stopped
 
 
 class PluginManager:
@@ -554,6 +610,45 @@ class PluginManager:
             logger.info(f"Enabled plugin: {plugin.name}")
             return True
         return False
+
+    def stop_other_activities(
+        self, except_plugins: Sequence[str] = (), reason: str = ""
+    ) -> List[str]:
+        """Stop what every other plugin is running.
+
+        Some activities share hardware that cannot be shared: the speaker, the
+        LEDs, the robot face. One plugin claiming the room is a decision the
+        calling plugin makes — this only carries it out, so the knowledge of
+        how each service shuts down stays with the plugin that owns it (see
+        ``PluginBase.register_activity()``).
+
+        Disabled plugins are skipped: a plugin that is not running has nothing
+        to stop, and its ``uninstall()`` has already released its hardware.
+
+        Args:
+            except_plugins: Import paths to leave alone. The caller passes its
+                own path plus any plugin that is not competing for the same
+                hardware but simply writing to it.
+            reason: What is claiming the room, for the log line.
+
+        Returns:
+            The display names of the plugins that were asked to stop.
+        """
+        stopped = []
+        for import_path, plugin in self._plugins.items():
+            if import_path in except_plugins or not plugin.enabled:
+                continue
+            if not plugin.get_activities():
+                continue
+            plugin.stop_activities()
+            stopped.append(plugin.name)
+
+        if stopped:
+            logger.info(
+                f"{reason or 'A plugin'} stopped other activities: "
+                f"{', '.join(stopped)}"
+            )
+        return stopped
 
 
 # Global plugin manager instance
