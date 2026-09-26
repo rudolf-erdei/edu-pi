@@ -201,37 +201,37 @@ if lcd_service.is_initialized():
 
 #### Complete Example: Noise-Based Mood Changes
 
-Here's how to change the robot's mood based on classroom noise levels:
+This is how the Noise Monitor plugin drives the face. It mirrors the colour
+LED 2 (the session average) shows, so the face and the LED never disagree:
 
 ```python
 from plugins.edupi.lcd_display.lcd_service import lcd_service
-from plugins.edupi.lcd_display.mood import Mood
 
-def update_robot_mood(noise_level):
-    """Update LCD mood based on noise level.
-    
+# Keyed by the same colour names the LEDs use.
+FACE_MOODS = {"green": "happy", "yellow": "neutral", "red": "sad"}
+
+
+def update_robot_mood(session_color):
+    """Update the LCD mood from a noise colour.
+
     Args:
-        noise_level: Current noise level (0-100)
+        session_color: 'green', 'yellow' or 'red'
     """
     if not lcd_service.is_initialized():
+        # Not an error: the monitor works with no panel attached.
         return
-    
-    if noise_level > 80:
-        # Very noisy - robot is angry
-        lcd_service.set_mood(Mood.ANGRY)
-    elif noise_level > 60:
-        # Quite noisy - robot is sad
-        lcd_service.set_mood(Mood.SAD)
-    elif noise_level > 40:
-        # Moderate noise - robot is neutral
-        lcd_service.set_mood(Mood.NEUTRAL)
-    elif noise_level > 20:
-        # Quiet - robot is happy
-        lcd_service.set_mood(Mood.HAPPY)
-    else:
-        # Very quiet - robot is concentrated
-        lcd_service.set_mood(Mood.CONCENTRATED)
+
+    lcd_service.set_mood_by_name(FACE_MOODS[session_color])
 ```
+
+Two details matter when you copy this:
+
+- **Only on change.** A redraw is a full panel write over SPI. The monitor
+  loop samples at 10 Hz, so it remembers the colour it last drew and skips the
+  call while the colour holds.
+- **Session, not instant.** The face is the room's verdict over the lesson.
+  Following the live reading would have it flicker every time one child
+  shouts.
 
 #### Available Methods
 
@@ -267,7 +267,18 @@ When countdown is running:
 - Returns to mood animation after completion
 
 ### Noise Monitor
-Can trigger mood changes based on noise levels - see example above.
+While monitoring is running, the face follows the **session** LED:
+
+| Session colour | Session meaning | Face |
+|----------------|-----------------|------|
+| Green | Session has been quiet overall | Happy |
+| Yellow | Session has been moderately noisy | Neutral |
+| Red | Session has been noisy overall | Sad |
+
+The face changes only when the colour changes, and returns to Happy when
+monitoring stops. Noise Monitor declares LCD Display as a dependency, so this
+works without any configuration. With no panel attached the monitor runs as
+usual and simply does not draw the face.
 
 ### Touch Piano
 Cannot use simultaneously with LCD Display (SPI conflict).

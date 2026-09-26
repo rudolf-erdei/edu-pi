@@ -3,8 +3,9 @@
 import json
 import logging
 
+from django.contrib import messages
 from django.http import JsonResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -149,6 +150,10 @@ class NoiseMonitorConfigView(FormView):
         # thresholds silently overwritten.
         context["custom_form"] = CustomThresholdForm(initial=custom_config_initial())
         context["profiles"] = NoiseProfile.objects.filter(is_active=True)
+        # The profile cards mark the one in use, which needs the stored
+        # configuration to compare against. Without it `config` resolves to
+        # nothing in the template and the badge never appears.
+        context["config"] = NoiseMonitorConfig.objects.filter(is_active=True).first()
         return context
 
     def form_valid(self, form):
@@ -258,6 +263,77 @@ class CustomThresholdConfigView(FormView):
             f"Custom thresholds set: yellow={custom_profile.yellow_threshold}, red={custom_profile.red_threshold}"
         )
         return super().form_valid(form)
+
+
+class NoiseProfileRenameView(View):
+    """Rename a noise profile and edit its description.
+
+    ``NoiseProfile.profile_type`` is unique, so there is exactly one profile
+    per type and the seeded name ("Teaching") is what the teacher is stuck
+    with until this exists.
+    """
+
+    def post(self, request, pk, *args, **kwargs):
+        """Apply the new name and description."""
+        profile = get_object_or_404(NoiseProfile, pk=pk)
+        name = (request.POST.get("name") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+
+        error = None
+        if not name:
+            error = _("The profile name cannot be empty.")
+        elif len(name) > 100:
+            error = _("The profile name cannot be longer than 100 characters.")
+        elif (
+            NoiseProfile.objects.filter(name__iexact=name)
+            .exclude(pk=profile.pk)
+            .exists()
+        ):
+            # Two profiles with the same name are indistinguishable in the
+            # dropdown on the same page.
+            error = _("Another profile already uses that name.")
+
+        if error:
+            messages.error(request, error)
+        else:
+            profile.name = name
+            profile.description = description
+            profile.save()
+            messages.success(
+                request, _("Profile saved as “%(name)s”.") % {"name": name}
+            )
+
+        return redirect("noise_monitor:config")
+
+
+class NoiseProfileDeleteView(View):
+    """Delete a noise profile."""
+
+    def post(self, request, pk, *args, **kwargs):
+        """Delete the profile, unless it is the last one."""
+        profile = get_object_or_404(NoiseProfile, pk=pk)
+        name = profile.name
+
+        # Deleting the last one would leave the profile dropdown on the
+        # configuration page empty, and the form there cannot be submitted
+        # without a profile — the page would be stuck.
+        if NoiseProfile.objects.count() <= 1:
+            messages.error(
+                request,
+                _(
+                    "This is the only profile left. Create another one before "
+                    "deleting it."
+                ),
+            )
+            return redirect("noise_monitor:config")
+
+        # Any configuration pointing at it is left without a profile
+        # (on_delete=SET_NULL) and falls back to the default thresholds until
+        # another one is chosen.
+        profile.delete()
+        messages.success(request, _("Profile “%(name)s” deleted.") % {"name": name})
+
+        return redirect("noise_monitor:config")
 
 
 class NoiseMonitorControlView(View):

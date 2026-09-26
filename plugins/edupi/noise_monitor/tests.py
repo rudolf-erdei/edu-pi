@@ -1,5 +1,8 @@
 """Tests for Noise Monitor plugin."""
 
+import sys
+from unittest import mock
+
 import pytest
 from django.test import TestCase
 from django.utils import timezone
@@ -206,6 +209,123 @@ class NoiseServiceDeviceTest(TestCase):
         assert levels["device_name"] == "Another Mic"
 
 
+class NoiseFaceTest(TestCase):
+    """The robot face shows what the session LED shows.
+
+    Patched on the display module's own attribute, because the service imports
+    it inside the call so the monitor still runs without a display.
+    """
+
+    LCD = "plugins.edupi.lcd_display.lcd_service.lcd_service"
+
+    def _service(self, session_color):
+        from plugins.edupi.noise_monitor.noise_service import noise_service
+
+        # The service is a singleton shared with the other tests, so the face
+        # state is reset rather than assumed.
+        noise_service._session_color = session_color
+        noise_service._last_face_color = None
+        return noise_service
+
+    @mock.patch(LCD)
+    def test_a_quiet_session_is_a_happy_face(self, lcd):
+        lcd.is_initialized.return_value = True
+        lcd.set_mood_by_name.return_value = True
+
+        self._service("green")._update_face()
+
+        lcd.set_mood_by_name.assert_called_once_with("happy")
+
+    @mock.patch(LCD)
+    def test_a_moderately_noisy_session_is_a_neutral_face(self, lcd):
+        lcd.is_initialized.return_value = True
+        lcd.set_mood_by_name.return_value = True
+
+        self._service("yellow")._update_face()
+
+        lcd.set_mood_by_name.assert_called_once_with("neutral")
+
+    @mock.patch(LCD)
+    def test_a_noisy_session_is_a_sad_face(self, lcd):
+        lcd.is_initialized.return_value = True
+        lcd.set_mood_by_name.return_value = True
+
+        self._service("red")._update_face()
+
+        lcd.set_mood_by_name.assert_called_once_with("sad")
+
+    @mock.patch(LCD)
+    def test_the_face_is_not_redrawn_while_the_colour_holds(self, lcd):
+        """Each redraw is a full panel write, and the loop runs at 10 Hz."""
+        lcd.is_initialized.return_value = True
+        lcd.set_mood_by_name.return_value = True
+        service = self._service("yellow")
+
+        service._update_face()
+        service._update_face()
+        service._update_face()
+
+        assert lcd.set_mood_by_name.call_count == 1
+
+    @mock.patch(LCD)
+    def test_a_colour_change_redraws_the_face(self, lcd):
+        lcd.is_initialized.return_value = True
+        lcd.set_mood_by_name.return_value = True
+        service = self._service("green")
+
+        service._update_face()
+        service._session_color = "red"
+        service._update_face()
+
+        assert lcd.set_mood_by_name.call_args_list == [
+            mock.call("happy"),
+            mock.call("sad"),
+        ]
+
+    @mock.patch(LCD)
+    def test_an_uninitialized_display_is_retried_not_remembered(self, lcd):
+        """The panel can come up after monitoring has started."""
+        lcd.is_initialized.return_value = False
+        service = self._service("red")
+
+        service._update_face()
+        assert lcd.set_mood_by_name.call_count == 0
+
+        lcd.is_initialized.return_value = True
+        lcd.set_mood_by_name.return_value = True
+        service._update_face()
+
+        lcd.set_mood_by_name.assert_called_once_with("sad")
+
+    @mock.patch(LCD)
+    def test_stopping_the_monitor_gives_the_face_back(self, lcd):
+        """Otherwise the robot is left looking sad with nothing running."""
+        lcd.is_initialized.return_value = True
+        lcd.set_mood_by_name.return_value = True
+        service = self._service("red")
+        service._is_monitoring = True
+        service._monitor_thread = None
+
+        service.stop_monitoring()
+
+        assert lcd.set_mood_by_name.call_args_list[-1] == mock.call("happy")
+
+    def test_no_display_at_all_is_not_an_error(self):
+        """The monitor must run with the display plugin absent.
+
+        A None in ``sys.modules`` is how an import is made to fail, which is
+        what the plugin being disabled would look like here.
+        """
+        service = self._service("red")
+
+        with mock.patch.dict(
+            sys.modules, {"plugins.edupi.lcd_display.lcd_service": None}
+        ):
+            service._update_face()
+
+        assert service._last_face_color is None
+
+
 class MicrophoneConfigViewTest(TestCase):
     """Tests for how the configuration pages carry the microphone choice."""
 
@@ -409,6 +529,147 @@ class ProfileFormRoundTripTest(TestCase):
         assert config.profile.yellow_threshold == 35
 
 
+class ProfileManagementTest(TestCase):
+    """Renaming and deleting profiles from the configuration page.
+
+    ``profile_type`` is unique, so there is one profile per type and the seeded
+    name is what the teacher is stuck with until it can be renamed.
+    """
+
+    CONFIG = "/plugins/edupi/noise_monitor/config/"
+    DASHBOARD = "/plugins/edupi/noise_monitor/"
+
+    def _profile(self, profile_type=NoiseProfile.ProfileType.TEACHING, **kwargs):
+        return NoiseProfile.objects.create(
+            profile_type=profile_type,
+            name=kwargs.pop("name", "Teaching"),
+            yellow_threshold=kwargs.pop("yellow_threshold", 40),
+            red_threshold=kwargs.pop("red_threshold", 70),
+            **kwargs,
+        )
+
+    def _rename_url(self, profile):
+        return f"/plugins/edupi/noise_monitor/profiles/{profile.pk}/rename/"
+
+    def _delete_url(self, profile):
+        return f"/plugins/edupi/noise_monitor/profiles/{profile.pk}/delete/"
+
+    def test_renaming_changes_the_name_and_description(self):
+        profile = self._profile()
+
+        response = self.client.post(
+            self._rename_url(profile),
+            {"name": "Bibliotecă", "description": "Lucru liniștit"},
+            follow=True,
+        )
+
+        profile.refresh_from_db()
+        assert profile.name == "Bibliotecă"
+        assert profile.description == "Lucru liniștit"
+        assert response.status_code == 200
+
+    def test_the_new_name_is_what_the_dropdown_offers(self):
+        profile = self._profile()
+
+        self.client.post(
+            self._rename_url(profile), {"name": "Bibliotecă", "description": ""}
+        )
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+
+        assert "Bibliotecă" in content
+
+    def test_an_empty_name_is_refused(self):
+        profile = self._profile()
+
+        self.client.post(self._rename_url(profile), {"name": "   "})
+
+        profile.refresh_from_db()
+        assert profile.name == "Teaching"
+
+    def test_a_duplicate_name_is_refused(self):
+        first = self._profile(name="Teaching")
+        second = self._profile(
+            profile_type=NoiseProfile.ProfileType.GROUP_WORK, name="Group Work"
+        )
+
+        self.client.post(self._rename_url(second), {"name": "teaching"})
+
+        second.refresh_from_db()
+        assert second.name == "Group Work"
+        assert first.name == "Teaching"
+
+    def test_an_overlong_name_is_refused(self):
+        profile = self._profile()
+
+        self.client.post(self._rename_url(profile), {"name": "x" * 101})
+
+        profile.refresh_from_db()
+        assert profile.name == "Teaching"
+
+    def test_a_profile_that_does_not_exist_is_a_404(self):
+        response = self.client.post(
+            "/plugins/edupi/noise_monitor/profiles/9999/rename/", {"name": "x"}
+        )
+
+        assert response.status_code == 404
+
+    def test_deleting_removes_the_profile(self):
+        self._profile(name="Teaching")
+        doomed = self._profile(
+            profile_type=NoiseProfile.ProfileType.TEST, name="Test"
+        )
+
+        self.client.post(self._delete_url(doomed))
+
+        assert not NoiseProfile.objects.filter(pk=doomed.pk).exists()
+        assert NoiseProfile.objects.count() == 1
+
+    def test_the_last_profile_is_not_deletable(self):
+        """Deleting it would leave the dropdown empty and the form unusable."""
+        only = self._profile()
+
+        self.client.post(self._delete_url(only))
+
+        assert NoiseProfile.objects.filter(pk=only.pk).exists()
+
+    def test_deleting_the_profile_in_use_leaves_the_monitor_working(self):
+        profile = self._profile(name="Teaching")
+        # A second profile, so the delete is not refused as the last one.
+        self._profile(profile_type=NoiseProfile.ProfileType.TEST, name="Test")
+        NoiseMonitorConfig.objects.create(
+            name="Default", profile=profile, is_default=True
+        )
+
+        self.client.post(self._delete_url(profile))
+
+        config = NoiseMonitorConfig.objects.get(is_default=True)
+        assert config.profile is None
+        # No profile means the default thresholds, not a broken page.
+        assert self.client.get(self.DASHBOARD).status_code == 200
+
+    def test_the_configuration_page_offers_both_actions(self):
+        profile = self._profile()
+        NoiseMonitorConfig.objects.create(
+            name="Default", profile=profile, is_default=True
+        )
+
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+
+        assert self._rename_url(profile) in content
+        assert self._delete_url(profile) in content
+
+    def test_the_profile_in_use_is_marked(self):
+        """The teacher has to see which card the dropdown is pointing at."""
+        profile = self._profile()
+        NoiseMonitorConfig.objects.create(
+            name="Default", profile=profile, is_default=True
+        )
+
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+
+        assert 'badge badge-primary badge-sm mt-2 self-start' in content
+
+
 class RomanianTranslationTest(TestCase):
     """The plugin's Romanian catalogue must cover the plugin's own pages.
 
@@ -461,6 +722,30 @@ class RomanianTranslationTest(TestCase):
         assert profile.name == "Predare"
         assert profile.description == "Niveluri moderate de zgomot pentru predare obișnuită"
 
+    @staticmethod
+    def _python_msgids(path):
+        """The strings passed to ``_()``, read from the syntax tree.
+
+        Not a regex over the source: that would pick up the string inside a
+        comment and would take only the first half of a string split across
+        lines, both of which report a missing entry that is not missing.
+        """
+        import ast
+
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        found = set()
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "_"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)
+            ):
+                found.add(node.args[0].value)
+        return found
+
     def test_every_string_the_templates_ask_for_is_translated(self):
         """The guard that would have caught the gap: a catalogue missing an
         entry is silent at runtime."""
@@ -475,10 +760,11 @@ class RomanianTranslationTest(TestCase):
         assert not catalogue.untranslated_entries(), "catalogue has empty translations"
 
         used = set()
-        for path in list(plugin_dir.rglob("*.html")) + list(plugin_dir.glob("*.py")):
+        for path in plugin_dir.glob("*.py"):
+            used |= self._python_msgids(path)
+        for path in plugin_dir.rglob("*.html"):
             text = path.read_text(encoding="utf-8")
             used |= set(re.findall(r'\{%\s*trans\s+"([^"]+)"', text))
-            used |= set(re.findall(r'_\(\s*"([^"]+)"', text))
 
         missing = sorted(used - known)
         assert not missing, f"not in the Romanian catalogue: {missing}"

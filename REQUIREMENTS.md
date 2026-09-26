@@ -37,6 +37,8 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
   - `Teaching`: Moderate noise (teacher voice normal)
   - `Group Work`: Higher tolerance
   - `Custom`: User-defined thresholds
+- [x] Teacher can rename and delete profiles (one profile per type, addressed by id)
+- [x] Robot face on the LCD mirrors the session LED (green/happy, yellow/neutral, red/sad), reset to happy on stop
 - [x] Real-time updates via WebSocket
 - [x] Web interface displays both noise metrics separately
 - [x] LED brightness control (10-100%)

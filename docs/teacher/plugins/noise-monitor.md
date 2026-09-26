@@ -123,6 +123,44 @@ Choose from four preset noise profiles or create custom thresholds:
 - **Red Threshold**: User-defined (0-100)
 - **Use Case**: Specific classroom acoustics
 
+### Renaming and Deleting Profiles
+
+There is exactly one profile per type, so a profile name cannot be created
+twice. On the configuration page, each profile card carries a **Rename** and a
+**Delete** button:
+
+- **Rename** opens a small form with the name and the description. Rename
+  "Teaching" to "Citit în liniște" if that is what the class calls it. The new
+  name is what the profile dropdown offers from then on. A name that is empty,
+  longer than 100 characters, or already used by another profile is refused and
+  the old name is kept.
+- **Delete** removes a profile you never use. The card of the profile the
+  dropdown currently points at is marked **In use**.
+
+Deleting the profile in use is allowed: the configuration is left without a
+profile and the monitor falls back to the default thresholds (Level 40 / 70)
+until another profile is chosen. Deleting the *last* profile is refused,
+because the configuration page cannot be submitted with an empty dropdown.
+
+## Robot Face
+
+If the LCD display is fitted, the robot's face shows the same verdict as LED 2
+(the session average), on top of the LEDs:
+
+| Session Colour | Face |
+|----------------|------|
+| Green | Happy |
+| Yellow | Neutral |
+| Red | Sad |
+
+The face follows the *session* average rather than the instant one on purpose:
+the face is the judgement on the lesson, and following the live reading would
+have it change every time one child shouts. It changes only when the colour
+changes, and goes back to Happy when monitoring stops.
+
+No setup is needed — Noise Monitor already depends on the LCD Display plugin.
+On a Pi without a display the monitor runs normally and no face is drawn.
+
 ## LED Color Coding
 
 Both LEDs use the same color scheme:
