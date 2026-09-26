@@ -926,6 +926,16 @@ The following features have been implemented:
   - Progress bars for both instant and session averages
   - Status banner showing monitoring state
   - History graph of the last 20 minutes (240 readings), drawn as inline SVG
+  - The graph reads in **dB**: the axis is labelled in dB and the newest session
+    and instant averages are printed at the end of their lines. The scale behind
+    those numbers is the plugin's own 0-100 relative one (RMS → dBFS over a 60 dB
+    window), not calibrated dB SPL — see `docs/teacher/plugins/noise-monitor.md`
+  - The graph keeps up on its own: the page re-fetches the card every minute
+    (`/plugins/edupi/noise_monitor/chart/`, `noise_monitor:history_chart`), so
+    readings taken after the page was opened appear and the window slides. The
+    server still draws the chart, so there is no charting library and no internet
+    needed; a failed fetch leaves the graph already on screen untouched, and a
+    hidden tab is not polled
 - ✅ LED brightness control (10-100%)
 - ✅ Session reset functionality
 - ✅ Historical noise data tracking with database storage (one reading every 5 seconds)

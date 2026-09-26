@@ -255,6 +255,18 @@ GET /plugins/edupi/noise_monitor/api/history/?limit=50
 }
 ```
 
+#### Get the History Chart
+
+```http
+GET /plugins/edupi/noise_monitor/chart/
+```
+
+**Response:** HTML, not JSON — the `Noise Over Time` card exactly as the
+dashboard renders it, including the inline SVG. The dashboard re-fetches this
+every 60 seconds and swaps it in by its `history-chart` id, which is how the
+graph keeps up without a charting library. Not under `api/` for that reason: it
+is a piece of page rather than data. Use `api/history/` above for data.
+
 #### Update Profile
 
 ```http

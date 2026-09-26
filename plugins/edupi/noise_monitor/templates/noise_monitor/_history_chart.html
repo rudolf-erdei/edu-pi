@@ -1,0 +1,97 @@
+{% load i18n %}
+{# The Noise Over Time card. Included by the dashboard and rendered on its own #}
+{# by NoiseHistoryChartView, which is what the page re-fetches to keep the     #}
+{# graph current. It carries an id for that swap: the script replaces this      #}
+{# element by id, so the two must stay in step.                                 #}
+<div class="card bg-base-100 shadow-xl" id="history-chart">
+    <div class="card-body">
+        <h2 class="card-title text-2xl">{% trans "Noise Over Time" %}</h2>
+        <p class="text-sm opacity-70">
+            {% blocktrans with minutes=chart_window_minutes yellow=chart.yellow_threshold red=chart.red_threshold %}The last {{ minutes }} minutes. The bands are the thresholds the LEDs use: yellow from {{ yellow }}, red from {{ red }}.{% endblocktrans %}
+        </p>
+
+        {% if chart.has_data %}
+            {# Inline SVG, drawn from geometry the view worked out. #}
+            <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}"
+                 class="noise-history-chart w-full h-auto text-base-content max-h-64 mt-2"
+                 role="img"
+                 aria-label="{% trans 'Noise level over time' %}">
+                <!-- Threshold bands, behind everything else -->
+                {% for band in chart.bands %}
+                    <rect x="{{ chart.plot_left }}" y="{{ band.y }}"
+                          width="{{ chart.plot_width }}"
+                          height="{{ band.height }}"
+                          fill="{{ band.fill }}" fill-opacity="{{ band.opacity }}"></rect>
+                {% endfor %}
+
+                <!-- Gridlines and their value labels -->
+                {% for line in chart.gridlines %}
+                    <line x1="{{ chart.plot_left }}" y1="{{ line.y }}"
+                          x2="{{ chart.plot_right }}" y2="{{ line.y }}"
+                          stroke="currentColor" stroke-opacity="0.15"
+                          stroke-width="1"></line>
+                    <text x="{{ chart.plot_left|add:'-6' }}" y="{{ line.y }}"
+                          text-anchor="end" dominant-baseline="middle"
+                          font-size="11" fill="currentColor" fill-opacity="0.6">{{ line.label }}</text>
+                {% endfor %}
+
+                <!-- Session average: the room's verdict over the lesson -->
+                {% if chart.session_area %}
+                    <path d="{{ chart.session_area }}" fill="currentColor" fill-opacity="0.10"></path>
+                {% endif %}
+                {% if chart.session_points %}
+                    <polyline points="{{ chart.session_points }}" fill="none"
+                              stroke="currentColor" stroke-width="2"
+                              stroke-linejoin="round" stroke-linecap="round"></polyline>
+                {% endif %}
+                {% if chart.session_dot %}
+                    <circle cx="{{ chart.session_dot.x }}" cy="{{ chart.session_dot.y }}"
+                            r="3" fill="currentColor"></circle>
+                {% endif %}
+
+                <!-- Instant average: noisier, and drawn lighter for it -->
+                {% if chart.instant_points %}
+                    <polyline points="{{ chart.instant_points }}" fill="none"
+                              stroke="currentColor" stroke-opacity="0.4"
+                              stroke-width="1" stroke-linejoin="round"></polyline>
+                {% endif %}
+                {% if chart.instant_dot %}
+                    <circle cx="{{ chart.instant_dot.x }}" cy="{{ chart.instant_dot.y }}"
+                            r="2.5" fill="currentColor" fill-opacity="0.4"></circle>
+                {% endif %}
+
+                <!-- The newest value of each line, printed at its end -->
+                {% for readout in chart.readouts %}
+                    <text x="{{ readout.x }}" y="{{ readout.y }}"
+                          text-anchor="end" dominant-baseline="middle"
+                          font-size="12" font-weight="600"
+                          fill="currentColor"
+                          fill-opacity="{{ readout.opacity }}">{{ readout.label }}</text>
+                {% endfor %}
+
+                <!-- Clock times at each end of the window -->
+                <text x="{{ chart.plot_left }}" y="{{ chart.height|add:'-8' }}"
+                      text-anchor="start" font-size="11"
+                      fill="currentColor" fill-opacity="0.6">{{ chart.first_label }}</text>
+                <text x="{{ chart.plot_right }}" y="{{ chart.height|add:'-8' }}"
+                      text-anchor="end" font-size="11"
+                      fill="currentColor" fill-opacity="0.6">{{ chart.last_label }}</text>
+            </svg>
+
+            <div class="flex flex-wrap gap-4 mt-2 text-sm">
+                <div class="flex items-center gap-2">
+                    <span class="inline-block w-6 h-0.5 bg-current"></span>
+                    <span>{% trans "Session Average" %}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="inline-block w-6 h-0.5 bg-current opacity-40"></span>
+                    <span>{% trans "Instant Noise" %}</span>
+                </div>
+            </div>
+        {% else %}
+            <p class="text-center text-gray-500 py-8">
+                {% trans "No readings yet. Start monitoring to see data." %}
+            </p>
+        {% endif %}
+    </div>
+</div>

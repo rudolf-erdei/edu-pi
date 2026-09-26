@@ -1376,6 +1376,146 @@ class HistoryChartTest(TestCase):
         assert chart["last_label"] == "09:02"
 
 
+class ChartDecibelLabelsTest(TestCase):
+    """The chart is read in decibels, the unit the levels are named in.
+
+    The scale itself is the plugin's own 0-100 one; these tests are about the
+    labels and the end-of-line readouts that put a number on it.
+    """
+
+    START = timezone.now().replace(hour=14, minute=5, second=0, microsecond=0)
+
+    def _chart(self, *values, yellow=40, red=70):
+        import types
+
+        from plugins.edupi.noise_monitor.chart import history_chart
+
+        readings = [
+            types.SimpleNamespace(
+                timestamp=self.START + timedelta(minutes=i),
+                instant_average=instant,
+                session_average=session,
+            )
+            for i, (instant, session) in enumerate(values)
+        ]
+        return history_chart(
+            readings, yellow_threshold=yellow, red_threshold=red
+        )
+
+    def _readout(self, chart, key):
+        return next(entry for entry in chart["readouts"] if entry["key"] == key)
+
+    def test_the_axis_is_labelled_in_decibels(self):
+        chart = self._chart((30, 30))
+
+        assert [line["label"] for line in chart["gridlines"]] == [
+            "100 dB",
+            "75 dB",
+            "50 dB",
+            "25 dB",
+            "0 dB",
+        ]
+
+    def test_a_grown_scale_is_still_labelled_in_decibels(self):
+        """A mis-set threshold grows the scale; the unit does not change."""
+        chart = self._chart((30, 30), red=150)
+
+        assert [line["label"] for line in chart["gridlines"]] == [
+            "100 dB",
+            "75 dB",
+            "50 dB",
+            "25 dB",
+            "0 dB",
+        ]
+
+    def test_each_line_shows_its_newest_value(self):
+        """The point of the change: read the number, not just the shape."""
+        chart = self._chart((34, 21), (30, 25))
+
+        assert self._readout(chart, "session")["label"] == "25 dB"
+        assert self._readout(chart, "instant")["label"] == "30 dB"
+
+    def test_the_readout_sits_at_the_height_of_its_line(self):
+        chart = self._chart((30, 30))
+
+        readout = self._readout(chart, "session")
+        point = chart["session_points"].split(" ")[-1]
+
+        assert readout["y"] == float(point.split(",")[1])
+        assert readout["x"] < chart["plot_right"], "printed outside the plot"
+
+    def test_a_newest_reading_with_no_average_keeps_the_last_value_shown(self):
+        """A gap at the end must not blank the number the line still means."""
+        chart = self._chart((30, 30), (None, None))
+
+        assert self._readout(chart, "session")["label"] == "30 dB"
+
+    def test_a_line_that_never_had_a_value_gets_no_readout(self):
+        chart = self._chart((30, None), (40, None))
+
+        assert [entry["key"] for entry in chart["readouts"]] == ["instant"]
+
+    def test_no_readings_means_no_readouts(self):
+        from plugins.edupi.noise_monitor.chart import history_chart
+
+        chart = history_chart([], yellow_threshold=40, red_threshold=70)
+
+        assert chart["readouts"] == []
+
+    def test_readouts_that_would_overlap_are_pushed_apart(self):
+        """Both averages are usually close, and must stay readable."""
+        chart = self._chart((30, 30))
+
+        session = self._readout(chart, "session")
+        instant = self._readout(chart, "instant")
+
+        assert abs(session["y"] - instant["y"]) >= 13
+
+    def test_pushed_apart_readouts_stay_inside_the_plot(self):
+        """Neither nudge may print a value over the clock labels or off the top."""
+        for value in range(0, 101):
+            chart = self._chart((value, value))
+            for entry in chart["readouts"]:
+                assert chart["plot_top"] <= entry["y"] <= chart["plot_bottom"]
+
+    def test_the_instant_readout_is_fainter_than_the_session_one(self):
+        chart = self._chart((30, 20))
+
+        assert (
+            self._readout(chart, "instant")["opacity"]
+            < self._readout(chart, "session")["opacity"]
+        )
+
+    def test_the_dashboard_prints_the_values_on_the_chart(self):
+        """End to end: the numbers reach the page."""
+        from plugins.edupi.noise_monitor.models import NoiseMonitorConfig, NoiseProfile, NoiseReading
+
+        profile = NoiseProfile.objects.create(
+            profile_type=NoiseProfile.ProfileType.TEACHING,
+            name="Teaching",
+            yellow_threshold=40,
+            red_threshold=70,
+        )
+        config = NoiseMonitorConfig.objects.create(
+            name="Default", profile=profile, is_default=True
+        )
+        NoiseReading.objects.create(
+            config=config,
+            instant_average=34,
+            session_average=21,
+            raw_level=21,
+            timestamp=timezone.now(),
+            instant_color="green",
+            session_color="green",
+        )
+
+        content = self.client.get("/plugins/edupi/noise_monitor/").content.decode("utf-8")
+
+        assert ">21 dB<" in content, "the session value is not printed on the chart"
+        assert ">34 dB<" in content, "the instant value is not printed on the chart"
+        assert "100 dB" in content, "the axis is not labelled in decibels"
+
+
 class DashboardChartTest(TestCase):
     """The dashboard draws the chart, and says so when there is nothing to draw."""
 
@@ -1499,3 +1639,150 @@ class ChartWindowTest(TestCase):
         covered = chart_reading_count() * READING_SAVE_INTERVAL_SECONDS
 
         assert covered == CHART_WINDOW_MINUTES * 60
+
+
+class ChartRefreshTest(TestCase):
+    """The graph keeps up with the lesson instead of freezing at page load.
+
+    It is drawn by the server, so re-fetching the card is what refreshes it.
+    These tests are the contract between the two halves: the view has to hand
+    back the card, and the page has to carry the code that asks for it.
+    """
+
+    DASHBOARD = "/plugins/edupi/noise_monitor/"
+    FRAGMENT = "/plugins/edupi/noise_monitor/chart/"
+
+    def _config(self):
+        profile = NoiseProfile.objects.create(
+            profile_type=NoiseProfile.ProfileType.TEACHING,
+            name="Teaching",
+            yellow_threshold=40,
+            red_threshold=70,
+        )
+        return NoiseMonitorConfig.objects.create(
+            name="Default", profile=profile, is_default=True
+        )
+
+    def _reading(self, config, minutes_ago, level):
+        return NoiseReading.objects.create(
+            config=config,
+            raw_level=level,
+            timestamp=timezone.now() - timedelta(minutes=minutes_ago),
+            instant_average=level,
+            session_average=level,
+            instant_color="green",
+            session_color="green",
+        )
+
+    def test_the_fragment_returns_the_card_and_nothing_else(self):
+        """It is swapped into the page, so a whole document would nest."""
+        config = self._config()
+        self._reading(config, 1, 30)
+
+        content = self.client.get(self.FRAGMENT).content.decode("utf-8")
+
+        assert content.count('id="history-chart"') == 1
+        assert "<!DOCTYPE" not in content.upper()
+        assert "<html" not in content.lower()
+        # The card is what the page swaps in by id, so it has to be the root.
+        assert content.lstrip().startswith("<div")
+
+    def test_the_fragment_draws_the_same_chart_as_the_dashboard(self):
+        config = self._config()
+        for minutes, level in ((4, 10), (3, 40), (2, 80), (1, 90)):
+            self._reading(config, minutes, level)
+
+        page = self.client.get(self.DASHBOARD)
+        fragment = self.client.get(self.FRAGMENT)
+
+        assert fragment.context["chart"] == page.context["chart"]
+
+    def test_the_fragment_picks_up_readings_stored_since_the_page_loaded(self):
+        """The whole point: a new reading reaches a page that is already open."""
+        config = self._config()
+        self._reading(config, 2, 30)
+
+        self.assertNotIn(
+            ">77 dB<", self.client.get(self.FRAGMENT).content.decode("utf-8")
+        )
+
+        self._reading(config, 0, 77)
+
+        assert ">77 dB<" in self.client.get(self.FRAGMENT).content.decode("utf-8")
+
+    def test_the_fragment_says_there_is_nothing_yet_when_there_is_nothing(self):
+        self._config()
+
+        content = self.client.get(self.FRAGMENT).content.decode("utf-8")
+
+        assert 'id="history-chart"' in content
+        assert "No readings yet" in content
+
+    def test_the_fragment_leaves_the_page_layout_out(self):
+        """No nav, no cards above it: only the card comes back."""
+        self._config()
+
+        content = self.client.get(self.FRAGMENT).content.decode("utf-8")
+
+        assert "LED Color Guide" not in content
+        assert "instant-level" not in content
+
+    def test_the_dashboard_asks_for_the_fragment_once_a_minute(self):
+        self._config()
+
+        content = self.client.get(self.DASHBOARD).content.decode("utf-8")
+
+        assert f'const chartUrl = "{self.FRAGMENT}"' in content
+        assert "const chartRefreshMs = 60000;" in content
+        assert "setInterval(refreshChart, chartRefreshMs);" in content
+
+    def test_the_refresh_replaces_the_card_by_the_id_it_carries(self):
+        """A rename on either side would leave the graph frozen and silent."""
+        self._config()
+
+        content = self.client.get(self.DASHBOARD).content.decode("utf-8")
+
+        assert "getElementById('history-chart')" in content
+        assert 'id="history-chart"' in content
+
+    def test_a_failed_refresh_keeps_the_graph_on_screen(self):
+        """A stale graph beats an empty card, and the next tick tries again."""
+        self._config()
+
+        content = self.client.get(self.DASHBOARD).content.decode("utf-8")
+
+        assert "Could not refresh the noise graph" in content
+        # The swap only happens once the response came back usable, so a
+        # failure leaves the graph that is already on screen untouched.
+        refresh = content[content.index("function refreshChart") :]
+        refresh = refresh[: refresh.index("chartRefreshInterval = setInterval")]
+        assert "outerHTML = html" in refresh
+        assert "throw new Error(response.status)" in refresh
+
+    def test_a_hidden_tab_does_not_keep_asking(self):
+        """Nobody is reading it, and the Pi has other work."""
+        self._config()
+
+        content = self.client.get(self.DASHBOARD).content.decode("utf-8")
+
+        refresh = content[content.index("function refreshChart") :]
+        assert "if (document.hidden)" in refresh
+        assert "visibilitychange" in content
+
+    def test_the_refresh_interval_is_cleared_when_the_page_goes_away(self):
+        self._config()
+
+        content = self.client.get(self.DASHBOARD).content.decode("utf-8")
+
+        unload = content[content.index("beforeunload") :]
+        assert "clearInterval(chartRefreshInterval)" in unload
+
+    def test_the_interval_matches_how_often_a_reading_is_stored(self):
+        """Slower than the readings, so a refresh never misses one entirely.
+
+        One minute against a reading every
+        ``READING_SAVE_INTERVAL_SECONDS`` seconds means the graph moves in
+        steps of a dozen-odd readings; that is the trade the interval makes.
+        """
+        assert 60000 / 1000 >= READING_SAVE_INTERVAL_SECONDS
+        assert 60000 / 1000 < CHART_WINDOW_MINUTES * 60

@@ -14,7 +14,9 @@ WIDTH = 720
 HEIGHT = 210
 
 # Room for the value labels on the left and the clock times underneath.
-PAD_LEFT = 38
+# The left gutter holds "100 dB" at font-size 11, which needs more than the
+# bare three digits did.
+PAD_LEFT = 52
 PAD_RIGHT = 10
 PAD_TOP = 10
 PAD_BOTTOM = 24
@@ -28,6 +30,19 @@ BAND_OPACITY = 0.14
 
 # Every value label on the axis, top to bottom.
 GRID_VALUES = (100, 75, 50, 25, 0)
+
+# The unit the levels are shown in. The scale itself is the plugin's own 0-100
+# one — see VALUE_UNIT_NOTE in the docs — the suffix only names it.
+VALUE_UNIT = " dB"
+
+# How far apart the two end-of-line value readouts are kept, in viewbox units.
+# Closer than this and they print on top of each other.
+READOUT_MIN_GAP = 13
+
+# The instant readout is drawn as faintly as its own line, so the two stay
+# tellable apart where they overlap.
+SESSION_READOUT_OPACITY = 1.0
+INSTANT_READOUT_OPACITY = 0.55
 
 # Levels are a 0-100 scale. A room louder than that, or a badly set threshold,
 # should not push the lines off the top of the chart, so the scale only ever
@@ -88,6 +103,8 @@ def history_chart(
 
     session_coords = plotted([r.session_average for r in readings])
     instant_coords = plotted([r.instant_average for r in readings])
+    session_values = [r.session_average for r in readings]
+    instant_values = [r.instant_average for r in readings]
 
     def points(coords: List[Tuple[float, float]]) -> str:
         return " ".join(f"{x:.1f},{y:.1f}" for x, y in coords)
@@ -109,6 +126,8 @@ def history_chart(
         (y_of(yellow_threshold), y_of(red_threshold), BAND_YELLOW),
         (y_of(red_threshold), y_of(scale), BAND_RED),
     ]
+
+    readouts = _readouts(session_values, instant_values, y_of, right, top, bottom)
 
     return {
         "has_data": bool(readings),
@@ -133,10 +152,11 @@ def history_chart(
             if abs(y2 - y1) > 0
         ],
         "gridlines": [
-            {"y": round(y_of(value), 1), "label": value}
+            {"y": round(y_of(value), 1), "label": f"{value}{VALUE_UNIT}"}
             for value in GRID_VALUES
             if value <= scale
         ],
+        "readouts": readouts,
         "session_points": points(session_coords),
         "instant_points": points(instant_coords),
         "session_area": session_area,
@@ -148,6 +168,80 @@ def history_chart(
         "first_label": _time_label(readings[0]) if readings else "",
         "last_label": _time_label(readings[-1]) if readings else "",
     }
+
+
+def _newest(values: Sequence[Optional[int]]) -> Optional[int]:
+    """The most recent value that is present.
+
+    A reading can carry no average, and the newest one carrying none must not
+    blank the readout: what the line last showed is still its current value.
+
+    Args:
+        values: Values in chronological order, oldest first.
+
+    Returns:
+        Optional[int]: The newest value, or None when there are none.
+    """
+    for value in reversed(list(values)):
+        if value is not None:
+            return value
+    return None
+
+
+def _readouts(
+    session_values: Sequence[Optional[int]],
+    instant_values: Sequence[Optional[int]],
+    y_of,
+    right: float,
+    top: float,
+    bottom: float,
+) -> List[dict]:
+    """The newest value of each line, to print at the end of it.
+
+    The two lines are shown in the same unit and often run close together, so
+    the readouts are pushed apart until they clear, staying inside the plot.
+
+    Args:
+        session_values: Session average per reading, oldest first.
+        instant_values: Instant average per reading, oldest first.
+        y_of: Maps a value to its y coordinate.
+        right: Right edge of the plot.
+        top: Top edge of the plot.
+        bottom: Bottom edge of the plot.
+
+    Returns:
+        List[dict]: One entry per line that has a value, each with its label,
+        position and opacity.
+    """
+    readouts = []
+    for values, name, opacity in (
+        (session_values, "session", SESSION_READOUT_OPACITY),
+        (instant_values, "instant", INSTANT_READOUT_OPACITY),
+    ):
+        value = _newest(values)
+        if value is None:
+            continue
+        readouts.append(
+            {
+                "key": name,
+                "label": f"{value}{VALUE_UNIT}",
+                "x": round(right - 4, 1),
+                "y": round(y_of(value), 1),
+                "opacity": opacity,
+            }
+        )
+
+    if len(readouts) == 2:
+        upper, lower = sorted(readouts, key=lambda entry: entry["y"])
+        if lower["y"] - upper["y"] < READOUT_MIN_GAP:
+            # Down first: the floor is further from the clock labels than the
+            # top is from the edge of the viewbox.
+            if lower["y"] + READOUT_MIN_GAP <= bottom:
+                lower["y"] = round(lower["y"] + READOUT_MIN_GAP, 1)
+            else:
+                upper["y"] = round(max(upper["y"] - READOUT_MIN_GAP, top), 1)
+
+    return readouts
 
 
 def _dot(coords: List[Tuple[float, float]]) -> Optional[dict]:
