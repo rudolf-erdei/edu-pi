@@ -190,6 +190,8 @@ WantedBy=multi-user.target
 
 When the Pi boots without a configured WiFi network, it automatically creates a hotspot named **"Tinko-Setup"** with password **"tinko1234"**. Teachers can connect to this hotspot from their phone and configure the school WiFi through a simple web form.
 
+The **LCD screen shows the same two details while setup mode is running** — the network name and the password — so you never have to remember or look them up. Once the school WiFi is configured the screen goes back to the normal dashboard.
+
 **Key configuration files** (set up automatically by the install script):
 
 | File | Purpose |

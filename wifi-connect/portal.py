@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template_string, redirect
+import glob
 import subprocess
 import os
 import ssl
@@ -17,16 +18,128 @@ _lcd_rst_pin = None
 _lcd_width = 320
 _lcd_height = 240
 
+# Pillow is imported apart from the GPIO stack: it is what draws the screen, so
+# it is worth having even on an interpreter that turns out to have no LCD.
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = None
+    ImageDraw = None
+    ImageFont = None
+
 try:
     import digitalio
     import board
     import adafruit_rgb_display.ili9341 as ili9341
     from gpiozero import PWMLED
-    from PIL import Image, ImageDraw
 
     LCD_AVAILABLE = True
 except ImportError:
     LCD_AVAILABLE = False
+
+#: Fonts to try for the LCD text, in preference order. Raspberry Pi OS ships
+#: the DejaVu family; the fallback is PIL's built-in bitmap font, which is
+#: small but always there.
+FONT_CANDIDATES = (
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+)
+
+#: Credential lines are drawn at the largest of these that fits the screen, so
+#: a long network name shrinks rather than running off the edge.
+CREDENTIAL_SIZES = (30, 26, 22, 18, 16, 14, 12, 11)
+
+#: Set in the environment before re-exec, so the portal can never re-exec twice.
+REEXEC_ENV_FLAG = "TINKO_PORTAL_REEXEC"
+
+#: Everything the portal needs from an interpreter: the LCD stack, and Flask to
+#: keep serving the setup page afterwards.
+REQUIRED_IMPORTS = ("board", "digitalio", "adafruit_rgb_display", "PIL", "flask")
+
+
+def _can_run_portal_with_lcd(python: str) -> bool:
+    """Whether an interpreter can drive the LCD and still serve the portal.
+
+    Args:
+        python: Path to a Python interpreter.
+
+    Returns:
+        bool: True if every module in REQUIRED_IMPORTS imports under it.
+    """
+    try:
+        result = subprocess.run(
+            [python, "-c", "import " + ", ".join(REQUIRED_IMPORTS)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=30,
+        )
+    except Exception:
+        return False
+    return result.returncode == 0
+
+
+def _lcd_capable_interpreters():
+    """Candidate interpreters that may carry the LCD libraries, best first.
+
+    Yields:
+        str: Paths to try, which may not exist.
+    """
+    candidates = []
+    override = os.environ.get("TINKO_VENV_PYTHON")
+    if override:
+        candidates.append(override)
+    # This script is copied out of the project at install time, so its own
+    # directory is the sibling of the project directory that owns the venv.
+    candidates.extend(
+        sorted(glob.glob(os.path.join(SCRIPT_DIR, "*", ".venv", "bin", "python")))
+    )
+    candidates.extend(sorted(glob.glob("/opt/*/.venv/bin/python")))
+
+    seen = set()
+    for path in candidates:
+        if path not in seen:
+            seen.add(path)
+            yield path
+
+
+def use_lcd_capable_interpreter() -> None:
+    """Re-run the portal under an interpreter that has the LCD libraries.
+
+    The portal is launched with the system ``python3``, but the adafruit/PIL
+    stack used to draw on the LCD is installed only in the project venv. Under
+    the system interpreter the import above fails, the screen stays dark, and
+    nothing on the page says so — so switch interpreters instead of giving up
+    on the screen.
+
+    ``os.execv`` keeps the PID, so the launcher's pidfile and its watchdog
+    still point at this process.
+
+    Returns:
+        None: It either returns, having found nothing better, or never returns.
+    """
+    if os.environ.get(REEXEC_ENV_FLAG) == "1":
+        return  # Already re-exec'd once. Never loop.
+    if _can_run_portal_with_lcd(sys.executable):
+        return
+
+    for candidate in _lcd_capable_interpreters():
+        if os.path.abspath(candidate) == os.path.abspath(sys.executable):
+            continue
+        if not _can_run_portal_with_lcd(candidate):
+            continue
+        print(f"LCD: re-running the portal under {candidate}")
+        os.environ[REEXEC_ENV_FLAG] = "1"
+        try:
+            os.execv(candidate, [candidate, os.path.abspath(__file__), *sys.argv[1:]])
+        except OSError as e:
+            # A candidate that answers the import check can still fail to
+            # execute (a venv symlinked to an interpreter that is gone). The
+            # portal must survive that: no screen is bad, no setup page is worse.
+            print(f"LCD: could not re-run under {candidate}: {e}")
+            os.environ.pop(REEXEC_ENV_FLAG, None)
+
+    print("LCD: no interpreter with the LCD libraries found; screen stays dark")
 
 
 def _init_lcd():
@@ -71,49 +184,172 @@ def _init_lcd():
         return False
 
 
+def _lcd_font(size: int):
+    """Return a font of about the requested size.
+
+    Args:
+        size: Desired height in pixels.
+
+    Returns:
+        The first available font from FONT_CANDIDATES, else None, which makes
+        PIL draw with its built-in bitmap font.
+    """
+    if ImageFont is None:
+        return None
+    for path in FONT_CANDIDATES:
+        try:
+            return ImageFont.truetype(path, size)
+        except OSError:
+            continue
+    return None
+
+
+def _text_width(draw, text: str, font) -> int:
+    """Width in pixels that ``text`` occupies in ``font``.
+
+    Args:
+        draw: The ImageDraw to measure with.
+        text: The text to measure.
+        font: Font to measure with, or None for PIL's default.
+
+    Returns:
+        int: Width in pixels.
+    """
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0]
+
+
+def _line_height(font) -> int:
+    """Vertical distance to leave between two lines drawn with ``font``."""
+    return getattr(font, "size", CREDENTIAL_SIZES[-1]) + 4
+
+
+def _truncate_to_fit(draw, text: str, font, max_width: int) -> str:
+    """Shorten ``text`` until it fits, marking the cut.
+
+    Args:
+        draw: The ImageDraw to measure with.
+        text: The text to shorten.
+        font: Font it will be drawn in.
+        max_width: Available width in pixels.
+
+    Returns:
+        str: The longest prefix that fits, ending in an ellipsis.
+    """
+    for cut in range(len(text) - 1, 0, -1):
+        candidate = text[:cut].rstrip() + "..."
+        if _text_width(draw, candidate, font) <= max_width:
+            return candidate
+    return "..."
+
+
+def _fitted_font(draw, text: str, max_width: int):
+    """Largest credential font whose rendering of ``text`` fits the screen.
+
+    Args:
+        draw: The ImageDraw to measure with.
+        text: The line to be drawn.
+        max_width: Available width in pixels.
+
+    Returns:
+        A font from CREDENTIAL_SIZES, the smallest if none of them fit.
+    """
+    for size in CREDENTIAL_SIZES:
+        font = _lcd_font(size)
+        if _text_width(draw, text, font) <= max_width:
+            return font
+    return _lcd_font(CREDENTIAL_SIZES[-1])
+
+
+def _fit_credential(draw, text: str, max_width: int):
+    """Choose the font and the lines that show a credential in full.
+
+    Shrinking is tried first, then wrapping, and only then clipping: a password
+    shown short is a password that does not work, so the text is never cut
+    while there is any way to show all of it.
+
+    Args:
+        draw: The ImageDraw to measure with.
+        text: The network name or password.
+        max_width: Available width in pixels.
+
+    Returns:
+        tuple: ``(font, lines)``. Two lines only when the smallest size cannot
+        hold the text on one.
+    """
+    font = _fitted_font(draw, text, max_width)
+    if _text_width(draw, text, font) <= max_width:
+        return font, [text]
+
+    smallest = _lcd_font(CREDENTIAL_SIZES[-1])
+    half = (len(text) + 1) // 2
+    split = [text[:half], text[half:]]
+    if all(_text_width(draw, line, smallest) <= max_width for line in split):
+        return smallest, split
+
+    return smallest, [_truncate_to_fit(draw, text, smallest, max_width)]
+
+
+def _draw_centred(draw, text: str, y: int, font, fill: str) -> None:
+    """Draw one line of text horizontally centred on the LCD.
+
+    Args:
+        draw: The ImageDraw to draw with.
+        text: The line to be drawn.
+        y: Top edge of the line, in pixels.
+        font: Font to draw with, or None for PIL's default.
+        fill: Text colour.
+
+    Returns:
+        None
+    """
+    width = _text_width(draw, text, font)
+    draw.text(((_lcd_width - width) // 2, y), text, font=font, fill=fill)
+
+
+def _draw_credential(draw, text: str, y: int, max_width: int) -> None:
+    """Draw a network name or password, wrapped if it cannot fit on one line.
+
+    Args:
+        draw: The ImageDraw to draw with.
+        text: The credential to draw.
+        y: Top edge of the first line, in pixels.
+        max_width: Available width in pixels.
+
+    Returns:
+        None
+    """
+    font, lines = _fit_credential(draw, text, max_width)
+    for number, line in enumerate(lines):
+        _draw_centred(draw, line, y + number * _line_height(font), font, "white")
+
+
 def _show_wifi_on_lcd(ssid, password):
-    """Display WiFi credentials on the LCD screen."""
+    """Display the hotspot name and password on the LCD screen.
+
+    This is the whole point of the screen in setup mode: a teacher who has just
+    unboxed the Pi has no other way to learn what to connect their phone to.
+    """
     if not _lcd_device:
         return
 
     try:
         img = Image.new("RGB", (_lcd_width, _lcd_height), "black")
         draw = ImageDraw.Draw(img)
+        max_width = _lcd_width - 28
 
-        # Use default font — PIL's built-in bitmap font
-        # For the small TFT, default font is readable at close range
+        _draw_centred(draw, "Tinko WiFi Setup", 12, _lcd_font(22), "white")
+        draw.line([(30, 46), (_lcd_width - 30, 46)], fill="gray", width=1)
 
-        # Title: "Tinko WiFi Setup" centered at top
-        title = "Tinko WiFi Setup"
-        bbox = draw.textbbox((0, 0), title)
-        tw = bbox[2] - bbox[0]
-        draw.text(((_lcd_width - tw) // 2, 20), title, fill="white")
+        _draw_centred(draw, "NETWORK", 58, _lcd_font(14), "gray")
+        _draw_credential(draw, ssid, 76, max_width)
 
-        # Separator line
-        draw.line([(40, 50), (280, 50)], fill="gray", width=1)
+        _draw_centred(draw, "PASSWORD", 122, _lcd_font(14), "gray")
+        _draw_credential(draw, password, 140, max_width)
 
-        # SSID line
-        ssid_label = f"WiFi: {ssid}"
-        bbox = draw.textbbox((0, 0), ssid_label)
-        tw = bbox[2] - bbox[0]
-        draw.text(((_lcd_width - tw) // 2, 70), ssid_label, fill="white")
-
-        # Password line
-        pass_label = f"Pass: {password}"
-        bbox = draw.textbbox((0, 0), pass_label)
-        tw = bbox[2] - bbox[0]
-        draw.text(((_lcd_width - tw) // 2, 100), pass_label, fill="white")
-
-        # Instructions
-        line1 = "Connect, then"
-        bbox = draw.textbbox((0, 0), line1)
-        tw = bbox[2] - bbox[0]
-        draw.text(((_lcd_width - tw) // 2, 160), line1, fill="gray")
-
-        line2 = "open browser"
-        bbox = draw.textbbox((0, 0), line2)
-        tw = bbox[2] - bbox[0]
-        draw.text(((_lcd_width - tw) // 2, 185), line2, fill="gray")
+        draw.line([(30, 186), (_lcd_width - 30, 186)], fill="gray", width=1)
+        _draw_centred(draw, "Connect, then open", 200, _lcd_font(14), "gray")
+        _draw_centred(draw, "a browser", 220, _lcd_font(14), "gray")
 
         _lcd_device.image(img)
         print(f"LCD: Showing WiFi credentials (SSID: {ssid})")
@@ -297,6 +533,10 @@ def connect():
     return render_template_string(WAIT_PAGE, ssid=ssid)
 
 if __name__ == '__main__':
+    # The system python3 cannot import the LCD libraries, so switch to an
+    # interpreter that can before serving anything.
+    use_lcd_capable_interpreter()
+
     # Initialize LCD and show WiFi credentials during captive portal
     hotspot_ssid = os.environ.get('HOTSPOT_SSID', 'Tinko-Setup')
     hotspot_password = os.environ.get('HOTSPOT_PASSWORD', 'tinko1234')
