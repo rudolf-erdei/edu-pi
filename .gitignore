@@ -34,6 +34,13 @@ db.sqlite3.update-tmp-*
 # while they move it out of the working tree for the duration of the pull.
 media/
 *.sqlite3
+
+# Compiled catalogues are build outputs: `compile_translations.py` rewrites them
+# on every install and update, so a tracked .mo left the working tree dirty after
+# any translation change — and the next update stashed that and kept it, because
+# the stash is popped only when the pull failed. That is where the field Pi's 79
+# stashes came from. The .po files are the source; these are generated from them.
+*.mo
 entities.json
 mempalace.yaml
 /docs/superpowers/

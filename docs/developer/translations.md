@@ -88,6 +88,13 @@ Django reads the `.mo`, so **editing a `.po` changes nothing until it is
 compiled**. A catalogue that is ahead of its `.mo` shows the old text on the Pi
 and the new text in the repository.
 
+The `.mo` files are **not tracked** — they are build outputs, rewritten by every
+install and update. A fresh clone therefore has none until you run the compiler
+above, and Django serves the untranslated source text until you do. Do not commit
+them: a tracked build output leaves the working tree dirty after any translation
+change, and the next update stashes that (see `ISSUES.md` for what 79 of those
+look like on the field Pi).
+
 > **Note:** `compile_translations.py` finds each `locale/` directory itself —
 > the project's and one per plugin — so a new plugin's catalogues are compiled
 > without being listed anywhere. `makemessages` walks the tree the same way.

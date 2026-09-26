@@ -1036,7 +1036,13 @@ The following features have been implemented:
 - ✅ Each `.po` compiles to the `.mo` of its own name, so `djangojs.mo` can no
   longer replace the interface catalogue with the strings the browser needs
 - ✅ A plugin catalogue with an entry missing, empty, or defined twice fails the
-  test suite, as does a `.po` that is ahead of its `.mo`
+  test suite, as does a `.po` the compiler cannot turn into a usable catalogue,
+  and a `.mo` already built in the working tree that no longer matches its source
+- ✅ Compiled catalogues are **not tracked**: every deploy rewrites them, so a
+  tracked `.mo` left the working tree dirty after any translation change and the
+  next update stashed that and kept it. The suite fails if a `.mo` is ever
+  committed again, and a fresh clone (no `.mo` at all) passes — verified by
+  copying the tree without them and running the translation tests
 - ✅ A catalogue that will not compile is reported with its reason during install
   and update, instead of being swallowed and reported as "no translations"
 - ✅ Install and update compile with the repository's own compiler

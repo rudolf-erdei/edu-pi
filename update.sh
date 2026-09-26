@@ -308,23 +308,39 @@ pull_latest() {
     hide_live_db
     hide_media
 
-    # Stash any local changes
+    # Stash any local changes. Untracked files are excluded on purpose: `git
+    # stash` does not touch them, so counting them here only made this branch
+    # announce "local changes detected" on a tree where nothing would be stashed.
     STASHED=0
-    if [[ -n $(git status --porcelain) ]]; then
+    if [[ -n $(git status --porcelain --untracked-files=no) ]]; then
         log_warning "Local changes detected. Stashing them..."
         git stash
         STASHED=1
     fi
 
-    # Pull latest changes (timeout prevents hanging on network issues)
-    if timeout 60 git pull; then
+    # Pull latest changes (timeout prevents hanging on network issues). The
+    # output is captured so a failure can be reported as whatever git actually
+    # said, instead of being guessed at — see the branch below.
+    local pull_output pull_rc
+    if pull_output=$(timeout 60 git pull 2>&1); then
         log_success "Latest changes pulled successfully"
         # Show what was updated
         log_info "Latest commits:"
         git log --oneline -5
         update_status "pull" "completed"
     else
-        log_warning "Failed to pull (no internet or network error). Continuing with current version."
+        pull_rc=$?
+        log_warning "Failed to pull — continuing with the current version."
+        # The real reason, not a guess. Reporting every failure as "no internet
+        # or network error" is what hid a broken `timeout VAR=value` invocation
+        # for weeks: a loud, diagnosable error read as a network problem and the
+        # update carried on with the old code.
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && log_warning "  $line"
+        done <<< "$pull_output"
+        case "$pull_rc" in
+            124) log_warning "  (git pull did not finish within 60 seconds)" ;;
+        esac
         # Restore stashed changes since we didn't pull anything new
         if [[ "$STASHED" -eq 1 ]]; then
             log_info "Restoring stashed local changes..."

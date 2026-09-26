@@ -8,10 +8,13 @@ which is where the false results came from the first time it was written.
 """
 
 from pathlib import Path
+import shutil
+import subprocess
 
 import polib
 import pytest
 
+from compile_translations import compile_po_files
 from translation_audit import (
     DEFAULT_LOCALE,
     catalogue_path,
@@ -69,19 +72,83 @@ def test_no_catalogue_entry_is_defined_twice(plugin_dir):
 
 
 @pytest.mark.parametrize("plugin_dir", PLUGINS, ids=_plugin_id)
-def test_the_compiled_catalogue_matches_its_source(plugin_dir):
-    """A .po that was edited but never compiled changes nothing on screen.
+def test_the_catalogue_compiles_to_every_string_it_translates(plugin_dir, tmp_path):
+    """The catalogue the deploy will load: this .po, through the real compiler.
 
-    Django reads the .mo, so a stale one means the new translation is in the
-    repository and not on the Pi. This is how the graph strings would have
-    shipped as English.
+    Compiled catalogues are build outputs and are no longer tracked — every
+    install and update compiles them, so a stale ``.mo`` can no longer sit in
+    the repository and ship. What can still be wrong is a ``.po`` the compiler
+    cannot turn into a usable catalogue, so this compiles it and reads the
+    result back.
+
+    A ``.mo`` already built in the working tree (a developer's, or one left by
+    a deploy) is checked too: Django reads the ``.mo``, so a stale build shows
+    the old text while the repository has the new — which is how the graph
+    strings would have shipped as English.
     """
     po_path = catalogue_path(plugin_dir)
-    mo_path = po_path.with_suffix(".mo")
+    work = tmp_path / "LC_MESSAGES"
+    work.mkdir()
+    shutil.copy(po_path, work / po_path.name)
 
-    assert mo_path.exists(), f"{mo_path} is missing - run compile_translations.py"
-    compiled = {entry.msgid for entry in polib.mofile(str(mo_path)) if entry.msgid}
+    compile_po_files([work])
+
+    built_fresh = work / po_path.with_suffix(".mo").name
+    assert built_fresh.exists(), f"{po_path.name} produced no {built_fresh.name}"
+    compiled = {entry.msgid for entry in polib.mofile(str(built_fresh)) if entry.msgid}
+
     assert compiled == translated_msgids(plugin_dir)
+
+    existing = po_path.with_suffix(".mo")
+    if existing.exists():
+        assert {entry.msgid for entry in polib.mofile(str(existing)) if entry.msgid} == (
+            compiled
+        ), f"{existing} is stale - run compile_translations.py"
+
+
+def test_the_project_catalogue_compiles(tmp_path):
+    """Same for the interface catalogue, which no plugin test covers."""
+    po_path = PROJECT_ROOT / "locale" / "ro" / "LC_MESSAGES" / "django.po"
+    work = tmp_path / "LC_MESSAGES"
+    work.mkdir()
+    shutil.copy(po_path, work / po_path.name)
+
+    compile_po_files([work])
+
+    compiled = {
+        entry.msgid for entry in polib.mofile(str(work / "django.mo")) if entry.msgid
+    }
+    translated = {
+        entry.msgid for entry in polib.pofile(str(po_path)) if entry.msgid and entry.msgstr
+    }
+
+    assert translated, "the interface catalogue translates nothing"
+    assert compiled == translated
+
+
+def test_compiled_catalogues_are_not_tracked():
+    """They are build outputs, and tracking them costs a stash per translation.
+
+    Every deploy rewrites them, so a tracked ``.mo`` leaves the working tree
+    dirty after any translation change; the next update stashes that, and the
+    stash is popped only when the pull failed. That is where the field Pi's 79
+    stashes came from. ``db.sqlite3`` and ``media/`` were untracked for the same
+    reason, and the compile that makes this safe is already running there.
+    """
+    tracked = subprocess.run(
+        ["git", "ls-files", "*.mo"],
+        capture_output=True,
+        text=True,
+        cwd=str(PROJECT_ROOT),
+    )
+
+    assert tracked.stdout.strip() == "", (
+        "compiled catalogues are tracked again:\n"
+        f"{tracked.stdout}"
+        "Every deploy rewrites them, so this leaves the tree dirty and the next "
+        "update stashes the result. Untrack them (`git rm --cached`) and let the "
+        "deploy compile."
+    )
 
 
 class TestPythonMsgids:

@@ -304,9 +304,12 @@ pull_latest() {
     hide_media
 
     # Run as the service user so git sees a repo it owns (avoids the
-    # "dubious ownership" fatal). Prevent credential prompting.
+    # "dubious ownership" fatal). Prevent credential prompting. Untracked files
+    # are excluded on purpose: `git stash` never touches them, so counting them
+    # here only made this branch announce "local changes detected" on a tree
+    # where nothing would be stashed.
     STASHED=0
-    if [[ -n $(run_as_user "cd '$INSTALL_DIR' && GIT_TERMINAL_PROMPT=0 git status --porcelain") ]]; then
+    if [[ -n $(run_as_user "cd '$INSTALL_DIR' && GIT_TERMINAL_PROMPT=0 git status --porcelain --untracked-files=no") ]]; then
         log_warning "Local changes detected. Stashing them..."
         run_as_user "cd '$INSTALL_DIR' && GIT_TERMINAL_PROMPT=0 git stash"
         STASHED=1
@@ -316,14 +319,25 @@ pull_latest() {
     # not accept a VAR=value prefix the way a shell does — written the other
     # way round it tries to exec a program literally named
     # "GIT_TERMINAL_PROMPT=0" and fails with "No such file or directory",
-    # which the branch below reports as "no internet" and the update then
-    # continues on the OLD version. That silently disabled the web update's
+    # which the branch below used to report as "no internet" and the update then
+    # continued on the OLD version. That silently disabled the web update's
     # pull entirely.
-    if run_as_user "cd '$INSTALL_DIR' && GIT_TERMINAL_PROMPT=0 timeout 60 git pull"; then
+    local pull_output pull_rc
+    if pull_output=$(run_as_user "cd '$INSTALL_DIR' && GIT_TERMINAL_PROMPT=0 timeout 60 git pull" 2>&1); then
         log_success "Latest changes pulled successfully"
         update_status "pull" "completed"
     else
-        log_warning "Failed to pull (no internet or network error). Continuing with current version."
+        pull_rc=$?
+        log_warning "Failed to pull — continuing with the current version."
+        # The real reason, not a guess: git's own message names the cause
+        # (credentials, no upstream branch, a diverged history) far better than
+        # the "no internet or network error" this used to say for every failure.
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && log_warning "  $line"
+        done <<< "$pull_output"
+        case "$pull_rc" in
+            124) log_warning "  (git pull did not finish within 60 seconds)" ;;
+        esac
         # Restore stashed changes since we didn't pull anything new
         if [[ "$STASHED" -eq 1 ]]; then
             log_info "Restoring stashed local changes..."
