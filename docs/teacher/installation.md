@@ -192,6 +192,10 @@ When the Pi boots without a configured WiFi network, it automatically creates a 
 
 The **LCD screen shows the same two details while setup mode is running** — the network name and the password — so you never have to remember or look them up. Once the school WiFi is configured the screen goes back to the normal dashboard.
 
+**The password is only typed once.** The Pi remembers every network it has been set up on and reconnects to them by itself from the next boot, so moving the Pi between the classroom, the staff room and home needs no setup page at all. Setup mode only appears when the Pi cannot reach the internet *and* is not already on a network it knows.
+
+The one exception is a Pi whose WiFi was configured by Raspberry Pi Imager or netplan, whose network settings are rebuilt at every boot: when its password is changed through the setup page, the Pi also saves the working password in a profile of its own so the change survives a restart. You do not have to do anything about this — it is handled by `wifi_worker.sh` — but it is why the setup page can be used to correct a saved password on such a Pi.
+
 **Key configuration files** (set up automatically by the install script):
 
 | File | Purpose |

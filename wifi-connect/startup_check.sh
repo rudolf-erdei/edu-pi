@@ -141,6 +141,12 @@ start_hotspot() {
     # Disable IPv6 on the hotspot to prevent connection cycling.
     nmcli connection modify "${HOTSPOT_SSID}" ipv6.method disabled 2>/dev/null || true
 
+    # The hotspot is ours to bring up, here, and wifi_worker.sh's to take down.
+    # Left to autoconnect, NetworkManager can claim the radio for it at boot
+    # before a saved school network gets a chance to associate, which looks to
+    # the teacher like a Pi that came up in setup mode for no reason.
+    nmcli connection modify "${HOTSPOT_SSID}" connection.autoconnect no 2>/dev/null || true
+
     if wait_for_hotspot; then
         log "Hotspot active on ${HOTSPOT_IP}"
         return 0
@@ -225,6 +231,10 @@ start_portal() {
 
 run_setup_mode() {
     log "Entering setup mode (hotspot + captive portal)"
+    # Which networks this Pi already knows. This is the first thing to look at
+    # when a teacher says "it forgot the school WiFi": a network listed here is
+    # one the portal can connect to again without the password being typed.
+    log "Saved networks: $(nmcli -t --escape no -f NAME connection show 2>/dev/null | tr '\n' ' ')"
     ensure_system_configs
     start_hotspot || return 1
     start_dnsmasq || log "WARNING: continuing without DNS redirection (manual http://10.42.0.1 still works)"

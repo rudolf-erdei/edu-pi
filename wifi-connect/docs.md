@@ -156,7 +156,7 @@ what happens now when a teacher plugs it in:
       normally — it never tears down a live connection (this was the false
       "setup mode" bug).
     - If truly offline: It spins up the "Tinko-Setup" hotspot and the Flask portal, **verifying each step** (hotspot IP, dnsmasq :53 bind, portal HTTP 200) and retrying before declaring failure. **Systemd waits for this service to finish** (Type=oneshot) before starting Django, preventing a port 80 conflict.
-    - The Handoff (wifi_worker.sh): The teacher enters the credentials. The worker tears down the hotspot, connects to the school WiFi, and kills the Flask portal. The service exits, and Django starts via systemd ordering.
+    - The Handoff (wifi_worker.sh): The teacher enters the credentials. The worker tears down the hotspot, connects to the school WiFi, and kills the Flask portal. The service exits, and Django starts via systemd ordering. A network the Pi already knew is reused with its stored password first (see [Saved Networks](#saved-networks)), so a network set up once is joined without help from then on.
     - Watchdog: after 10 minutes with no handoff, setup mode is torn down cleanly
       (portal killed, dnsmasq stopped, hotspot dropped so a saved network can
       reconnect), then Django starts.
@@ -166,6 +166,56 @@ Debug the gate decision without touching the network:
 ```bash
 sudo TINKO_DRY=1 /bin/bash /home/tinko/startup_check.sh
 ```
+
+Debug the handoff decision the same way — it prints which profile it would
+reuse, or that it would create one, and then exits without changing anything:
+
+```bash
+sudo TINKO_DRY=1 /bin/bash /home/tinko/wifi_worker.sh "School-WiFi" "the-password"
+```
+
+## Saved Networks
+
+**Networks the Pi has been set up on are remembered, and nobody types their
+password twice.** NetworkManager keeps one profile per network in
+`/etc/NetworkManager/system-connections/`, with `autoconnect` on, so from the
+next boot the Pi joins whatever it can see by itself — no portal, no teacher.
+
+When a teacher picks a network the Pi already knows, `wifi_worker.sh` first
+tries `nmcli connection up` on the stored profile, so the password on the card
+is only used if the stored one has stopped working. A mistyped password does not
+cost the Pi a network it could already reach: the previous password is put back.
+
+Profiles are matched on the **SSID they carry**, not on their name. A Pi imaged
+with Raspberry Pi Imager or configured with netplan holds its profile as
+`netplan-wlan0-<SSID>`, and matching on the name used to fail to recognise the
+network and create a second profile for it — two profiles for one network, each
+with its own password, and no way to tell which one wins.
+
+Ask which networks a Pi knows:
+
+```bash
+nmcli -t --escape no -f NAME connection show
+nmcli -f NAME,DEVICE,AUTOCONNECT connection show
+```
+
+### The netplan Caveat
+
+A netplan-generated profile lives in `/run` and is **rebuilt from
+`/etc/netplan/*.yaml` at every boot**. Changing its password with `nmcli` looks
+like it worked, but only in memory — the next boot brings the yaml's password
+back, which is the "it forgot the WiFi password after a reboot" report. An
+`/etc` keyfile with the same UUID does not shadow it either; `/run` wins.
+(Verified on Debian 13, NetworkManager 1.52.)
+
+So when the password of such a profile has to be changed, the credential that
+just worked is also copied into a profile of our own in `/etc`
+(`Tinko-WiFi-<SSID>`, `autoconnect-priority 10`). It is left inactive on
+purpose — the connection is already up and does not need bouncing — and from
+the next boot it wins on priority and the Pi comes up without help.
+
+`nmcli connection delete` is never used by these scripts. Nothing on this Pi
+removes a network from memory on its own.
 
 ## Hotspot Credentials
 

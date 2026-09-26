@@ -464,9 +464,79 @@ sudo systemctl reload NetworkManager
 
 3. **Check for duplicate WiFi profiles:**
 ```bash
-nmcli connection show
-# Remove duplicates for the same SSID
-nmcli connection delete "connection-name"
+nmcli -f NAME,DEVICE connection show
+# Two profiles that carry the same SSID both try to connect, and the radio
+# bounces between them. See "Two profiles for one network" below.
+```
+Only delete one after checking which SSID each profile carries — the profile
+name is often not the SSID (`nmcli -g 802-11-wireless.ssid connection show
+"<name>"`). `wifi_worker.sh` no longer creates duplicates: it matches on the
+SSID, not the name.
+
+### Two profiles for one network
+
+**Problem:** `nmcli -f NAME connection show` lists two profiles for the same
+WiFi network, e.g. `netplan-wlan0-School-WiFi` and `School-WiFi`, and the Pi
+behaves unpredictably over which one it uses.
+
+**Explanation:** A Pi imaged with Raspberry Pi Imager or configured with netplan
+names its profile `netplan-wlan0-<SSID>`. Older versions of `wifi_worker.sh`
+compared that name against the SSID, failed to recognise the network the Pi
+already knew, and created a second profile for it.
+
+**Solutions:** Current versions match on the SSID and leave the existing profile
+in place, so this only affects a Pi that was set up before. On such a Pi, keep
+the one that is stored on disk and delete the other:
+
+```bash
+nmcli -f NAME,AUTOCONNECT,FILENAME connection show
+# Keep the profile under /etc/NetworkManager/system-connections/ — it survives
+# a reboot. Delete the duplicate:
+sudo nmcli connection delete "<duplicate name>"
+```
+
+### Pi forgot the WiFi password after a reboot
+
+**Problem:** WiFi was configured through the setup page and worked, but after
+restarting the Pi the hotspot is up again and the school network's password has
+to be typed again.
+
+**Explanation:** A netplan-generated profile (the `netplan-wlan0-<SSID>` one,
+stored in `/run`) is rebuilt from `/etc/netplan/*.yaml` at every boot. Writing a
+new password to it with `nmcli` appears to succeed, but only in memory — the
+next boot brings the yaml's password back. An `/etc` keyfile with the same UUID
+cannot shadow it; `/run` wins.
+
+**Solutions:**
+
+1. **Check which the Pi is using and where the profile lives:**
+```bash
+nmcli -f NAME,AUTOCONNECT,FILENAME connection show
+cat /var/log/tinko_wifi.log | tail -20
+```
+`wifi_worker.sh` logs whether the profile it used is on disk or is "rebuilt by
+netplan at every boot".
+
+2. **Current versions save the working password themselves.** When the password
+of a netplan-managed profile is changed, the credential that worked is copied
+into `Tinko-WiFi-<SSID>` in
+`/etc/NetworkManager/system-connections/` with `autoconnect-priority 10`, which
+survives reboots and wins over the netplan profile at the next boot. Nothing has
+to be done by hand:
+
+```bash
+nmcli -f NAME,AUTOCONNECT,AUTOCONNECT-PRIORITY,FILENAME connection show
+# Tinko-WiFi-<SSID>   yes   10   /etc/NetworkManager/system-connections/...
+```
+
+3. **If setup mode keeps coming back on a Pi that should be online**, see
+"WiFi hotspot not created on boot" above and the boot gate in
+`/var/log/tinko_wifi.log`.
+
+To see what a handoff would do without changing anything:
+
+```bash
+sudo TINKO_DRY=1 /bin/bash /home/tinko/wifi_worker.sh "<SSID>" "<password>"
 ```
 
 ### No internet after connecting to WiFi (DNS broken)
