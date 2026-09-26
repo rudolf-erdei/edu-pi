@@ -32,18 +32,24 @@ class NoiseMonitorDashboardView(TemplateView):
         # Get or create default config
         config = NoiseMonitorConfig.objects.filter(is_active=True).first()
         if not config:
-            # Create default config with Test profile
-            profile, _ = NoiseProfile.objects.get_or_create(
+            # Seeded in the active language, so a teacher whose interface is
+            # Romanian does not get an English profile name on a page that is
+            # otherwise translated. The name is stored data once written and
+            # does not follow a later language change.
+            # Not `_`: that name is gettext in this module, and binding it as
+            # the throwaway makes every gettext call above it raise
+            # UnboundLocalError.
+            profile, _created = NoiseProfile.objects.get_or_create(
                 profile_type=NoiseProfile.ProfileType.TEACHING,
                 defaults={
-                    "name": "Teaching",
-                    "description": "Moderate noise levels for normal teaching",
+                    "name": _("Teaching"),
+                    "description": _("Moderate noise levels for normal teaching"),
                     "yellow_threshold": 40,
                     "red_threshold": 70,
                 },
             )
             config = NoiseMonitorConfig.objects.create(
-                name="Default",
+                name=_("Default"),
                 profile=profile,
                 is_default=True,
             )
@@ -73,6 +79,31 @@ class NoiseMonitorDashboardView(TemplateView):
         return context
 
 
+def custom_config_initial() -> dict:
+    """
+    Build the initial values for the custom threshold form from stored state.
+
+    Returns:
+        dict: Field names to values, empty when nothing is configured yet.
+    """
+    config = NoiseMonitorConfig.objects.filter(is_active=True).first()
+    if not config:
+        return {}
+
+    initial = {
+        "name": config.name,
+        "instant_window_seconds": config.instant_window_seconds,
+        "session_window_minutes": config.session_window_minutes,
+        "led_brightness": config.led_brightness,
+    }
+
+    if config.profile:
+        initial["yellow_threshold"] = config.profile.yellow_threshold
+        initial["red_threshold"] = config.profile.red_threshold
+
+    return initial
+
+
 class NoiseMonitorConfigView(FormView):
     """View for configuring noise monitor."""
 
@@ -81,26 +112,42 @@ class NoiseMonitorConfigView(FormView):
     success_url = reverse_lazy("noise_monitor:dashboard")
 
     def get_initial(self):
-        """Show the saved microphone, so a submit here cannot clear it.
+        """Show what is saved, so a submit here cannot quietly replace it.
 
-        The picker fills these from the API, but the form must already carry
-        the saved selection: without it, a page load before the request
-        finishes (or with JavaScript unavailable) posts an empty device and
-        quietly switches the monitor back to automatic.
+        Every field this form writes is seeded from the stored configuration.
+        Left at the field defaults the form showed 10/5/100 and the first
+        profile regardless of what was configured, so applying the profile
+        without changing anything reset the windows, the brightness and the
+        profile — the same defect the custom form had.
+
+        The microphone picker fills its own select from the API, but the form
+        must already carry the saved device: without it, a page load before the
+        request finishes (or with JavaScript unavailable) posts an empty device
+        and switches the monitor back to automatic.
         """
         initial = super().get_initial()
 
         config = NoiseMonitorConfig.objects.filter(is_active=True).first()
         if config:
+            initial["instant_window_seconds"] = config.instant_window_seconds
+            initial["session_window_minutes"] = config.session_window_minutes
+            initial["led_brightness"] = config.led_brightness
             initial["audio_input_device"] = config.audio_input_device
             initial["audio_input_device_index"] = config.audio_input_device_index
+            if config.profile_id:
+                initial["profile"] = config.profile_id
 
         return initial
 
     def get_context_data(self, **kwargs):
         """Add custom threshold form to context."""
         context = super().get_context_data(**kwargs)
-        context["custom_form"] = CustomThresholdForm()
+        # Pre-filled with what is actually configured. Left at the field
+        # defaults, this form rendered "Custom Configuration" and thresholds of
+        # 40/70 no matter what was saved — so a teacher who opened the page and
+        # pressed the button without touching anything had their saved name and
+        # thresholds silently overwritten.
+        context["custom_form"] = CustomThresholdForm(initial=custom_config_initial())
         context["profiles"] = NoiseProfile.objects.filter(is_active=True)
         return context
 
@@ -152,6 +199,12 @@ class CustomThresholdConfigView(FormView):
     template_name = "noise_monitor/custom_config.html"
     form_class = CustomThresholdForm
     success_url = reverse_lazy("noise_monitor:dashboard")
+
+    def get_initial(self):
+        """Show what is configured, for the same reason as the config page."""
+        initial = super().get_initial()
+        initial.update(custom_config_initial())
+        return initial
 
     def form_valid(self, form):
         """Handle custom threshold form submission."""

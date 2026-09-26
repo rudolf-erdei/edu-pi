@@ -249,6 +249,241 @@ class MicrophoneConfigViewTest(TestCase):
         assert b"mic-banner" in response.content
 
 
+class CustomThresholdConfigTest(TestCase):
+    """Saving a custom configuration has to survive the next page load.
+
+    The form was rendered from the field defaults rather than from the stored
+    configuration, so the saved name never appeared again — and pressing the
+    button without changing anything wrote "Custom Configuration" and 40/70
+    back over whatever the teacher had set.
+    """
+
+    CONFIG = "/plugins/edupi/noise_monitor/config/"
+    CUSTOM = "/plugins/edupi/noise_monitor/config/custom/"
+    STANDALONE = "/plugins/edupi/noise_monitor/config/custom/"
+
+    SAVED = {
+        "name": "My Quiet Room",
+        "yellow_threshold": 35,
+        "red_threshold": 65,
+        "instant_window_seconds": 15,
+        "session_window_minutes": 8,
+        "led_brightness": 60,
+    }
+
+    def _custom_form(self, content):
+        """The custom form's own markup.
+
+        Both forms sit on the configuration page and share three field names
+        (instant window, session window, brightness), so a search over the whole
+        page finds the profile form's copy first.
+        """
+        marker = 'action="/plugins/edupi/noise_monitor/config/custom/"'
+        start = content.index(marker)
+        return content[start : content.index("</form>", start)]
+
+    def _field(self, content, name):
+        import re
+
+        match = re.search(
+            r'<input[^>]*name="%s"[^>]*value="([^"]*)"' % name,
+            self._custom_form(content),
+        )
+        return match.group(1) if match else None
+
+    def test_the_saved_name_and_thresholds_come_back(self):
+        self.client.post(self.CUSTOM, self.SAVED)
+
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+
+        assert self._field(content, "name") == "My Quiet Room"
+        assert self._field(content, "yellow_threshold") == "35"
+        assert self._field(content, "red_threshold") == "65"
+        assert self._field(content, "instant_window_seconds") == "15"
+        assert self._field(content, "session_window_minutes") == "8"
+        assert self._field(content, "led_brightness") == "60"
+
+    def test_resubmitting_the_rendered_form_keeps_the_saved_values(self):
+        """The no-op visit that used to erase the configuration."""
+        from plugins.edupi.noise_monitor.models import NoiseMonitorConfig
+
+        self.client.post(self.CUSTOM, self.SAVED)
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+
+        resubmitted = {
+            key: self._field(content, key)
+            for key in self.SAVED
+        }
+        self.client.post(self.CUSTOM, resubmitted)
+
+        config = NoiseMonitorConfig.objects.get(is_default=True)
+        assert config.name == "My Quiet Room"
+        assert config.profile.yellow_threshold == 35
+        assert config.profile.red_threshold == 65
+        assert config.instant_window_seconds == 15
+        assert config.session_window_minutes == 8
+        assert config.led_brightness == 60
+
+    def test_the_standalone_page_is_prefilled_too(self):
+        self.client.post(self.CUSTOM, self.SAVED)
+
+        content = self.client.get(self.STANDALONE).content.decode("utf-8")
+
+        assert self._field(content, "name") == "My Quiet Room"
+        assert self._field(content, "yellow_threshold") == "35"
+
+
+class ProfileFormRoundTripTest(TestCase):
+    """Applying the profile form must not reset what is already configured.
+
+    It rendered the field defaults (10/5/100 and the first profile) whatever
+    was stored, so pressing "Apply Profile" without changing anything rewrote
+    the windows, the brightness and the profile.
+    """
+
+    CONFIG = "/plugins/edupi/noise_monitor/config/"
+    CUSTOM = "/plugins/edupi/noise_monitor/config/custom/"
+
+    SAVED = {
+        "name": "My Quiet Room",
+        "yellow_threshold": 35,
+        "red_threshold": 65,
+        "instant_window_seconds": 15,
+        "session_window_minutes": 8,
+        "led_brightness": 60,
+    }
+
+    def _profile_form_html(self, content):
+        marker = 'action="/plugins/edupi/noise_monitor/config/"'
+        start = content.index(marker)
+        return content[start : content.index("</form>", start)]
+
+    def _value(self, content, name):
+        import re
+
+        match = re.search(
+            r'name="%s"[^>]*value="([^"]*)"' % name,
+            self._profile_form_html(content),
+        )
+        return match.group(1) if match else None
+
+    def test_the_form_shows_the_saved_windows_and_brightness(self):
+        self.client.post(self.CUSTOM, self.SAVED)
+
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+
+        assert self._value(content, "instant_window_seconds") == "15"
+        assert self._value(content, "session_window_minutes") == "8"
+        assert self._value(content, "led_brightness") == "60"
+
+    def test_the_saved_profile_is_the_selected_option(self):
+        self.client.post(self.CUSTOM, self.SAVED)
+
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+
+        assert "selected" in self._profile_form_html(content)
+
+    def test_resubmitting_the_profile_form_keeps_the_saved_settings(self):
+        from plugins.edupi.noise_monitor.models import NoiseMonitorConfig
+
+        self.client.post(self.CUSTOM, self.SAVED)
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+        config = NoiseMonitorConfig.objects.get(is_default=True)
+
+        self.client.post(
+            self.CONFIG,
+            {
+                "profile": str(config.profile_id),
+                "instant_window_seconds": self._value(content, "instant_window_seconds"),
+                "session_window_minutes": self._value(
+                    content, "session_window_minutes"
+                ),
+                "led_brightness": self._value(content, "led_brightness"),
+            },
+        )
+
+        config.refresh_from_db()
+        assert config.instant_window_seconds == 15
+        assert config.session_window_minutes == 8
+        assert config.led_brightness == 60
+        assert config.profile.yellow_threshold == 35
+
+
+class RomanianTranslationTest(TestCase):
+    """The plugin's Romanian catalogue must cover the plugin's own pages.
+
+    It did not: 50 of the 124 strings the templates ask for had no entry, so
+    most of the dashboard rendered in English inside an otherwise translated
+    interface. Nothing failed — a missing msgid is not an error in gettext, it
+    just falls through to the source string. These render the real pages and
+    assert the Romanian text is on them.
+    """
+
+    DASHBOARD = "/plugins/edupi/noise_monitor/"
+    CONFIG = "/plugins/edupi/noise_monitor/config/"
+
+    def _get(self, url):
+        return self.client.get(url, headers={"accept-language": "ro"})
+
+    def test_dashboard_is_romanian(self):
+        content = self._get(self.DASHBOARD).content.decode("utf-8")
+
+        for text in (
+            "Monitorizarea este activă",
+            "Zgomot instantaneu",
+            "Media sesiunii",
+            "Măsurători recente",
+            "Luminozitate LED",
+            "Ghid de culori LED",
+        ):
+            assert text in content, f"untranslated on the dashboard: {text!r}"
+
+    def test_config_page_is_romanian(self):
+        content = self._get(self.CONFIG).content.decode("utf-8")
+
+        for text in (
+            "Aplică profilul",
+            "Profiluri disponibile",
+            "Praguri personalizate",
+            "Microfon",
+        ):
+            assert text in content, f"untranslated on the config page: {text!r}"
+
+    def test_the_seeded_profile_is_named_in_the_active_language(self):
+        """The default profile is written to the database, so it is named when
+        it is first created rather than translated on every render."""
+        self._get(self.DASHBOARD)
+
+        from plugins.edupi.noise_monitor.models import NoiseProfile
+
+        profile = NoiseProfile.objects.get(profile_type=NoiseProfile.ProfileType.TEACHING)
+
+        assert profile.name == "Predare"
+        assert profile.description == "Niveluri moderate de zgomot pentru predare obișnuită"
+
+    def test_every_string_the_templates_ask_for_is_translated(self):
+        """The guard that would have caught the gap: a catalogue missing an
+        entry is silent at runtime."""
+        import re
+        from pathlib import Path
+
+        import polib
+
+        plugin_dir = Path(__file__).resolve().parent
+        catalogue = polib.pofile(str(plugin_dir / "locale/ro/LC_MESSAGES/django.po"))
+        known = {entry.msgid for entry in catalogue}
+        assert not catalogue.untranslated_entries(), "catalogue has empty translations"
+
+        used = set()
+        for path in list(plugin_dir.rglob("*.html")) + list(plugin_dir.glob("*.py")):
+            text = path.read_text(encoding="utf-8")
+            used |= set(re.findall(r'\{%\s*trans\s+"([^"]+)"', text))
+            used |= set(re.findall(r'_\(\s*"([^"]+)"', text))
+
+        missing = sorted(used - known)
+        assert not missing, f"not in the Romanian catalogue: {missing}"
+
+
 class NoiseLevelCalibrationTest(TestCase):
     """Tests for the microphone RMS to 0-100 conversion.
 
