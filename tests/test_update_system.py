@@ -177,3 +177,78 @@ def test_power_shutdown_returns_500_on_oserror(client, tmp_path):
 
     assert resp.status_code == 500
     assert resp.json()["ok"] is False
+
+
+# --- CSRF contract for the Updates tab ------------------------------------
+#
+# The Updates tab POSTs to /updates/start/ from JavaScript. Django enforces
+# CSRF on that route, so the request MUST carry an X-CSRFToken header. When it
+# does not, Django answers 403 "CSRF token missing" — and because that body is
+# HTML, update.js's `res.json().catch(() => ({}))` yields {} and the teacher
+# sees the useless generic alert "Server error".
+#
+# The rest of the suite could not catch this: Django's test client defaults to
+# enforce_csrf_checks=False, so every existing POST test passed regardless.
+
+
+def test_update_js_sends_csrf_token_to_start_endpoint():
+    """Pin the CSRF header on the startUpdate() fetch.
+
+    This is a static check of the shipped JavaScript because the defect was
+    purely client-side: the server was correct all along and answered 403 as
+    designed. Reading the source is the only automated way to keep the header
+    from being dropped again.
+    """
+    from pathlib import Path
+
+    from django.conf import settings
+
+    js = (Path(settings.BASE_DIR) / "static/js/update.js").read_text(encoding="utf-8")
+    start_fn = js[js.index("async function startUpdate"):js.index("function connectWebSocket")]
+
+    assert "/start/" in start_fn, "startUpdate should POST to the start endpoint"
+    assert "X-CSRFToken" in start_fn, (
+        "startUpdate() must send the X-CSRFToken header or Django answers 403 "
+        "and the UI shows 'Server error'"
+    )
+    assert "credentials" in start_fn, (
+        "the CSRF cookie is only sent on a same-origin credentialled request"
+    )
+
+
+@pytest.mark.django_db
+def test_start_update_rejects_post_without_csrf_token():
+    """Server side of the same contract: a tokenless POST is refused.
+
+    Documents *why* the JavaScript must send the header, so the behavior is
+    intentional and visible rather than surprising.
+    """
+    from django.test import Client
+
+    csrf_client = Client(enforce_csrf_checks=True)
+    resp = csrf_client.post("/updates/start/")
+
+    assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_start_update_accepts_post_with_valid_csrf_token(tmp_path):
+    """A POST carrying cookie + header passes CSRF and starts the update."""
+    from django.middleware.csrf import get_token
+    from django.test import Client, RequestFactory
+
+    # get_token() is the public CSRF API and sets request.META['CSRF_COOKIE'].
+    # Avoids rendering a page just to obtain the cookie (which would need the
+    # collectstatic manifest that only exists on a deployed install).
+    token = get_token(RequestFactory().get("/"))
+
+    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client.cookies["csrftoken"] = token
+
+    with mock.patch("core.update_system.views.STATUS_FILE", tmp_path / "status.json"), mock.patch(
+        "core.update_system.views.write_trigger_file"
+    ) as trigger:
+        resp = csrf_client.post("/updates/start/", headers={"x-csrftoken": token})
+
+    assert resp.status_code == 200, resp.content
+    assert trigger.call_count == 1

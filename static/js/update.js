@@ -161,14 +161,30 @@ async function checkUpdates() {
     }
 }
 
+// Django enforces CSRF on POST. The token lives in the `csrftoken` cookie,
+// which every page sets via {% csrf_token %} in base.html. Without the
+// X-CSRFToken header Django refuses the request with 403 and the teacher sees
+// only the generic "Server error" alert.
+function csrfToken() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
 async function startUpdate() {
     if (!confirm(gettext('This will restart the service. Continue?'))) return;
 
     try {
-        const res = await fetch(`${API_BASE}/start/`, { method: 'POST' });
+        const res = await fetch(`${API_BASE}/start/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken() },
+            credentials: 'same-origin',
+        });
         const resJson = await res.json().catch(() => ({}));
         if (!res.ok) {
-            alert(gettext(resJson.error) || gettext('Server error'));
+            // A CSRF refusal (and any other non-JSON error page) has no `error`
+            // field, which used to surface as a misleading "Server error".
+            // Fall back to the status code so the cause is visible.
+            alert(gettext(resJson.error) || `HTTP ${res.status}`);
             return;
         }
 
