@@ -1039,6 +1039,13 @@ The following features have been implemented:
   test suite, as does a `.po` that is ahead of its `.mo`
 - ✅ A catalogue that will not compile is reported with its reason during install
   and update, instead of being swallowed and reported as "no translations"
+- ✅ Install and update compile with the repository's own compiler
+  (`uv run python compile_translations.py`, polib) instead of
+  `django-admin compilemessages`, which shells out to GNU `msgfmt` — a tool no
+  script installs and a Pi does not have. Translations therefore compile on a
+  device whose only network is its own hotspot, with no system package to add.
+  `tests/test_translation_catalogues.py` proves the compiler runs with `PATH`
+  emptied and checks all three deploy scripts for the old command
 - ✅ No template tag spans a line break, so no template source is ever printed
   into a page. Django's lexer has no DOTALL flag, so a `{# ... #}` or
   `{{ ... }}` left open at the end of a line is not a tag at all and reaches the

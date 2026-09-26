@@ -848,6 +848,48 @@ cd ~/edu-pi/media/site/logos && mv logo.png.update-tmp-* logo.png
 See also [School logo uploads but never appears](#school-logo-uploads-but-never-appears),
 which is the other half of logo trouble: the file saved but not served.
 
+### Update reports "Project translations did not compile"
+
+**Problem:** An install or update log ends with
+
+```
+[WARNING] Project translations did not compile:
+[WARNING]   CommandError: Can't find msgfmt. Make sure you have GNU gettext tools 0.15 or newer installed.
+```
+
+Romanian pages keep showing the text they were last built with — the interface is
+whatever the previous successful compile produced.
+
+**Explanation:** The deploy compiled the interface catalogue with
+`django-admin compilemessages`, which is a thin wrapper around `msgfmt` from the
+**gettext** package. `gettext` is not installed on a Tinko Pi (only
+`gettext-base`, which has no `msgfmt`), and no install script ever installed it,
+so this step could never succeed there. It stayed invisible because the catalogues
+had already been compiled on a development machine and shipped in the repository:
+nothing broke until a `.po` changed on the Pi, at which point its `.mo` was simply
+left stale and gettext falls through silently to the original English.
+
+**Solutions:**
+
+1. **Update the software.** The install and update scripts now run the project's
+   own compiler, `uv run python compile_translations.py`, which uses `polib` (a
+   Python dependency, already in the venv) and needs no system package — which
+   also matters on a Pi whose only network is its own hotspot. It covers the
+   project catalogue and every plugin catalogue in one run, and writes exactly the
+   same `.mo` files. The warning disappears on the next update, fresh install and
+   existing Pi alike.
+2. **Compile by hand** if you want the change without an update, from `~/edu-pi`:
+```bash
+uv run python compile_translations.py
+```
+3. **Confirm nothing is left stale** afterwards — the suite fails if a `.po` is
+   ahead of its `.mo`:
+```bash
+cd ~/edu-pi && uv run pytest tests/test_translation_catalogues.py -q
+```
+4. **Do not install gettext to silence it.** It would fix this log line and add a
+   system dependency to a device that is meant to work with no network at all.
+
 ### Service won't start
 
 **Problem:** systemd service fails

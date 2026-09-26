@@ -180,7 +180,7 @@ To add a new language:
 1. Create the directory structure: `locale/<language_code>/LC_MESSAGES/`
 2. Copy `django.po` from another language as a template
 3. Translate all `msgstr` entries
-4. Compile to `.mo` using: `django-admin compilemessages`
+4. Compile to `.mo` using: `uv run python compile_translations.py`
 
 ### Updating Translations
 
@@ -193,8 +193,8 @@ uv run django-admin makemessages -l en -l ro --ignore=.venv
 # Edit .po files with new translations
 # ... translate strings ...
 
-# Compile translations
-uv run django-admin compilemessages
+# Compile translations (project and every plugin, in one run)
+uv run python compile_translations.py
 ```
 
 ## License

@@ -62,12 +62,20 @@ msgstr "Oprire"
 ### 3. Compile Messages
 
 ```bash
-# Project catalogue: locale/ro/LC_MESSAGES/django.po
-uv run django-admin compilemessages
-
 # Project and every plugin, in one run
 uv run python compile_translations.py
 ```
+
+This is the only compiler the project needs, and it is the one the install and
+update scripts run. It uses `polib`, which is already a Python dependency, and
+needs no system package.
+
+`uv run django-admin compilemessages` also compiles the project catalogue, but
+it shells out to GNU `msgfmt` from the **gettext** package. That is fine on a
+development machine and impossible on a Pi, where nothing installs gettext — so
+using it in the deploy meant the interface catalogue was never compiled there
+and the update log said translations compiled while the pages kept the text
+they were last built with. Both compilers write the same `.mo` files.
 
 Each `.po` compiles to a `.mo` of its **own name**: `django.po` → `django.mo`,
 `djangojs.po` → `djangojs.mo`. Django loads both side by side — `django.mo` for
@@ -80,8 +88,9 @@ Django reads the `.mo`, so **editing a `.po` changes nothing until it is
 compiled**. A catalogue that is ahead of its `.mo` shows the old text on the Pi
 and the new text in the repository.
 
-> **Note:** `django-admin compilemessages` only covers `LOCALE_PATHS`
-> (`locale/`). Plugin catalogues are compiled by `compile_translations.py`.
+> **Note:** `compile_translations.py` finds each `locale/` directory itself —
+> the project's and one per plugin — so a new plugin's catalogues are compiled
+> without being listed anywhere. `makemessages` walks the tree the same way.
 
 ## Plugin Translations
 

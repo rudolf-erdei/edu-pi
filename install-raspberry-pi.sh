@@ -293,24 +293,32 @@ compile_translations() {
 
     cd "$INSTALL_DIR"
 
-    # Compile project translations. A failure is not fatal — an interface left
-    # in English still works, and this must never stop an install — but the
-    # reason is logged rather than discarded: swallowing the output hid a
-    # catalogue that would not compile, and the install reported translations
-    # compiled while the pages kept the text they were last built with.
-    if ! translation_output=$(uv run django-admin compilemessages 2>&1); then
-        log_warning "Project translations did not compile:"
+    # Every catalogue — the project's own and each plugin's — is compiled by
+    # this repository's own compiler, which uses polib from the venv.
+    #
+    # This used to call `django-admin compilemessages` for the project
+    # catalogue, which shells out to GNU `msgfmt`. Nothing installs gettext
+    # (the package that provides msgfmt) — not this script, not the update — so
+    # that call failed on every Pi and the interface catalogue was never
+    # compiled at all. The polib compiler covers the same files, needs no
+    # system package, and works with no internet, which matters because a Tinko
+    # Pi is set up over its own hotspot before it has any. It produces
+    # byte-identical .mo files to the committed ones.
+    #
+    # A failure is still not fatal — an interface left in English works, and an
+    # install must never be stopped by it — but the reason is logged rather
+    # than discarded, and the success line is only reached when it really
+    # succeeded: swallowing the output once hid a catalogue that would not
+    # compile, and the install reported translations compiled while the pages
+    # kept the text they were last built with.
+    if translation_output=$(uv run python compile_translations.py 2>&1); then
+        log_success "Translations compiled"
+    else
+        log_warning "Translations did not compile — pages keep the text they were last built with:"
         while IFS= read -r line; do
             [[ -n "$line" ]] && log_warning "  $line"
         done <<< "$translation_output"
     fi
-
-    # Compile plugin translations
-    if [[ -f scripts/compile_translations.py ]]; then
-        python3 scripts/compile_translations.py
-    fi
-
-    log_success "Translations compiled"
 }
 
 # Setup wifi-connect (captive portal for headless WiFi configuration)
