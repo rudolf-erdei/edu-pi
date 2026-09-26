@@ -148,8 +148,15 @@ def test_power_shutdown_spawns_detached_poweroff(client):
     assert resp.status_code == 200
     assert resp.json() == {"ok": True}
     popen.assert_called_once()
-    command = popen.call_args.args[0]
-    assert command == ["sudo", "-n", "systemctl", "poweroff"]
+    args = popen.call_args.args[0]
+    assert args[0:3] == ["sudo", "-n", "bash"]
+    assert args[3] == "-c"
+    # Primary is `shutdown now` (field-verified); force-cut fallbacks follow.
+    script = args[4]
+    assert script.startswith("shutdown now;")
+    assert "sleep 60;" in script
+    assert "systemctl poweroff -f" in script
+    assert "sysrq-trigger" in script  # hard power-off last resort
     kwargs = popen.call_args.kwargs
     assert kwargs.get("start_new_session") is True
 
