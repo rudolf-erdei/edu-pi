@@ -28,6 +28,7 @@ $USER ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /run/tinko-update
 $USER ALL=(ALL) NOPASSWD: /usr/bin/chmod 777 /run/tinko-update
 # Safe shutdown from the dashboard (Power button)
 $USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff
+$USER ALL=(ALL) NOPASSWD: /usr/sbin/shutdown
 EOF
 
     # 3. Install the update daemon service

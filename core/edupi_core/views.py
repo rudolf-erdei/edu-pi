@@ -298,9 +298,23 @@ def power_shutdown(request: HttpRequest):
     click; this endpoint only triggers the shutdown."""
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
+    # Primary: `shutdown now` (field-verified; `systemctl poweroff` silently
+    # no-ops on some units, so never use it as the primary). Bounded fallback:
+    # if the orderly halt stalls (failing SD card, stuck unit) force-cut power
+    # so the teacher is never stuck watching a dead Pi.
     try:
         subprocess.Popen(
-            ["sudo", "-n", "systemctl", "poweroff"],
+            [
+                "sudo", "-n", "bash", "-c",
+                (
+                    "shutdown now; "
+                    "sleep 60; "
+                    "systemctl poweroff -f; "
+                    "sleep 5; "
+                    "sysctl -w kernel.sysrq=1 >/dev/null 2>&1; "
+                    "echo o > /proc/sysrq-trigger"
+                ),
+            ],
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

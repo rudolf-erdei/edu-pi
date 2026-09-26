@@ -121,3 +121,21 @@ sudo dphys-swapfile swapoff
 sudo dphys-swapfile uninstall
 sudo systemctl disable dphys-swapfile
 ```
+
+### RESOLVED 2026-09-13 — check before running the above
+
+Investigation on the field Pi showed this section is largely obsolete there:
+
+- **dphys-swapfile is not installed** (`dpkg -l` → `un`) — the three commands
+  above fail on this system. Raspberry Pi OS now uses `rpi-swap` / `zram`.
+- **Swap runs entirely on `/dev/zram0`** (compressed, in-RAM) — `/proc/swaps`
+  shows no disk-backed swap, and `/etc/rpi/swap.conf` has writeback fully
+  commented out → **zero SD-card writes from swap already**. The intended
+  longevity gain is already in effect.
+- Cleanup done: deleted the orphan `/var/swap` (2 GiB sparse leftover from the
+  2026-09-13 aborted `apt upgrade`, not in fstab, not active, ~0 allocated
+  blocks). Nothing references it; zram swap untouched.
+
+No action needed on the field Pi. Only if swap is later reconfigured to a
+file-based mechanism (`Mechanism=file` in `/etc/rpi/swap.conf`) do the
+SD-wear concerns return.
