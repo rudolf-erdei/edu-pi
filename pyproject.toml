@@ -44,5 +44,7 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-DJANGO_SETTINGS_MODULE = "config.settings"
+# settings_test inherits config.settings and swaps the staticfiles backend for
+# a manifest-free one, so templates render without a collectstatic run.
+DJANGO_SETTINGS_MODULE = "config.settings_test"
 django_find_project = false

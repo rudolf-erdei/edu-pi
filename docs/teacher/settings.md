@@ -147,6 +147,18 @@ On failure:
 
 Updates can only be triggered every 5 minutes to prevent abuse.
 
+### When the Update Changes the Updater
+
+Some updates modify the update script itself. Because a running script cannot
+change its own code part-way through, the update restarts once with the new
+version and runs the remaining stages again. The progress list may appear to
+reset partway through — this is expected, not a failed update. Wait for the
+**Update Complete!** message.
+
+Without that restart, changes the script makes to its own logic would only
+take effect on the *next* update, which is how a fix could appear to install
+successfully and still not be in force.
+
 ## Plugin-Specific Settings
 
 ### Activity Timer Settings
