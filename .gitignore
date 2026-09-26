@@ -20,6 +20,8 @@ wheels/
 # file while they move it out of the working tree for the duration of the pull.
 db.sqlite3
 db.sqlite3-journal
+db.sqlite3-wal
+db.sqlite3-shm
 db.sqlite3.update-tmp-*
 *.sqlite3
 entities.json
