@@ -29,22 +29,23 @@ class Plugin(PluginBase):
 
     def boot(self) -> None:
         """Initialize the plugin and register GPIO pins."""
-        # Register GPIO pins for TWO RGB LEDs
+        from .startup import LED_PINS
+
+        # Register GPIO pins for TWO RGB LEDs. The numbers live in startup.py
+        # because the auto-start below initialises the same pins.
         # LED 1: Instant noise (10-second average)
         self.register_gpio_pins(
             {
-                "instant_red": 5,  # Pin 29
-                "instant_green": 6,  # Pin 31
-                "instant_blue": 13,  # Pin 33
+                name: LED_PINS[name]
+                for name in ("instant_red", "instant_green", "instant_blue")
             }
         )
 
         # LED 2: Session average (5-10 minute average)
         self.register_gpio_pins(
             {
-                "session_red": 19,  # Pin 35
-                "session_green": 26,  # Pin 37
-                "session_blue": 16,  # Pin 36
+                name: LED_PINS[name]
+                for name in ("session_red", "session_green", "session_blue")
             }
         )
 
@@ -109,6 +110,9 @@ class Plugin(PluginBase):
         # Load device config if available
         self._load_device_config()
 
+        # Last, so a failure here cannot leave the plugin half-registered.
+        self._autostart_monitoring()
+
         logger.info(f"{self.name} plugin registered")
 
     def _load_device_config(self) -> None:
@@ -131,6 +135,45 @@ class Plugin(PluginBase):
                 )
         except Exception as e:
             logger.warning(f"Could not load device config: {e}")
+
+    def _autostart_monitoring(self) -> None:
+        """Bring the monitor up on its own, when the configuration asks for it.
+
+        A classroom Pi is switched on and left alone. The LEDs and the face are
+        the whole point of the plugin, and waiting for someone to open the
+        dashboard and press Start leaves them dark for the whole lesson.
+
+        Nothing happens before the configuration exists, which is the state on
+        a fresh install until the dashboard has been opened once — that first
+        visit seeds the configuration and leaves the decision to the default.
+        """
+        try:
+            from .models import NoiseMonitorConfig
+            from core.server_process import is_server_process
+
+            from .startup import start_monitoring
+
+            if not is_server_process():
+                # Only the server should hold the microphone. The service file
+                # loads the plugins for its ExecStartPre too, and a meter that
+                # comes up there dies with the command.
+                return
+
+            config = NoiseMonitorConfig.objects.filter(is_active=True).first()
+            if not config:
+                logger.info("No noise configuration yet, not auto-starting")
+                return
+
+            if not config.auto_start:
+                logger.info("Auto-start is off, leaving the monitor stopped")
+                return
+
+            start_monitoring(config)
+            logger.info("Noise monitoring auto-started")
+        except Exception as e:
+            # Never fatal: the plugin's URLs and models are already registered,
+            # and the teacher can always press Start.
+            logger.warning(f"Could not auto-start noise monitoring: {e}")
 
     def uninstall(self) -> None:
         """Cleanup GPIO pins and resources."""

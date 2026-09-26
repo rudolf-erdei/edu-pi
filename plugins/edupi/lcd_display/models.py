@@ -18,7 +18,12 @@ class LCDConfig(models.Model):
     name = models.CharField(max_length=100, default="Default")
     rotation = models.IntegerField(
         choices=Rotation.choices,
-        default=Rotation.ROTATION_0,
+        # The panel is a portrait 240x320 module mounted sideways, so 90 is the
+        # rotation that shows the face upright. This has to match the default
+        # in lcd_service.initialize(): a start with no saved configuration and
+        # a start with a saved one used to disagree, and the difference is a
+        # display that comes up on its side.
+        default=Rotation.ROTATION_90,
         help_text=_("Display rotation"),
     )
     backlight = models.IntegerField(

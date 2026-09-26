@@ -192,6 +192,10 @@ View recent noise readings:
 - Color-coded noise levels
 - Helps identify patterns
 
+One reading is stored every 5 seconds while the meter runs, not one per
+measurement. The measurement itself is ten times a second; storing all of them
+would fill the database and leave this table spanning a few seconds.
+
 ### Session Controls
 
 | Button | Action |
@@ -201,6 +205,19 @@ View recent noise readings:
 | Reset Session | Clear session average data |
 | Profile Selector | Choose noise profile |
 
+### Automatic Start
+
+**The meter is already running when the Pi is switched on.** Nobody has to open
+this page and press Start — the LEDs and the robot face come up on their own,
+which is what a classroom Pi that is switched on and left alone needs.
+
+To stop it happening, untick **Start Automatically** on the configuration page
+and save. With it unticked the meter only runs when someone presses Start
+Monitoring.
+
+The switch is per configuration, so the Start and Stop buttons keep working
+either way.
+
 ## Configuration Options
 
 Access settings at `/plugins/edupi/noise_monitor/config/`:
@@ -209,6 +226,11 @@ Access settings at `/plugins/edupi/noise_monitor/config/`:
 
 - **Instant Window**: Seconds for instant average (5-60s)
 - **Session Window**: Minutes for session average (1-30min)
+
+### Start
+
+- **Start Automatically**: Start the meter as soon as the Pi is switched on
+  (on by default)
 
 ### Microphone
 

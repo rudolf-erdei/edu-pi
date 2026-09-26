@@ -1,6 +1,8 @@
 """Tests for Noise Monitor plugin."""
 
+import contextlib
 import sys
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -207,6 +209,244 @@ class NoiseServiceDeviceTest(TestCase):
         assert "device_status" in levels
         assert "device_name" in levels
         assert levels["device_name"] == "Another Mic"
+
+
+class AutoStartTest(TestCase):
+    """The monitor comes up on its own when the Pi is switched on."""
+
+    START = "plugins.edupi.noise_monitor.startup.start_monitoring"
+    UNDER_PYTEST = "core.server_process.running_under_pytest"
+
+    def _plugin(self):
+        from plugins.edupi.noise_monitor.plugin import Plugin
+
+        return Plugin(plugin_path="plugins/edupi/noise_monitor")
+
+    def _config(self, **kwargs):
+        return NoiseMonitorConfig.objects.create(
+            name="Default", is_default=True, **kwargs
+        )
+
+    @contextlib.contextmanager
+    def _as_server(self):
+        """Pretend this process is the service rather than a test run."""
+        with mock.patch(self.UNDER_PYTEST, return_value=False):
+            yield
+
+    @mock.patch(START)
+    def test_a_configured_pi_starts_monitoring_on_its_own(self, start):
+        self._config()
+
+        with self._as_server():
+            self._plugin()._autostart_monitoring()
+
+        assert start.call_count == 1
+
+    @mock.patch(START)
+    def test_switching_auto_start_off_keeps_the_meter_dark(self, start):
+        self._config(auto_start=False)
+
+        with self._as_server():
+            self._plugin()._autostart_monitoring()
+
+        assert start.call_count == 0
+
+    @mock.patch(START)
+    def test_nothing_happens_before_anything_is_configured(self, start):
+        """A fresh install has no settings row until the dashboard is opened."""
+        with self._as_server():
+            self._plugin()._autostart_monitoring()
+
+        assert start.call_count == 0
+
+    @mock.patch(START)
+    def test_a_failure_to_start_does_not_escape(self, start):
+        """The plugin's URLs and models are already registered by then."""
+        start.side_effect = RuntimeError("no sound card")
+        self._config()
+
+        with self._as_server():
+            self._plugin()._autostart_monitoring()
+
+    @mock.patch("plugins.edupi.noise_monitor.views.start_configured_monitoring")
+    def test_the_start_button_starts_the_same_way(self, start):
+        self._config()
+
+        self.client.post("/plugins/edupi/noise_monitor/control/", {"action": "start"})
+
+        assert start.call_count == 1
+
+    @mock.patch(START)
+    def test_a_batch_command_does_not_take_the_microphone(self, start):
+        """collectstatic runs as an ExecStartPre, in a process that exits."""
+        self._config()
+
+        with mock.patch.object(sys, "argv", ["manage.py", "collectstatic"]):
+            with self._as_server():
+                self._plugin()._autostart_monitoring()
+
+        assert start.call_count == 0
+
+    @mock.patch(START)
+    def test_the_server_itself_does_start(self, start):
+        """daphne is not a management command at all."""
+        self._config()
+
+        with mock.patch.object(
+            sys,
+            "argv",
+            ["daphne", "-b", "0.0.0.0", "-p", "80", "config.asgi:application"],
+        ):
+            with self._as_server():
+                self._plugin()._autostart_monitoring()
+
+        assert start.call_count == 1
+
+    def test_a_test_run_does_not_take_the_microphone(self):
+        """A test run is not the server, though its command line looks like one.
+
+        ``pytest plugins/.../tests.py`` has a test path where the server has a
+        management command, so the batch list never matched it and every test
+        session started a real monitor thread at Django setup — against the
+        real database, still sampling while the suite ran.
+        """
+        from core.server_process import is_server_process
+
+        assert is_server_process() is False
+
+
+class ReadingHistoryTest(TestCase):
+    """Readings are written on an interval, not on every sample."""
+
+    def _service(self, persist):
+        from plugins.edupi.noise_monitor.noise_service import noise_service
+
+        noise_service._persist = persist
+        noise_service._last_persist_at = None
+        noise_service._instant_average = 42
+        noise_service._session_average = 38
+        noise_service._instant_color = "yellow"
+        noise_service._session_color = "green"
+        return noise_service
+
+    def setUp(self):
+        self.config = NoiseMonitorConfig.objects.create(
+            name="Default", is_default=True
+        )
+
+    def _stamp(self, seconds):
+        return timezone.now() + timedelta(seconds=seconds)
+
+    def test_the_first_reading_is_stored_at_once(self):
+        service = self._service(persist=True)
+
+        service._persist_reading(self._stamp(0))
+
+        assert NoiseReading.objects.count() == 1
+        reading = NoiseReading.objects.get()
+        assert reading.instant_average == 42
+        assert reading.session_color == "green"
+
+    def test_a_reading_inside_the_interval_is_skipped(self):
+        """10 Hz sampling would otherwise be 36,000 rows an hour."""
+        service = self._service(persist=True)
+
+        service._persist_reading(self._stamp(0))
+        service._persist_reading(self._stamp(1))
+        service._persist_reading(self._stamp(4))
+
+        assert NoiseReading.objects.count() == 1
+
+    def test_a_reading_after_the_interval_is_stored(self):
+        service = self._service(persist=True)
+
+        service._persist_reading(self._stamp(0))
+        service._persist_reading(self._stamp(6))
+
+        assert NoiseReading.objects.count() == 2
+
+    def test_nothing_is_stored_when_history_is_not_wanted(self):
+        service = self._service(persist=False)
+
+        service._persist_reading(self._stamp(0))
+        service._persist_reading(self._stamp(60))
+
+        assert NoiseReading.objects.count() == 0
+
+    def test_no_configuration_means_no_history(self):
+        NoiseMonitorConfig.objects.all().delete()
+        service = self._service(persist=True)
+
+        service._persist_reading(self._stamp(0))
+
+        assert NoiseReading.objects.count() == 0
+
+
+class AutoStartSettingTest(TestCase):
+    """The auto-start switch on the configuration page."""
+
+    CONFIG = "/plugins/edupi/noise_monitor/config/"
+
+    def setUp(self):
+        self.profile = NoiseProfile.objects.create(
+            profile_type=NoiseProfile.ProfileType.TEACHING,
+            name="Teaching",
+            yellow_threshold=40,
+            red_threshold=70,
+        )
+        self.config = NoiseMonitorConfig.objects.create(
+            name="Default", profile=self.profile, is_default=True
+        )
+
+    def _form(self):
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+        marker = 'action="/plugins/edupi/noise_monitor/config/"'
+        start = content.index(marker)
+        return content[start : content.index("</form>", start)]
+
+    def test_the_switch_is_on_by_default(self):
+        assert self.config.auto_start is True
+
+    def test_the_switch_shows_what_is_saved(self):
+        self.config.auto_start = False
+        self.config.save()
+
+        assert 'name="auto_start"' in self._form()
+        assert "checked" not in self._form()
+
+    def test_switching_it_off_is_saved(self):
+        payload = {
+            "profile": self.profile.pk,
+            "instant_window_seconds": 10,
+            "session_window_minutes": 5,
+            "led_brightness": 100,
+        }
+
+        self.client.post(self.CONFIG, payload)
+
+        self.config.refresh_from_db()
+        assert self.config.auto_start is False
+
+    def test_resubmitting_the_rendered_page_keeps_it_off(self):
+        """An unticked checkbox posts nothing, so the form must not default it back on."""
+        self.config.auto_start = False
+        self.config.save()
+
+        content = self.client.get(self.CONFIG).content.decode("utf-8")
+        assert 'name="auto_start"' in content
+
+        payload = {
+            "profile": self.profile.pk,
+            "instant_window_seconds": 10,
+            "session_window_minutes": 5,
+            "led_brightness": 100,
+            "audio_input_device": "",
+            "audio_input_device_index": "",
+        }
+        self.client.post(self.CONFIG, payload)
+
+        self.config.refresh_from_db()
+        assert self.config.auto_start is False
 
 
 class NoiseFaceTest(TestCase):

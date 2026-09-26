@@ -70,47 +70,29 @@ class Plugin(PluginBase):
         )
 
         # Auto-initialize LCD display on startup
-        try:
-            if not lcd_service.is_initialized():
-                # Get config for rotation and backlight settings
-                config = LCDConfig.objects.filter(name="Default").first()
-                if config:
-                    logger.info("Auto-initializing LCD display from config...")
-                    lcd_service.initialize(
-                        rotation=config.rotation,
-                        backlight=config.backlight,
-                    )
-                else:
-                    logger.info("Auto-initializing LCD display with defaults...")
-                    lcd_service.initialize()
-                self._lcd_service = lcd_service
-                logger.info(f"{self.name} LCD auto-initialized successfully")
+        #
+        # Only in the server. The service file loads the plugins for its
+        # ExecStartPre too, so collectstatic would otherwise bring the panel up
+        # in a process that exits seconds later: it clears the screen and draws
+        # over whatever is there while the real process is starting, and for
+        # that moment two processes are on the same SPI bus. The journal shows
+        # both, one after the other, on every boot.
+        from core.server_process import is_server_process
 
-                # Start smiley face after short delay (splash shows during boot)
-                import threading
-
-                def _delayed_smiley():
-                    import time
-
-                    time.sleep(3)
-                    try:
-                        lcd_service.show_smiley_face()
-                        lcd_service.start_face_animation()
-                        logger.info("Smiley face displayed after boot splash")
-                    except Exception as e:
-                        logger.warning(f"Failed to show smiley after splash: {e}")
-
-                t = threading.Thread(target=_delayed_smiley, daemon=True)
-                t.start()
-        except Exception as e:
-            logger.warning(f"Could not auto-initialize LCD display: {e}")
-            logger.info("LCD can still be initialized manually via web interface")
+        if not is_server_process():
+            logger.info("Not the server process, leaving the LCD alone")
+        else:
+            try:
+                self._initialize_display(lcd_service, LCDConfig)
+            except Exception as e:
+                logger.warning(f"Could not auto-initialize LCD display: {e}")
+                logger.info("LCD can still be initialized manually via web interface")
 
         # Register settings
         self.register_setting(
             "rotation",
             _("Display Rotation"),
-            default=0,
+            default=90,
             field_type="select",
             choices=[
                 (0, _("0 degrees")),
@@ -138,6 +120,48 @@ class Plugin(PluginBase):
         )
 
         logger.info(f"{self.name} plugin registered")
+
+    def _initialize_display(self, lcd_service, config_model) -> None:
+        """Bring the panel up from the stored configuration, or its defaults.
+
+        The rotation comes from the saved row when there is one and from the
+        service default when there is not, which is why those two defaults have
+        to agree: they are the same decision reached two ways, and a display
+        that comes up on its side is what it looks like when they disagree.
+        """
+        if lcd_service.is_initialized():
+            return
+
+        config = config_model.objects.filter(name="Default").first()
+        if config:
+            logger.info("Auto-initializing LCD display from config...")
+            lcd_service.initialize(
+                rotation=config.rotation,
+                backlight=config.backlight,
+            )
+        else:
+            logger.info("Auto-initializing LCD display with defaults...")
+            lcd_service.initialize()
+
+        self._lcd_service = lcd_service
+        logger.info(f"{self.name} LCD auto-initialized successfully")
+
+        # Start smiley face after short delay (splash shows during boot)
+        import threading
+
+        def _delayed_smiley():
+            import time
+
+            time.sleep(3)
+            try:
+                lcd_service.show_smiley_face()
+                lcd_service.start_face_animation()
+                logger.info("Smiley face displayed after boot splash")
+            except Exception as e:
+                logger.warning(f"Failed to show smiley after splash: {e}")
+
+        t = threading.Thread(target=_delayed_smiley, daemon=True)
+        t.start()
 
     def uninstall(self) -> None:
         """Cleanup GPIO pins and resources."""

@@ -40,6 +40,17 @@ class ProfileSelectForm(forms.Form):
         help_text=_("Brightness percentage for RGB LEDs"),
     )
 
+    auto_start = forms.BooleanField(
+        required=False,
+        initial=True,
+        label=_("Start Automatically"),
+        help_text=_(
+            "Start monitoring as soon as the Pi is switched on, without anyone "
+            "having to open this page and press Start."
+        ),
+        widget=forms.CheckboxInput(attrs={"class": "checkbox checkbox-primary"}),
+    )
+
     audio_input_device = forms.CharField(
         required=False,
         max_length=255,
