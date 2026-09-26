@@ -573,6 +573,28 @@ cat /etc/NetworkManager/NetworkManager.conf
 
 **Solution:** Type the WiFi network name manually in the SSID field.
 
+### LCD screen is dark during WiFi setup
+
+**Problem:** The Pi is in setup mode (the "Tinko-Setup" hotspot is up), but the LCD shows nothing.
+
+**Explanation:** The screen is drawn by `portal.py`, which needs the adafruit/PIL LCD libraries. Those live in the project venv, while `startup_check.sh` starts the portal with the system `python3`. The portal re-runs itself under the venv interpreter to get them; if no interpreter on the Pi has the libraries, the portal says so and serves the setup page with the screen left dark.
+
+**Solutions:**
+```bash
+# Check the portal is running and what it said about the screen
+sudo journalctl -u tinko-wifi -n 50 | grep LCD
+
+# "re-running the portal under ..." = the switch worked.
+# "no interpreter with the LCD libraries found" = check the venv:
+ls /home/tinko/edu-pi/.venv/bin/python
+/home/tinko/edu-pi/.venv/bin/python -c "import board, adafruit_rgb_display"
+
+# If those imports fail, reinstall the Pi dependencies
+cd /home/tinko/edu-pi && uv sync --extra pi
+```
+
+The LCD is not required to finish setup — the hotspot name and password are fixed (`Tinko-Setup` / `tinko1234`) and the setup page still works.
+
 ### Service won't start
 
 **Problem:** systemd service fails

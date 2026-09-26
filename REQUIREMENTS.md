@@ -1070,6 +1070,11 @@ The install script creates two systemd services that work together:
 - If no internet: creates "Tinko-Setup" hotspot and starts Flask portal
 - Uses `Type=oneshot` so systemd waits for it to finish before starting Django
 - If internet available: exits immediately, Django starts
+- The Pi's LCD shows the hotspot **name and password** while the portal is up, so
+  a teacher who has just unboxed the Pi can see what to connect a phone to
+  (`portal.py` `_show_wifi_on_lcd`). The portal switches itself to the project
+  venv's interpreter for this, because the adafruit/PIL LCD stack is not in the
+  system Python that `startup_check.sh` launches it with
 
 ```ini
 [Unit]
