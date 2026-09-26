@@ -127,30 +127,56 @@ Settings are stored with namespaces:
 
 ## Systemd Service
 
-Production service configuration (`/etc/systemd/system/tinko.service`):
+Production service configuration (`/etc/systemd/system/tinko.service`). The
+install and update scripts write this file — `$USER` is the service user and
+`$INSTALL_DIR` the repository checkout — so do not hand-edit it; edit the
+heredoc in `install-raspberry-pi.sh`, `update.sh` and `update-web.sh` instead.
 
 ```ini
 [Unit]
 Description=Tinko Educational Platform
 After=network.target
+# StartLimit* belong in [Unit]; in [Service] systemd ignores them.
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/edu-pi
-Environment="PATH=/home/pi/.local/bin"
-Environment="PYTHONPATH=/home/pi/edu-pi"
+User=$USER
+WorkingDirectory=$INSTALL_DIR
+Environment="PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=$INSTALL_DIR"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
-ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py migrate --noinput
-ExecStartPre=/home/pi/.cargo/bin/uv run python manage.py collectstatic --noinput
-ExecStart=/home/pi/.cargo/bin/uv run daphne -b 0.0.0.0 -p 8000 config.asgi:application
+ExecStartPre=$UV_PATH run python manage.py collectstatic --noinput
+ExecStart=$UV_PATH run daphne -b 0.0.0.0 -p 80 \
+  -e ssl:443:privateKey=/etc/tinko-portal/key.pem:certKey=/etc/tinko-portal/cert.pem \
+  config.asgi:application
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_AUDIT_WRITE
 Restart=always
-RestartSec=3
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+Migrations run at update time, not at service start, to keep boot fast.
+
+`AmbientCapabilities` is what lets daphne bind ports 80 and 443 without
+`setcap`. The `CAP_SETUID`/`CAP_SETGID` pair is there because a bounding set
+also clamps what a *setuid* binary gains, and `sudo` is setuid root: without
+them, every `sudo` call the app makes fails with *unable to change to root gid*.
+Full explanation, and what these capabilities do not protect against, in
+[Update System](update-system.md#services-capabilities-and-root-access).
+
+## Update Service
+
+`/etc/systemd/system/tinko-update.service` is a root-owned, stdlib-only daemon
+that runs web updates and owns the status file the dashboard reads. It is
+installed by `setup_update_infrastructure()` in `scripts/update_infra.sh`, along
+with the sudoers rules and the power helper. See
+[Update System](update-system.md).
 
 ## Logging Configuration
 

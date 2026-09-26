@@ -1,6 +1,6 @@
 # Future ideas for the project
 
-* Shutdown from the interface! IMPORTANT
+* Show how many clients are connected to the django service. Prevents unwanted connection.
 * Break the scripts into multiple atomic ones: startup, install, update, start_captive_portal
   * Usually update.sh is the old version when running. Need to find a way to solve this and run the new script after pull.
 * On boot, display the current status and eventual errors on the screen.

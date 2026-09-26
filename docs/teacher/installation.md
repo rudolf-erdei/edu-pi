@@ -139,6 +139,7 @@ If you prefer to set up services manually, the key service files are:
 Description=Tinko Wi-Fi Captive Portal Check
 After=NetworkManager.service
 Before=tinko.service
+# StartLimit* belong in [Unit]; in [Service] systemd ignores them.
 StartLimitIntervalSec=120
 StartLimitBurst=3
 
@@ -160,24 +161,35 @@ WantedBy=multi-user.target
 ```ini
 [Unit]
 Description=Tinko Educational Platform
-Wants=network-online.target
-After=network-online.target
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/edu-pi
-Environment="PATH=/home/pi/.local/bin"
-Environment="PYTHONPATH=/home/pi/edu-pi"
+User=YOURUSER
+WorkingDirectory=/home/YOURUSER/edu-pi
+Environment="PATH=/home/YOURUSER/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/home/YOURUSER/edu-pi"
 Environment="DJANGO_SETTINGS_MODULE=config.settings"
 Environment="EDUPI_DEBUG=False"
-ExecStart=/home/pi/.local/bin/uv run daphne -b 0.0.0.0 -p 80 config.asgi:application
+ExecStartPre=/home/YOURUSER/.local/bin/uv run python manage.py collectstatic --noinput
+ExecStart=/home/YOURUSER/.local/bin/uv run daphne -b 0.0.0.0 -p 80 \
+  -e ssl:443:privateKey=/etc/tinko-portal/key.pem:certKey=/etc/tinko-portal/cert.pem \
+  config.asgi:application
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_AUDIT_WRITE
 Restart=always
-RestartSec=3
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+The install script also sets up **`tinko-update.service`** — a root-owned daemon
+that the dashboard's **Update Now** button talks to — plus the sudoers rules and
+the Power button helper. Do not edit the unit files by hand: the install and
+update scripts rewrite them, so your change would be replaced.
 
 !!! note
     The `tinko-wifi.service` uses `Type=oneshot` (not `simple`). This is critical — it ensures systemd waits for the captive portal script to finish before starting Django, preventing a port 80 conflict. When there's internet, the script exits immediately. When there's no internet, it blocks until WiFi is configured.
@@ -185,6 +197,11 @@ WantedBy=multi-user.target
 !!! note
     Migrations and static file collection are handled by the install and update scripts.
     They are not run at service start time to avoid a 10-30 second delay.
+
+The `CAP_SETUID`/`CAP_SETGID` entries look unusual in a web app's unit, but
+they are what lets Tinko use its own `sudo` rules (the Power button, the update
+repair path). Removing them makes every one of those calls fail. See
+[Update System](../reference/update-system.md#services-capabilities-and-root-access).
 
 ### Captive Portal (WiFi Setup)
 

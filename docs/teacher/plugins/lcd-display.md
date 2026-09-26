@@ -396,8 +396,8 @@ with one, so an untouched Pi shows correctly without anyone configuring it.
 
 ## Next Steps
 
-- [Hardware Requirements](hardware-requirements.md) - Complete component list
-- [GPIO Pin Assignments](gpio-pins.md) - Detailed pin mapping
+- [Hardware Requirements](../../developer/hardware/requirements.md) - Complete component list
+- [GPIO Pin Assignments](../../developer/hardware/gpio-pins.md) - Detailed pin mapping
 - [Plugin API](../../developer/plugins/api.md) - Create custom integrations
 
 ## Support

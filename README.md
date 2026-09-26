@@ -574,7 +574,15 @@ Plugins can include their own portable translation files. The Activity Timer plu
 
 #### Compiling Plugin Translations
 
-We provide a script to compile plugin translations:
+**Compile everything with the project compiler** — this is what the install and
+update scripts run, and it covers both `django.po` and `djangojs.po`:
+
+```bash
+uv run python compile_translations.py
+```
+
+`scripts/compile_translations.py` is a development helper for working on one
+plugin (it writes `django.mo` only, and no deploy calls it):
 
 ```bash
 # Compile all plugin translations
@@ -616,7 +624,9 @@ python scripts/compile_translations.py --verbose
    msgstr "Pluginul Meu"
    ```
 
-4. Compile with: `python scripts/compile_translations.py --plugin author/plugin`
+4. Compile with: `uv run python compile_translations.py` (or
+   `python scripts/compile_translations.py --plugin author/plugin` while working
+   on that one plugin)
 
 ## 🔧 Configuration
 

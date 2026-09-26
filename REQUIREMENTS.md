@@ -1341,6 +1341,12 @@ _Last updated: 2026-04-13_
 ### Documentation
 
 - **Full Documentation**: Available via `uv run mkdocs serve` (Material for MkDocs)
+- **Update System**: `docs/reference/update-system.md` — the three update paths,
+  what install and update write outside the repository, the files protected
+  across a pull, the sourced-file re-exec guard, and the service capability
+  settings (`AmbientCapabilities` vs `CapabilityBoundingSet` and the app's own
+  `sudo` calls). Added 2026-09-26 with the power-button/capability work; the
+  April design spec it supersedes now says so at the top.
 - **Developer Guidelines**: `AGENTS.md`
 - **Code Standards**: PEP 8 with 88-character line length
 - **Admin User**: admin / admin123

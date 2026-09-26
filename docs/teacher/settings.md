@@ -61,7 +61,17 @@ This name appears in:
 
 ## Plugin Settings
 
-Each plugin can have its own configuration section.
+!!! warning "Per-plugin tabs are not available in this version"
+    The Settings page currently shows **Global** and **Updates** only. The
+    plugin sections below describe how plugin settings are meant to work and how
+    their values are stored, but the tabs do not render yet — the settings
+    registry they are built from is never populated at startup. It is a known
+    issue, tracked in
+    [`ISSUES.md`](https://github.com/rudolf-erdei/edu-pi/blob/master/ISSUES.md).
+
+In the meantime, everything a plugin needs to run is configured on the plugin's
+own page (for example the Noise Monitor's profile picker and the Activity
+Timer's duration presets), and school-wide values live under **Global**.
 
 ### Accessing Plugin Settings
 

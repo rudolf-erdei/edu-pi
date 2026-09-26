@@ -52,6 +52,7 @@ nav:
     - Plugins:
       - Activity Timer: teacher/plugins/activity-timer.md
       - Noise Monitor: teacher/plugins/noise-monitor.md
+      - LCD Display: teacher/plugins/lcd-display.md
       - Routines: teacher/plugins/routines.md
       - Touch Piano: teacher/plugins/touch-piano.md
   
@@ -75,6 +76,7 @@ nav:
   
   - Reference:
     - Configuration: reference/configuration.md
+    - Update System: reference/update-system.md
     - API Endpoints: reference/api.md
     - Troubleshooting: reference/troubleshooting.md
 

@@ -882,6 +882,9 @@ sudo -n /usr/local/sbin/tinko-poweroff --check
    `Re-executing with the new version...`. Its absence in an update that changed
    either file is what the old guard looked like.
 
+See [Update System](update-system.md) for how the guard works and
+what else an update writes outside the repository.
+
 ### Update reports "Project translations did not compile"
 
 **Problem:** An install or update log ends with
@@ -994,6 +997,9 @@ rule already grants `tinko` any command. The narrow grant
 button honest; if you want a real boundary for the app process, the place to
 draw it is `010_pi-nopasswd`, and that needs install and update to stop calling
 `sudo` non-interactively first.
+
+See [Update System](update-system.md#services-capabilities-and-root-access)
+for the capability settings and every file install and update write.
 
 ### Service won't start
 

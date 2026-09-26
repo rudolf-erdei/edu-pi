@@ -117,7 +117,7 @@ plugins/acme/myplugin/
 ### Compile Plugin Translations
 
 ```bash
-# Every plugin, plus the project catalogue
+# Every plugin, plus the project catalogue — use this one
 uv run python compile_translations.py
 
 # One plugin, with a summary of what it compiled
@@ -127,7 +127,19 @@ python scripts/compile_translations.py --plugin edupi/noise_monitor
 python scripts/compile_translations.py --list
 ```
 
-Both scripts are run by the installer and by `update.sh` / `update-web.sh`.
+`scripts/compile_translations.py` is a development helper for a single plugin:
+it walks `plugins/*/*/locale` and writes `django.mo`. It is **not** part of any
+deploy, and it does not touch `djangojs.po`.
+
+**The deploy runs the root compiler only.** `install-raspberry-pi.sh`,
+`update.sh` and `update-web.sh` all call
+`uv run python compile_translations.py`, which uses `polib` (already in the venv,
+so no `gettext` package is needed on the Pi), covers the project catalogue and
+every plugin catalogue, and writes `django.mo` and `djangojs.mo` side by side —
+the two must not land in the same file, or whichever compiled last wins.
+
+If you want exactly what the Pi gets, run the root compiler; treat the
+`scripts/` helper as a convenience while developing one plugin.
 
 ## Language Selection
 

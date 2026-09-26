@@ -2,14 +2,8 @@
 
 Open items only.
 
-Re-checked and re-cut 2026-09-26: entries were closed as they were fixed and the
-rest were re-measured against the field Pi. Every open item says why it is still
+Re-checked against the field Pi 2026-09-26. Every open item says why it is still
 open and what would close it.
-
-*(Closed 2026-09-26: one stash left behind per update. The Pi held 79, the three
-tracked build inputs — `db.sqlite3`, `media/`, the nine compiled `.mo` — are now
-protected or untracked, and the count has stayed 0 across a full update since.
-A stash reappearing means something the update generates is tracked again.)*
 
 ## Open — captive portal offline/setup branch has never run on hardware
 
@@ -49,6 +43,19 @@ Already proven by the zero-risk `dummy0` test (method: see the
 `captive-portal-test-method` memory): wildcard DNS answers, all six
 captive-detection routes return `302 -> http://10.42.0.1/`, the form serves,
 and the SSID/password validators reject bad input.
+
+## Open — per-plugin settings tabs never render
+
+`SettingsRegistry` is filled only when a `PluginSettings` instance is
+constructed (`core/plugin_system/settings.py:118`), and no plugin instantiates
+one: nothing imports `plugins/*/plugin_settings.py`. `views.py:262-274` therefore
+builds no plugin tabs, so the Settings page shows Global and Updates only and the
+`PluginSettingsForm` classes written for the plugins are unreachable. Found
+2026-09-26 by an audit of what the manual claims against what the code does.
+
+Closing it means picking a registration path — e.g. instantiate each plugin's
+settings class during `register()` — and deciding whether the tabs are per-plugin
+(section per form) or one section per plugin inside Global.
 
 ## Open — housekeeping: `origin/development` is still on GitHub
 

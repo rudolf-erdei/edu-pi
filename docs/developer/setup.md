@@ -306,7 +306,7 @@ uv run python manage.py shell
 uv run python -c "from core.plugin_system.base import plugin_manager; print(plugin_manager.get_all_plugins())"
 
 # Compile translations
-python scripts/compile_translations.py
+uv run python compile_translations.py
 
 # Collect static files
 uv run python manage.py collectstatic

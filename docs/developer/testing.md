@@ -192,6 +192,112 @@ def test_with_mock(self):
         self.assertEqual(result['temp'], 20)
 ```
 
+## The Server Process Guard
+
+The plugin system loads in **every** process that touches Django, not just the
+server: `collectstatic` (the service's `ExecStartPre`), `migrate` from the
+install and update scripts, any management command, and pytest itself. A plugin
+that starts background work or claims hardware on load must tell those apart —
+otherwise a two-second `collectstatic` grabs the microphone or paints the LCD
+panel while the real service is starting, and pytest leaves a 10 Hz sampling
+thread running through the whole session.
+
+`core/server_process.py` is the single answer:
+
+```python
+from core.server_process import is_server_process
+
+def boot(self):
+    if not is_server_process():
+        return
+    self.start_background_service()
+```
+
+- `is_server_process()` is False for anything whose `sys.argv[1]` is a batch
+  command in `BATCH_COMMANDS`, and False under pytest. Anything else counts as
+  the server, so a service whose command line changes keeps working instead of
+  quietly stopping.
+- `running_under_pytest()` exists separately so a test can say *"pretend this is
+  the server"* without pulling pytest out of `sys.modules`.
+
+This was a real flakiness source, not a hypothetical: before the pytest check,
+`sys.argv[1]` on a test run was a test path — not a management command — so the
+run counted as the server and the Noise Monitor started a real thread at Django
+setup, making whichever test next touched the display fail intermittently. There
+was also a `runserver --noreload` session that wrote ~200 readings into the
+tracked development DB before anyone noticed.
+
+**Rule for plugin authors:** guard in `boot()` with `is_server_process()`, and
+prefer a plugin `tests.py` that asserts the guard (see the Noise Monitor's
+tests) over one that relies on the environment.
+
+## Testing the Captive Portal Without Losing SSH
+
+The captive portal's whole job is to take the network away, so **bringing the
+hotspot up on `wlan0` drops the only link you have to the Pi.** Do not test it
+that way on a device you cannot reach.
+
+Three routes, in order of preference:
+
+1. **Ethernet (best, zero risk).** Plug a cable into the Pi. `eth0` is normally
+   free, so SSH rides the wire while `wlan0` runs the hotspot — the full branch
+   becomes testable remotely.
+2. **Dummy interface (what we use).** No wifi hardware involved, and the Pi's own
+   link is untouched:
+
+   ```bash
+   sudo ip link add dummy0 type dummy
+   sudo ip addr add 10.42.0.1/24 dev dummy0
+   sudo ip link set dummy0 up
+   sudo dnsmasq -C /dev/null --interface=dummy0 --bind-interfaces \
+        --address=/#/10.42.0.1 --port=53
+   PORTAL_PORT=8080 WIFI_WORKER_SCRIPT=/bin/true python3 wifi-connect/portal.py
+   ```
+
+   This proves the wildcard DNS answers, that all six captive-detection routes
+   redirect to `http://10.42.0.1/`, that the form serves and the SSID/password
+   validators reject bad input. It does **not** prove AP creation, NetworkManager
+   shared-mode NAT, or the credential handoff/revert in `wifi_worker.sh` —
+   `WIFI_WORKER_SCRIPT=/bin/true` stands in for the worker precisely so nothing
+   reconfigures the network.
+3. **A virtual radio (`mac80211_hwsim`)** would cover AP creation and a real
+   client association with no risk, but it cannot run the shipped scripts
+   verbatim: `wlan0` is hardcoded in `startup_check.sh`, `portal.py` and
+   `/etc/dnsmasq.conf`, with no interface override. Declined so far for that
+   reason.
+
+Two findings from doing this that are worth keeping:
+
+- **`dig`/`nslookup` must exist.** Without `dnsutils`, the dnsmasq check
+  degraded to a bare socket-bind test that never proved dnsmasq *answers* — the
+  install and update scripts now install it.
+- **`StartLimit*` belong in `[Unit]`.** systemd logs *"Unknown key … ignoring"*
+  for them in `[Service]` and silently drops the retry bound.
+
+## Accessing the Field Pi Over SSH
+
+For work on the real device (the one in the classroom):
+
+- Host `tinko.local`, user `tinko`, password `tinko`. The **IP drifts** — always
+  resolve the mDNS name, never cache an address.
+- `sshpass` does not exist in Git Bash on Windows. Use `paramiko` from Python
+  (`exec_command("bash -s")` to run a script over stdin), or a real
+  `ssh`/`sshpass` from a Linux shell.
+- A **non-interactive SSH PATH lacks `/usr/sbin`**, so `command -v nft` or
+  `command -v shutdown` can "fail" on a machine where the tool is present. Probe
+  absolute paths, or run the probe under `sudo`.
+- `sudo` needs no password on the Pi (`/etc/sudoers.d/010_pi-nopasswd`), which is
+  why install and update can run unattended — that file is deliberate, see
+  [Update System](../reference/update-system.md#services-capabilities-and-root-access).
+- A shell over SSH is **not** inside any service's sandbox, so it will happily
+  report success for something the app itself cannot do. When the two disagree,
+  read the service journal instead.
+
+!!! warning "A halted Pi 4 cannot be woken remotely"
+    No wake-on-LAN after `halt`. Recovering means physically cutting and
+    restoring power. Never test shutdown from somewhere you cannot reach the
+    plug.
+
 ## Best Practices
 
 - Test one thing per test

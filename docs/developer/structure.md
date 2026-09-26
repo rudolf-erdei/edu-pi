@@ -158,6 +158,21 @@ Django template files:
 
 Templates use the Django template language with Tailwind CSS classes.
 
+!!! danger "A template tag must fit on one line"
+    Django's template lexer has no equivalent of `DOTALL`. A `{# … #}` comment,
+    a `{{ … }}` variable or a `{% … %}` tag left open at the end of a line is
+    not a syntax error the loader reports usefully — the comment prints as
+    literal text on the page, and an orphaned block tag raises an unrelated
+    `TemplateSyntaxError` later in the file. Two multi-line tags had already
+    shipped that way (`templates/base.html`, `templates/home.html`) before
+    anyone noticed, because the output looks like stray punctuation rather than
+    a bug. Wrap a long tag across lines with `{% comment %} … {% endcomment %}`
+    instead, and keep the whole tag on one line otherwise.
+
+    `tests/test_template_tags.py` guards this for every template Django loads.
+    `wifi-connect/portal.py` is Jinja2, not Django, and is deliberately not
+    covered — multi-line tags are fine there.
+
 ### static/ Directory
 
 Static assets served directly:
