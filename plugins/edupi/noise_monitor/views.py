@@ -14,12 +14,28 @@ from django.views.generic import TemplateView, FormView
 
 from datetime import timedelta
 
+from .chart import history_chart
 from .forms import ProfileSelectForm, CustomThresholdForm, NoiseMonitorControlForm
 from .models import NoiseProfile, NoiseMonitorConfig, NoiseReading
-from .noise_service import noise_service
-from .startup import start_monitoring as start_configured_monitoring
+from .noise_service import READING_SAVE_INTERVAL_SECONDS, noise_service
+from .startup import (
+    FALLBACK_RED_THRESHOLD,
+    FALLBACK_YELLOW_THRESHOLD,
+    start_monitoring as start_configured_monitoring,
+)
 
 logger = logging.getLogger(__name__)
+
+# How much history the dashboard graph shows. Twenty minutes is long enough to
+# see how a lesson went and short enough to stay one screen; at the pace the
+# service stores readings it is also what keeps the query cheap, since the
+# window is a LIMIT rather than a date range over the whole table.
+CHART_WINDOW_MINUTES = 20
+
+
+def chart_reading_count() -> int:
+    """How many stored readings fit in the chart's window."""
+    return int(CHART_WINDOW_MINUTES * 60 / READING_SAVE_INTERVAL_SECONDS)
 
 
 class NoiseMonitorDashboardView(TemplateView):
@@ -73,10 +89,27 @@ class NoiseMonitorDashboardView(TemplateView):
         context["device_status"] = levels["device_status"]
         context["device_name"] = levels["device_name"]
 
-        # Recent readings (last 50)
-        context["recent_readings"] = NoiseReading.objects.filter(
-            config=config
-        ).order_by("-timestamp")[:50]
+        # The history chart covers the last CHART_WINDOW_MINUTES, oldest first
+        # so time runs left to right. Newest first is what the query wants for
+        # the LIMIT; the reverse is for the chart.
+        readings = list(
+            NoiseReading.objects.filter(config=config).order_by("-timestamp")[
+                :chart_reading_count()
+            ]
+        )
+        readings.reverse()
+
+        profile = config.profile
+        context["chart_window_minutes"] = CHART_WINDOW_MINUTES
+        context["chart"] = history_chart(
+            readings,
+            yellow_threshold=(
+                profile.yellow_threshold if profile else FALLBACK_YELLOW_THRESHOLD
+            ),
+            red_threshold=(
+                profile.red_threshold if profile else FALLBACK_RED_THRESHOLD
+            ),
+        )
 
         return context
 

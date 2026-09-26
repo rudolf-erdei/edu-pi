@@ -71,9 +71,16 @@
 
     <!-- Main Content -->
     <div class="flex-grow">
-        {# Framework messages. The messages context processor was already
-           enabled but nothing rendered the result, so anything a view queued
-           was silently dropped. #}
+        {% comment %}
+            Framework messages. The messages context processor was already
+            enabled but nothing rendered the result, so anything a view queued
+            was silently dropped.
+
+            Written as a comment tag rather than {# ... #}, which cannot span
+            lines: Django lexes templates without DOTALL, so a {# #} left open
+            at the end of a line is not a comment at all and is printed to the
+            reader as literal text.
+        {% endcomment %}
         {% if messages %}
             <div class="container mx-auto px-4 pt-4 space-y-2">
                 {% for message in messages %}

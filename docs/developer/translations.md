@@ -62,9 +62,26 @@ msgstr "Oprire"
 ### 3. Compile Messages
 
 ```bash
-# Compile .po to .mo
+# Project catalogue: locale/ro/LC_MESSAGES/django.po
 uv run django-admin compilemessages
+
+# Project and every plugin, in one run
+uv run python compile_translations.py
 ```
+
+Each `.po` compiles to a `.mo` of its **own name**: `django.po` → `django.mo`,
+`djangojs.po` → `djangojs.mo`. Django loads both side by side — `django.mo` for
+Python and templates, `djangojs.mo` for `JavaScriptCatalog`. Writing every `.po`
+in a directory to `django.mo` means the last one compiled wins, and since
+`djangojs.po` sorts after `django.po`, one careless run replaces the whole
+interface catalogue with the handful of strings the browser needs.
+
+Django reads the `.mo`, so **editing a `.po` changes nothing until it is
+compiled**. A catalogue that is ahead of its `.mo` shows the old text on the Pi
+and the new text in the repository.
+
+> **Note:** `django-admin compilemessages` only covers `LOCALE_PATHS`
+> (`locale/`). Plugin catalogues are compiled by `compile_translations.py`.
 
 ## Plugin Translations
 
@@ -84,15 +101,17 @@ plugins/acme/myplugin/
 ### Compile Plugin Translations
 
 ```bash
-# Compile all plugin translations
-python scripts/compile_translations.py
+# Every plugin, plus the project catalogue
+uv run python compile_translations.py
 
-# Compile specific plugin
-python scripts/compile_translations.py --plugin acme/myplugin
+# One plugin, with a summary of what it compiled
+python scripts/compile_translations.py --plugin edupi/noise_monitor
 
 # List plugins with translations
 python scripts/compile_translations.py --list
 ```
+
+Both scripts are run by the installer and by `update.sh` / `update-web.sh`.
 
 ## Language Selection
 
@@ -144,9 +163,30 @@ class TranslationTests(TestCase):
 ### Check Coverage
 
 ```bash
-# Check for untranslated strings
-uv run django-admin makemessages -l ro --no-obsolete
+# Report every plugin string with no Romanian translation
+uv run python translation_audit.py
+
+# Machine-readable, for a script
+uv run python translation_audit.py --json
 ```
+
+Exit code is 1 when anything is missing, so it can gate a build.
+
+`makemessages` is not a coverage check. Run it from the project root and it does
+walk the plugins — it collects every directory named `locale` it meets — but it
+only *adds* msgids, and it says nothing about the entries still sitting there
+with an empty `msgstr`. Nothing failed while the plugin catalogues fell 173
+strings behind, because gettext treats a missing msgid as normal and renders the
+English. The audit is what reports it, and it compares against what the code
+actually calls rather than against what a previous run happened to pick up.
+
+The audit reads Python with `ast` rather than a pattern, because Python joins
+adjacent string literals: a msgid split over several lines reaches gettext as
+one string, and a regular expression sees only the first line.
+
+`tests/test_translation_coverage.py` runs the same audit over every plugin, and
+additionally checks that no catalogue entry is empty, that no msgid is defined
+twice, and that each `.mo` still matches its `.po`.
 
 ## Best Practices
 

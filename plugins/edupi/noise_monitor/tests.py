@@ -14,6 +14,8 @@ from plugins.edupi.noise_monitor.models import (
     NoiseMonitorConfig,
     NoiseReading,
 )
+from plugins.edupi.noise_monitor.noise_service import READING_SAVE_INTERVAL_SECONDS
+from plugins.edupi.noise_monitor.views import CHART_WINDOW_MINUTES, chart_reading_count
 
 
 class NoiseProfileTests(TestCase):
@@ -933,11 +935,42 @@ class RomanianTranslationTest(TestCase):
             "Monitorizarea este activă",
             "Zgomot instantaneu",
             "Media sesiunii",
-            "Măsurători recente",
+            "Zgomot în timp",
             "Luminozitate LED",
             "Ghid de culori LED",
+            # The chart card. The window sentence carries a placeholder, so
+            # this is also what proves the blocktrans variables reach the
+            # Romanian text rather than being dropped. The chart's own aria
+            # label is not asserted here: with no readings there is no chart.
+            f"Ultimele {CHART_WINDOW_MINUTES} minute",
+            "Nu există încă măsurători",
         ):
             assert text in content, f"untranslated on the dashboard: {text!r}"
+
+    def test_the_chart_is_labelled_in_romanian(self):
+        """The chart's accessible name, which only exists once it draws."""
+        self._get(self.DASHBOARD)
+
+        from plugins.edupi.noise_monitor.models import (
+            NoiseMonitorConfig,
+            NoiseReading,
+        )
+
+        config = NoiseMonitorConfig.objects.filter(is_active=True).first()
+        NoiseReading.objects.create(
+            config=config,
+            raw_level=30,
+            timestamp=timezone.now(),
+            instant_average=30,
+            session_average=30,
+            instant_color="green",
+            session_color="green",
+        )
+
+        content = self._get(self.DASHBOARD).content.decode("utf-8")
+
+        assert "noise-history-chart" in content
+        assert "Nivelul de zgomot în timp" in content
 
     def test_config_page_is_romanian(self):
         content = self._get(self.CONFIG).content.decode("utf-8")
@@ -986,10 +1019,38 @@ class RomanianTranslationTest(TestCase):
                 found.add(node.args[0].value)
         return found
 
+    @staticmethod
+    def _template_msgids(text):
+        """Every string a template asks gettext for.
+
+        Both forms, because they are not interchangeable: a string with a
+        placeholder in it has to use ``blocktrans``, and a scan that only read
+        ``trans`` would call the catalogue complete while that string fell
+        through to English.
+
+        The quoting has to be matched per delimiter. A pattern for either quote
+        stops at the first apostrophe inside a double-quoted string, so
+        ``{% trans "If keys don't work" %}`` came through as "If keys don" and
+        the real string was reported missing while a string that is nowhere in
+        the templates was demanded instead.
+        """
+        import re
+
+        found = set()
+        for match in re.finditer(r"""\{%\s*trans\s+(?:"([^"]*)"|'([^']*)')""", text):
+            found.add(match.group(1) if match.group(1) is not None else match.group(2))
+
+        for body in re.findall(
+            r"\{%\s*blocktrans[^%]*%\}(.*?)\{%\s*endblocktrans\s*%\}", text, re.S
+        ):
+            # gettext sees the placeholders, not the Django variable names.
+            found.add(re.sub(r"\{\{\s*(\w+)\s*\}\}", r"%(\1)s", body).strip())
+
+        return found
+
     def test_every_string_the_templates_ask_for_is_translated(self):
         """The guard that would have caught the gap: a catalogue missing an
         entry is silent at runtime."""
-        import re
         from pathlib import Path
 
         import polib
@@ -1003,8 +1064,7 @@ class RomanianTranslationTest(TestCase):
         for path in plugin_dir.glob("*.py"):
             used |= self._python_msgids(path)
         for path in plugin_dir.rglob("*.html"):
-            text = path.read_text(encoding="utf-8")
-            used |= set(re.findall(r'\{%\s*trans\s+"([^"]+)"', text))
+            used |= self._template_msgids(path.read_text(encoding="utf-8"))
 
         missing = sorted(used - known)
         assert not missing, f"not in the Romanian catalogue: {missing}"
@@ -1167,3 +1227,275 @@ class MicrophoneSelectionTest(TestCase):
         )
         assert normalize(None) == ""
         assert normalize("") == ""
+
+
+class HistoryChartTest(TestCase):
+    """The chart's geometry, which the template draws without any arithmetic.
+
+    Readings are plain stand-ins rather than saved rows: the chart only ever
+    reads three attributes off them, and the tests are about coordinates.
+    """
+
+    START = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
+
+    def _readings(self, *values):
+        """Readings one minute apart, from (instant, session) pairs."""
+        import types
+
+        return [
+            types.SimpleNamespace(
+                timestamp=self.START + timedelta(minutes=i),
+                instant_average=instant,
+                session_average=session,
+            )
+            for i, (instant, session) in enumerate(values)
+        ]
+
+    def _chart(self, *values, yellow=40, red=70):
+        from plugins.edupi.noise_monitor.chart import history_chart
+
+        return history_chart(
+            self._readings(*values), yellow_threshold=yellow, red_threshold=red
+        )
+
+    def test_no_readings_means_nothing_to_draw(self):
+        from plugins.edupi.noise_monitor.chart import history_chart
+
+        chart = history_chart([], yellow_threshold=40, red_threshold=70)
+
+        assert chart["has_data"] is False
+        assert chart["session_points"] == ""
+        assert chart["gridlines"], "the empty state still needs its axis"
+
+    def test_one_reading_is_centred_rather_than_left_aligned(self):
+        chart = self._chart((30, 30))
+
+        assert chart["single_reading"] is True
+        assert chart["session_dot"]["x"] == (chart["plot_left"] + chart["plot_right"]) / 2
+        assert chart["instant_dot"]["x"] == chart["session_dot"]["x"]
+
+    def test_several_readings_span_the_full_width_oldest_first(self):
+        chart = self._chart((10, 10), (20, 20), (30, 30))
+
+        points = [p.split(",") for p in chart["session_points"].split(" ")]
+
+        assert float(points[0][0]) == chart["plot_left"]
+        assert float(points[-1][0]) == chart["plot_right"]
+        # Louder is higher, so the y falls as the value climbs.
+        assert float(points[0][1]) > float(points[-1][1])
+
+    def test_the_quietest_reading_sits_on_the_floor_and_the_loudest_at_the_top(self):
+        chart = self._chart((0, 0), (100, 100))
+
+        ys = [float(p.split(",")[1]) for p in chart["session_points"].split(" ")]
+
+        assert ys[0] == chart["plot_bottom"]
+        assert ys[1] == chart["plot_top"]
+
+    def test_a_reading_above_full_scale_is_clamped_not_drawn_off_the_chart(self):
+        chart = self._chart((100, 100), (140, 140))
+
+        ys = [float(p.split(",")[1]) for p in chart["session_points"].split(" ")]
+
+        assert min(ys) == chart["plot_top"]
+
+    def test_a_missing_session_average_leaves_a_gap_without_moving_the_others(self):
+        """One dropped session average must not shift the rest of the line.
+
+        The x of each point comes from its position in the window, so skipped
+        readings still take up their own slice of it.
+        """
+        with_gap = self._chart((10, None), (20, 20), (30, 30))
+        without_gap = self._chart((10, 10), (20, 20), (30, 30))
+
+        assert len(with_gap["session_points"].split(" ")) == 2
+        # The two surviving points keep the x they would have had.
+        assert with_gap["session_points"].split(" ")[0] == (
+            without_gap["session_points"].split(" ")[1]
+        )
+        assert with_gap["session_points"].split(" ")[1] == (
+            without_gap["session_points"].split(" ")[2]
+        )
+
+    def test_missing_instant_averages_are_skipped_too(self):
+        chart = self._chart((None, 10), (20, 20))
+
+        assert len(chart["instant_points"].split(" ")) == 1
+        assert chart["session_points"]
+
+    def test_the_bands_follow_the_thresholds(self):
+        chart = self._chart((50, 50), yellow=40, red=70)
+
+        fills = [band["fill"] for band in chart["bands"]]
+
+        assert fills == ["#22c55e", "#eab308", "#ef4444"]
+        # Bottom band reaches from the floor up to the yellow line.
+        assert chart["bands"][0]["y"] + chart["bands"][0]["height"] == chart["plot_bottom"]
+        # The three stack without a gap or an overlap.
+        for lower, upper in zip(chart["bands"], chart["bands"][1:]):
+            assert lower["y"] == upper["y"] + upper["height"]
+
+    def test_a_threshold_at_the_floor_leaves_no_empty_band(self):
+        chart = self._chart((50, 50), yellow=0, red=70)
+
+        assert len(chart["bands"]) == 2
+
+    def test_a_threshold_above_the_scale_grows_the_chart_instead_of_clipping(self):
+        """A mis-set threshold must not push the lines off the top.
+
+        The scale follows the highest threshold, so a red level of 150 leaves
+        no red band at all — rather than a chart whose top band is a thin sliver
+        and whose readings are all squashed into the green one.
+        """
+        chart = self._chart((50, 50), yellow=40, red=150)
+
+        assert [band["fill"] for band in chart["bands"]] == ["#22c55e", "#eab308"]
+        assert chart["bands"][-1]["y"] == chart["plot_top"]
+
+        level = float(chart["session_points"].split(" ")[0].split(",")[1])
+        assert chart["plot_top"] < level < chart["plot_bottom"]
+
+    def test_the_area_is_closed_along_the_floor(self):
+        chart = self._chart((10, 10), (20, 20))
+
+        area = chart["session_area"]
+
+        assert area.startswith(f"M {chart['plot_left']:.1f},{chart['plot_bottom']:.1f} ")
+        assert area.endswith(f" L {chart['plot_right']:.1f},{chart['plot_bottom']:.1f} Z")
+
+    def test_no_session_averages_means_no_area(self):
+        chart = self._chart((10, None), (20, None))
+
+        assert chart["session_area"] == ""
+        assert chart["session_dot"] is None
+
+    def test_the_clock_runs_from_the_oldest_reading_to_the_newest(self):
+        chart = self._chart((10, 10), (20, 20), (30, 30))
+
+        assert chart["first_label"] == "09:00"
+        assert chart["last_label"] == "09:02"
+
+
+class DashboardChartTest(TestCase):
+    """The dashboard draws the chart, and says so when there is nothing to draw."""
+
+    DASHBOARD = "/plugins/edupi/noise_monitor/"
+
+    def _config(self):
+        profile = NoiseProfile.objects.create(
+            profile_type=NoiseProfile.ProfileType.TEACHING,
+            name="Teaching",
+            yellow_threshold=40,
+            red_threshold=70,
+        )
+        return NoiseMonitorConfig.objects.create(
+            name="Default", profile=profile, is_default=True
+        )
+
+    def _reading(self, config, minutes_ago, instant, session):
+        return NoiseReading.objects.create(
+            config=config,
+            raw_level=session,
+            timestamp=timezone.now() - timedelta(minutes=minutes_ago),
+            instant_average=instant,
+            session_average=session,
+            instant_color="green",
+            session_color="green",
+        )
+
+    def test_a_quiet_dashboard_says_there_is_nothing_yet(self):
+        self._config()
+
+        response = self.client.get(self.DASHBOARD)
+
+        assert response.status_code == 200
+        # The page carries other inline icons, so this looks for the chart's
+        # own marker rather than any <svg> at all.
+        assert b"noise-history-chart" not in response.content
+        assert b"No readings yet" in response.content
+
+    def test_readings_are_drawn_as_a_line(self):
+        config = self._config()
+        readings = [
+            self._reading(config, minutes, level, level)
+            for minutes, level in ((4, 10), (3, 40), (2, 80), (1, 90))
+        ]
+
+        content = self.client.get(self.DASHBOARD).content.decode("utf-8")
+
+        assert "noise-history-chart" in content
+        assert "<polyline" in content
+        # Oldest on the left. The query hands the window over newest first, so
+        # without the reverse in the view these two labels would swap.
+        oldest, newest = readings[0], readings[-1]
+        assert content.index(oldest.timestamp.strftime("%H:%M")) < content.index(
+            newest.timestamp.strftime("%H:%M")
+        )
+
+    def test_the_table_is_gone(self):
+        """The chart replaced it, not joined it."""
+        config = self._config()
+        self._reading(config, 1, 30, 30)
+
+        content = self.client.get(self.DASHBOARD).content.decode("utf-8")
+
+        assert "readings-table" not in content
+
+    def test_the_page_announces_the_window_it_draws(self):
+        """The caption is the only thing telling a teacher how far back it goes."""
+        config = self._config()
+        self._reading(config, 1, 30, 30)
+
+        content = self.client.get(self.DASHBOARD).content.decode("utf-8")
+
+        assert f"The last {CHART_WINDOW_MINUTES} minutes." in content
+
+    def test_readings_older_than_the_window_are_dropped(self):
+        """The window is a limit, so the graph cannot grow without bound."""
+        config = self._config()
+        window = chart_reading_count()
+        # More than fits, so the excess is what the view has to leave out.
+        extra = 5
+        start = timezone.now() - timedelta(minutes=window + extra)
+        NoiseReading.objects.bulk_create(
+            [
+                NoiseReading(
+                    config=config,
+                    raw_level=30,
+                    timestamp=start + timedelta(minutes=offset),
+                    instant_average=30,
+                    session_average=30,
+                    instant_color="green",
+                    session_color="green",
+                )
+                for offset in range(window + extra)
+            ]
+        )
+
+        chart = self.client.get(self.DASHBOARD).context["chart"]
+
+        # Asserted through the chart rather than by looking for a clock reading
+        # in the page, which the rest of the dashboard also prints.
+        # session_points is the SVG points attribute: one "x,y" per reading.
+        assert len(chart["session_points"].split()) == window
+        assert chart["first_label"] == (start + timedelta(minutes=extra)).strftime(
+            "%H:%M"
+        )
+
+
+class ChartWindowTest(TestCase):
+    """How much history the dashboard asks for.
+
+    The window is a length of lesson, not an implementation detail, so it is
+    pinned here: widening or narrowing it is a decision about what a teacher
+    sees, and the reading count it turns into is what bounds the query.
+    """
+
+    def test_the_window_lasts_twenty_minutes(self):
+        assert CHART_WINDOW_MINUTES == 20
+
+    def test_the_reading_count_covers_the_whole_window(self):
+        """One reading every interval, for the whole window — no shortfall."""
+        covered = chart_reading_count() * READING_SAVE_INTERVAL_SECONDS
+
+        assert covered == CHART_WINDOW_MINUTES * 60
