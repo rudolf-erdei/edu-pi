@@ -499,8 +499,18 @@ compile_translations() {
     update_status "translations" "in_progress"
     log_info "Compiling translations..."
 
-    if ! run_as_user "cd '$INSTALL_DIR' && uv run django-admin compilemessages 2>/dev/null"; then
-        log_warning "No project translations to compile"
+    # A failure is not fatal — an interface left in English still works, and an
+    # update must never be stopped by it — but the reason is logged rather than
+    # discarded: swallowing the output hid a catalogue that would not compile,
+    # and the update reported translations compiled while the pages kept the
+    # text they were last built with.
+    if ! translation_output=$(
+        run_as_user "cd '$INSTALL_DIR' && uv run django-admin compilemessages 2>&1"
+    ); then
+        log_warning "Project translations did not compile:"
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && log_warning "  $line"
+        done <<< "$translation_output"
     fi
 
     if [[ -f "$INSTALL_DIR/scripts/compile_translations.py" ]]; then

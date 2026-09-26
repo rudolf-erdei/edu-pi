@@ -16,9 +16,412 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);\n"
 
-#: plugin.py:19
-msgid "Touch Piano"
-msgstr "Pian Tactil"
+#: plugin.py:48
+#, python-format
+msgid "%(name)s plugin booted - GPIO pins registered"
+msgstr "Modulul %(name)s inițializat - pini GPIO înregistrați"
+
+#: plugin.py:110
+#, python-format
+msgid "%(name)s plugin registered"
+msgstr "Modulul %(name)s înregistrat"
+
+msgid "1 = Low, 10 = High"
+msgstr "1 = scăzut, 10 = ridicat"
+
+msgid "6 bananas or other conductive fruits"
+msgstr "6 banane sau alte fructe conductive"
+
+msgid "6 x 1MΩ pull-up resistors (optional for capacitive sensing)"
+msgstr "6 x rezistențe pull-up 1MΩ (opționale pentru senzor capacitiv)"
+
+#: plugin.py:87
+msgid "ALSA audio device (e.g., default, hw:0,0, or plughw:1,0)"
+msgstr "Dispozitiv audio ALSA (ex., default, hw:0,0 sau plughw:1,0)"
+
+msgid "About the Touch Piano"
+msgstr "Despre pianul tactil"
+
+msgid "Actions"
+msgstr "Acțiuni"
+
+msgid "Active"
+msgstr "Activ"
+
+msgid "Active Session:"
+msgstr "Sesiune activă:"
+
+msgid "Add Configuration"
+msgstr "Adaugă configurație"
+
+msgid "Add LEDs that light up with each key press"
+msgstr "Adăugați LED-uri care se aprind la fiecare apăsare de tastă"
+
+msgid "Aluminum foil or copper tape"
+msgstr "Folie de aluminiu sau bandă de cupru"
+
+msgid "An error occurred. Please try again."
+msgstr "A apărut o eroare. Încercați din nou."
+
+msgid "Are you sure you want to delete this configuration?"
+msgstr "Sigur doriți să ștergeți această configurație?"
+
+#: plugin.py:80
+msgid "Audio Output Device"
+msgstr "Dispozitiv ieșire audio"
+
+msgid "Audio synthesis and playback"
+msgstr "Sinteză și redare audio"
+
+msgid "Auto-play Demo"
+msgstr "Redare automată demo"
+
+msgid "Back to Configurations"
+msgstr "Înapoi la configurații"
+
+msgid "Back to Dashboard"
+msgstr "Înapoi la panou"
+
+msgid "Back to Piano"
+msgstr "Înapoi la pian"
+
+msgid "Cancel"
+msgstr "Anulează"
+
+msgid "Circuit Diagram"
+msgstr "Schemă de circuit"
+
+msgid ""
+"Click or touch the keys above to play, or touch the physical conductive "
+"materials connected to GPIO pins."
+msgstr ""
+"Faceți clic sau atingeți clapele de mai sus pentru a cânta sau atingeți "
+"materialele conductive conectate la pinii GPIO."
+
+msgid "Configuration"
+msgstr "Configurație"
+
+msgid "Configuration Details"
+msgstr "Detalii configurație"
+
+msgid "Configuration Name"
+msgstr "Numele configurației"
+
+msgid "Configuration created successfully"
+msgstr "Configurație creată cu succes"
+
+msgid "Configuration deleted successfully"
+msgstr "Configurație ștearsă cu succes"
+
+msgid "Configuration this key belongs to"
+msgstr "Configurația căreia îi aparține această tastă"
+
+msgid "Configuration updated successfully"
+msgstr "Configurație actualizată cu succes"
+
+msgid "Configuration used for this session"
+msgstr "Configurația folosită pentru această sesiune"
+
+msgid "Connect GPIO pins to conductive materials using jumper wires"
+msgstr ""
+"Conectați pinii GPIO la materiale conductive folosind fire de conectare"
+
+msgid ""
+"Connect a 1MΩ resistor between each GPIO pin and ground (for capacitive "
+"sensing)"
+msgstr ""
+"Conectați un rezistor de 1MΩ între fiecare pin GPIO și masă (pentru detecție"
+" capacitivă)"
+
+msgid "Connect speaker/headphones to the 3.5mm audio jack"
+msgstr "Conectați difuzorul/căștile la mufa audio de 3.5mm"
+
+msgid "Control Panel"
+msgstr "Panou de control"
+
+msgid "Create"
+msgstr "Creează"
+
+msgid "Create Piano Configuration"
+msgstr "Creează configurație pian"
+
+msgid "Create a recording/playback feature"
+msgstr "Creați o funcție de înregistrare și redare"
+
+msgid "Create your first configuration"
+msgstr "Creați prima configurație"
+
+msgid "Debounce Time (ms)"
+msgstr "Timp antirezonanță (ms)"
+
+# views.py
+msgid "Default Piano"
+msgstr "Pian implicit"
+
+msgid "Demo Interval (minutes)"
+msgstr "Interval demo (minute)"
+
+msgid "Description"
+msgstr "Descriere"
+
+msgid "Description of this piano setup"
+msgstr "Descrierea acestei configurații de pian"
+
+msgid "Disabled"
+msgstr "Dezactivat"
+
+msgid "Display note names on piano keys"
+msgstr "Afișează numele notelor pe tastele pianului"
+
+msgid "Duration of the press in milliseconds"
+msgstr "Durata apăsării în milisecunde"
+
+msgid ""
+"Each GPIO pin acts as an input with an internal pull-up resistor. When you "
+"touch the conductive material connected to a GPIO pin, your body creates a "
+"path to ground, pulling the pin low. This change is detected by the software"
+" and triggers the corresponding piano note."
+msgstr ""
+"Fiecare pin GPIO funcționează ca o intrare cu rezistor pull-up intern. Când "
+"atingeți materialul conductiv conectat la un pin GPIO, corpul dumneavoastră "
+"creează un drum către masă, coborând nivelul pinului. Software-ul detectează"
+" această schimbare și declanșează nota de pian corespunzătoare."
+
+msgid "Edit Piano Configuration"
+msgstr "Editează configurație pian"
+
+#: plugin.py:100
+msgid "Enable Visual Feedback"
+msgstr "Activează feedback vizual"
+
+msgid "Enabled"
+msgstr "Activat"
+
+msgid "Ended"
+msgstr "Încheiată"
+
+msgid "Envelope shaping (attack/decay)"
+msgstr "Modelarea anvelopei sonore (attack/decay)"
+
+msgid "Event-driven programming"
+msgstr "Programare bazată pe evenimente"
+
+msgid "Experiment with different conductive materials"
+msgstr "Experimentați cu diferite materiale conductive"
+
+msgid "Extension Activities"
+msgstr "Activități de aprofundare"
+
+msgid ""
+"For better touch detection, make sure you have a good ground connection "
+"(touch the ground pin or hold a grounded metal object)."
+msgstr ""
+"Pentru o detecție mai bună, asigurați o legătură bună la masă (atingeți "
+"pinul de masă sau țineți un obiect metalic legat la masă)."
+
+msgid "Frequency (Hz)"
+msgstr "Frecvență (Hz)"
+
+msgid "Frequency:"
+msgstr "Frecvență:"
+
+msgid "GPIO (BCM)"
+msgstr "GPIO (BCM)"
+
+msgid "GPIO Pin Mapping"
+msgstr "Maparea pinilor GPIO"
+
+msgid "GPIO pin configuration and reading"
+msgstr "Configurarea și citirea pinilor GPIO"
+
+msgid "GPIO pin number (BCM)"
+msgstr "Numărul pinului GPIO (BCM)"
+
+msgid "Ground connections in circuits"
+msgstr "Legăturile la masă în circuite"
+
+msgid "Hex color code for this key on the web interface"
+msgstr "Cod culoare hex pentru această tastă pe interfața web"
+
+#: plugin.py:97
+msgid "Higher values = more sensitive touch detection"
+msgstr "Valori mai mari = detecție tactilă mai sensibilă"
+
+msgid "How capacitive touch sensing works"
+msgstr "Cum funcționează detecția tactilă capacitivă"
+
+msgid "ID"
+msgstr "ID"
+
+msgid ""
+"If keys are too sensitive or triggering randomly, try increasing the "
+"sensitivity setting in the configuration."
+msgstr ""
+"Dacă tastele sunt prea sensibile sau se declanșează aleatoriu, măriți "
+"valoarea sensibilității în configurație."
+
+msgid ""
+"If keys don't respond, ensure all connections are secure and the conductive "
+"material is clean."
+msgstr ""
+"Dacă tastele nu răspund, verificați ca toate conexiunile să fie sigure și "
+"materialul conductiv să fie curat."
+
+msgid "If using fruits, make sure they are fresh and not dried out."
+msgstr "Dacă folosiți fructe, asigurați-vă că sunt proaspete și nu uscate."
+
+msgid "Important:"
+msgstr "Important:"
+
+msgid "Inactive"
+msgstr "Inactiv"
+
+msgid "Invalid JSON"
+msgstr "JSON invalid"
+
+msgid "Jumper wires"
+msgstr "Fire de conectare"
+
+msgid "Key"
+msgstr "Tastă"
+
+msgid "Key Color"
+msgstr "Culoarea tastei"
+
+msgid "Key Press"
+msgstr "Apăsare tastă"
+
+msgid "Key Presses"
+msgstr "Apăsări taste"
+
+msgid "Key number (1-6)"
+msgstr "Numărul tastei (1-6)"
+
+msgid "Key number is required"
+msgstr "Numărul tastei este obligatoriu"
+
+msgid "Key press recorded"
+msgstr "Apăsare de tastă înregistrată"
+
+msgid "Key that was pressed"
+msgstr "Tasta care a fost apăsată"
+
+msgid "Label (Optional)"
+msgstr "Etichetă (opțională)"
+
+msgid "Label:"
+msgstr "Etichetă:"
+
+msgid "Learning Objectives"
+msgstr "Obiective de învățare"
+
+msgid "Manage Configurations"
+msgstr "Administrează configurațiile"
+
+# plugin_settings.py
+msgid "Master volume for piano sounds (0-100%)"
+msgstr "Volumul principal pentru sunetele pianului (0-100%)"
+
+msgid "Materials Needed"
+msgstr "Materiale necesare"
+
+msgid "Minutes of inactivity before playing demo"
+msgstr "Minute de inactivitate înainte de redarea demo-ului"
+
+msgid "Modify the code to play different scales"
+msgstr "Modificați codul pentru a reda alte game"
+
+msgid "Musical Concepts"
+msgstr "Concepte muzicale"
+
+msgid "Musical Note"
+msgstr "Notă muzicală"
+
+msgid "Musical note (e.g., C4, D4, E4)"
+msgstr "Nota muzicală (ex., C4, D4, E4)"
+
+msgid "Musical note played"
+msgstr "Nota muzicală cântată"
+
+msgid "Musical notes and frequencies"
+msgstr "Note muzicale și frecvențe"
+
+msgid "Name"
+msgstr "Nume"
+
+# models.py
+msgid "Name of the piano configuration"
+msgstr "Numele configurației pianului"
+
+msgid "No active piano configuration found"
+msgstr "Nicio configurație de pian activă găsită"
+
+msgid "No active piano session"
+msgstr "Nicio sesiune de pian activă"
+
+msgid "No configurations found"
+msgstr "Nu s-au găsit configurații"
+
+msgid "No recent sessions"
+msgstr "Nu există sesiuni recente"
+
+msgid "Note"
+msgstr "Notă"
+
+msgid "Note frequency in Hz"
+msgstr "Frecvența notei în Hz"
+
+msgid "Note:"
+msgstr "Notă:"
+
+msgid "Optional label"
+msgstr "Etichetă opțională"
+
+msgid "Optional label for the key"
+msgstr "Etichetă opțională pentru tastă"
+
+msgid "Physical Concepts"
+msgstr "Concepte fizice"
+
+msgid "Physical Pin"
+msgstr "Pin fizic"
+
+msgid "Piano Configuration"
+msgstr "Configurație pian"
+
+msgid "Piano Configurations"
+msgstr "Configurații pian"
+
+msgid "Piano Key"
+msgstr "Tastă pian"
+
+msgid "Piano Keys"
+msgstr "Taste pian"
+
+msgid "Piano Session"
+msgstr "Sesiune pian"
+
+msgid "Piano Sessions"
+msgstr "Sesiuni pian"
+
+msgid "Piano Setup Instructions"
+msgstr "Instrucțiuni configurare pian"
+
+#: plugin.py:73
+msgid "Piano Volume (%)"
+msgstr "Volum pian (%)"
+
+msgid "Piano session started"
+msgstr "Sesiune de pian începută"
+
+msgid "Piano session stopped"
+msgstr "Sesiune de pian oprită"
+
+msgid "Piano volume (0-100%)"
+msgstr "Volumul pianului (0-100%)"
+
+msgid "Play demo song when no activity detected"
+msgstr "Redă melodia demo când nu se detectează activitate"
 
 #: plugin.py:20
 msgid ""
@@ -28,298 +431,168 @@ msgstr ""
 "Cântă note muzicale atingând materiale conductive conectate la pinii GPIO. "
 "Suportă banane, folie, bandă de cupru și alte obiecte conductive."
 
-#: plugin.py:48
-#, python-format
-msgid "%(name)s plugin booted - GPIO pins registered"
-msgstr "Modulul %(name)s inițializat - pini GPIO înregistrați"
+msgid "Programming Concepts"
+msgstr "Concepte de programare"
 
-#: plugin.py:68
-msgid "Touch Piano"
-msgstr "Pian Tactil"
+msgid "Pull-up resistors and digital inputs"
+msgstr "Rezistoare pull-up și intrări digitale"
 
-#: plugin.py:73
-msgid "Piano Volume (%)"
-msgstr "Volum pian (%)"
+msgid "Real-time input handling"
+msgstr "Gestionarea intrărilor în timp real"
 
-#: plugin.py:80
-msgid "Audio Output Device"
-msgstr "Dispozitiv ieșire audio"
+msgid "Recent Sessions"
+msgstr "Sesiuni recente"
 
-#: plugin.py:87
-msgid "ALSA audio device (e.g., default, hw:0,0, or plughw:1,0)"
-msgstr "Dispozitiv audio ALSA (ex., default, hw:0,0 sau plughw:1,0)"
+msgid "Scale construction (C major scale)"
+msgstr "Construirea gamei (gama Do major)"
 
-#: plugin.py:91
-msgid "Touch Sensitivity"
-msgstr "Sensibilitate tactilă"
+msgid "Sensitivity"
+msgstr "Sensibilitate"
 
-#: plugin.py:97
-msgid "Higher values = more sensitive touch detection"
-msgstr "Valori mai mari = detecție tactilă mai sensibilă"
+msgid "Session ID:"
+msgstr "ID sesiune:"
 
-#: plugin.py:100
-msgid "Enable Visual Feedback"
-msgstr "Activează feedback vizual"
+msgid "Session this key press belongs to"
+msgstr "Sesiunea căreia îi aparține această apăsare de tastă"
+
+msgid "Setup Guide"
+msgstr "Ghid de configurare"
+
+msgid "Setup Instructions"
+msgstr "Instrucțiuni de configurare"
+
+msgid "Show Key Labels"
+msgstr "Afișează etichetele tastelor"
 
 #: plugin.py:106
 msgid "Show key presses on web interface in real-time"
 msgstr "Afișează apăsările de taste pe interfața web în timp real"
 
-#: plugin.py:110
-#, python-format
-msgid "%(name)s plugin registered"
-msgstr "Modulul %(name)s înregistrat"
-
-#: apps.py:8
-msgid "Touch Piano"
-msgstr "Pian Tactil"
-
-# plugin_settings.py
-msgid "Master volume for piano sounds (0-100%)"
-msgstr "Volumul principal pentru sunetele pianului (0-100%)"
-
-msgid "Debounce Time (ms)"
-msgstr "Timp antirezonanță (ms)"
-
-msgid "Time in milliseconds to debounce touch signals"
-msgstr "Timp în milisecunde pentru eliminarea semnalelor de rebotez tactil"
-
-msgid "Show Key Labels"
-msgstr "Afișează etichetele tastelor"
-
-msgid "Display note names on piano keys"
-msgstr "Afișează numele notelor pe tastele pianului"
-
-msgid "Auto-play Demo"
-msgstr "Redare automată demo"
-
-msgid "Play demo song when no activity detected"
-msgstr "Redă melodia demo când nu se detectează activitate"
-
-msgid "Demo Interval (minutes)"
-msgstr "Interval demo (minute)"
-
-msgid "Minutes of inactivity before playing demo"
-msgstr "Minute de inactivitate înainte de redarea demo-ului"
-
-# forms.py
-msgid "e.g., Classroom Piano"
-msgstr "ex., Pian de clasă"
-
-msgid "Description of this piano setup"
-msgstr "Descrierea acestei configurații de pian"
-
-msgid "Configuration Name"
-msgstr "Numele configurației"
-
-msgid "Description"
-msgstr "Descriere"
-
-msgid "Volume (%)"
-msgstr "Volum (%)"
-
-msgid "e.g., C4"
-msgstr "ex., C4"
-
-msgid "Optional label"
-msgstr "Etichetă opțională"
-
-msgid "Musical Note"
-msgstr "Notă muzicală"
-
-msgid "Frequency (Hz)"
-msgstr "Frecvență (Hz)"
-
-msgid "Label (Optional)"
-msgstr "Etichetă (opțională)"
-
-msgid "Key Color"
-msgstr "Culoarea tastei"
-
-msgid "Enabled"
-msgstr "Activat"
-
-msgid "Piano Configuration"
-msgstr "Configurație pian"
-
-msgid "Use Default Configuration"
-msgstr "Folosește configurația implicită"
-
-# models.py
-msgid "Name of the piano configuration"
-msgstr "Numele configurației pianului"
-
-msgid "Description of this piano setup"
-msgstr "Descrierea acestei configurații de pian"
-
-msgid "Piano volume (0-100%)"
-msgstr "Volumul pianului (0-100%)"
-
-msgid "Touch sensitivity (1-10, higher = more sensitive)"
-msgstr "Sensibilitate tactilă (1-10, mai mare = mai sensibil)"
-
-msgid "Whether this configuration is active"
-msgstr "Dacă această configurație este activă"
-
-msgid "Piano Configurations"
-msgstr "Configurații pian"
-
-msgid "Configuration this key belongs to"
-msgstr "Configurația căreia îi aparține această tastă"
-
-msgid "Key number (1-6)"
-msgstr "Numărul tastei (1-6)"
-
-msgid "Musical note (e.g., C4, D4, E4)"
-msgstr "Nota muzicală (ex., C4, D4, E4)"
-
-msgid "Note frequency in Hz"
-msgstr "Frecvența notei în Hz"
-
-msgid "GPIO pin number (BCM)"
-msgstr "Numărul pinului GPIO (BCM)"
-
-msgid "Optional label for the key"
-msgstr "Etichetă opțională pentru tastă"
-
-msgid "Hex color code for this key on the web interface"
-msgstr "Cod culoare hex pentru această tastă pe interfața web"
-
-msgid "Whether this key is enabled"
-msgstr "Dacă această tastă este activată"
-
-msgid "Piano Key"
-msgstr "Tastă pian"
-
-msgid "Piano Keys"
-msgstr "Taste pian"
-
-msgid "Configuration used for this session"
-msgstr "Configurația folosită pentru această sesiune"
-
-msgid "When the session started"
-msgstr "Când a început sesiunea"
-
-msgid "When the session ended"
-msgstr "Când s-a terminat sesiunea"
-
-msgid "Total number of key presses in this session"
-msgstr "Numărul total de apăsări de taste din această sesiune"
-
-msgid "Whether this session is currently active"
-msgstr "Dacă această sesiune este activă în prezent"
-
-msgid "Piano Session"
-msgstr "Sesiune pian"
-
-msgid "Piano Sessions"
-msgstr "Sesiuni pian"
-
-msgid "Session this key press belongs to"
-msgstr "Sesiunea căreia îi aparține această apăsare de tastă"
-
-msgid "Key that was pressed"
-msgstr "Tasta care a fost apăsată"
-
-msgid "Key number (1-6)"
-msgstr "Numărul tastei (1-6)"
-
-msgid "Musical note played"
-msgstr "Nota muzicală cântată"
-
-msgid "When the key was pressed"
-msgstr "Când a fost apăsată tasta"
-
-msgid "Duration of the press in milliseconds"
-msgstr "Durata apăsării în milisecunde"
-
-msgid "Key Press"
-msgstr "Apăsare tastă"
-
-msgid "Key Presses"
-msgstr "Apăsări taste"
-
-# views.py
-msgid "Default Piano"
-msgstr "Pian implicit"
-
-msgid "Standard 6-key piano layout"
-msgstr "Schemă standard pian cu 6 taste"
-
-msgid "No active piano configuration found"
-msgstr "Nicio configurație de pian activă găsită"
-
-msgid "Piano session started"
-msgstr "Sesiune de pian începută"
-
-msgid "Piano session stopped"
-msgstr "Sesiune de pian oprită"
-
-msgid "Key number is required"
-msgstr "Numărul tastei este obligatoriu"
-
-msgid "No active piano session"
-msgstr "Nicio sesiune de pian activă"
-
-msgid "Key press recorded"
-msgstr "Apăsare de tastă înregistrată"
-
-msgid "Invalid JSON"
-msgstr "JSON invalid"
-
-msgid "Valid key number (1-6) is required"
-msgstr "Numărul de tastă valid (1-6) este obligatoriu"
-
-msgid "Piano Configurations"
-msgstr "Configurații pian"
-
-msgid "Create Piano Configuration"
-msgstr "Creează configurație pian"
-
-msgid "Create"
-msgstr "Creează"
-
-msgid "Configuration created successfully"
-msgstr "Configurație creată cu succes"
-
-msgid "Edit Piano Configuration"
-msgstr "Editează configurație pian"
-
-msgid "Update"
-msgstr "Actualizează"
-
-msgid "Configuration updated successfully"
-msgstr "Configurație actualizată cu succes"
-
-msgid "Configuration deleted successfully"
-msgstr "Configurație ștearsă cu succes"
-
-msgid "Piano Setup Instructions"
-msgstr "Instrucțiuni configurare pian"
-
-msgid "6 bananas or other conductive fruits"
-msgstr "6 banane sau alte fructe conductive"
-
-msgid "Aluminum foil or copper tape"
-msgstr "Folie de aluminiu sau bandă de cupru"
-
-msgid "6 x 1MΩ pull-up resistors (optional for capacitive sensing)"
-msgstr "6 x rezistențe pull-up 1MΩ (opționale pentru senzor capacitiv)"
-
-msgid "Jumper wires"
-msgstr "Fire de conectare"
+msgid "Sound wave generation"
+msgstr "Generarea undelor sonore"
 
 msgid "Speaker or headphones (3.5mm jack)"
 msgstr "Difuzor sau căști (mufă 3.5mm)"
 
-msgid "Connect GPIO pins to conductive materials using jumper wires"
-msgstr "Conectați pinii GPIO la materiale conductive folosind fire de conectare"
+msgid "Standard 6-key piano layout"
+msgstr "Schemă standard pian cu 6 taste"
 
-msgid "Connect speaker/headphones to the 3.5mm audio jack"
-msgstr "Conectați difuzorul/căștile la mufa audio de 3.5mm"
+msgid "Start Piano Session"
+msgstr "Pornește sesiunea de pian"
+
+msgid "Start Playing!"
+msgstr "Începeți să cântați!"
 
 msgid "Start a piano session from this dashboard"
 msgstr "Porniți o sesiune de pian din acest panou"
 
+msgid "Started"
+msgstr "Începută"
+
+msgid "Status"
+msgstr "Stare"
+
+msgid "Stop Session"
+msgstr "Oprește sesiunea"
+
+msgid ""
+"The 1MΩ resistors are optional but recommended. They help stabilize the "
+"input signals and reduce false triggers from electrical noise."
+msgstr ""
+"Rezistoarele de 1MΩ sunt opționale, dar recomandate. Ele stabilizează "
+"semnalele de intrare și reduc declanșările false cauzate de zgomotul "
+"electric."
+
+msgid ""
+"The Touch Piano is an educational project that allows students to learn "
+"about circuits and conductivity by playing musical notes through touch-"
+"sensitive inputs. By connecting conductive materials like bananas, aluminum "
+"foil, or copper tape to GPIO pins, students can create a working piano!"
+msgstr ""
+"Pianul tactil este un proiect educațional care le permite elevilor să învețe"
+" despre circuite și conductivitate cântând note muzicale prin intrări "
+"sensibile la atingere. Conectând materiale conductive precum banane, folie "
+"de aluminiu sau bandă de cupru la pinii GPIO, elevii pot construi un pian "
+"funcțional!"
+
+msgid ""
+"This project teaches: GPIO programming, capacitive/resistive sensing, audio "
+"synthesis, and basic music theory."
+msgstr ""
+"Acest proiect predă: programarea GPIO, detecția capacitivă și rezistivă, "
+"sinteza audio și teoria muzicală de bază."
+
+msgid "Time in milliseconds to debounce touch signals"
+msgstr "Timp în milisecunde pentru eliminarea semnalelor de rebotez tactil"
+
+msgid "Total Presses:"
+msgstr "Apăsări totale:"
+
+msgid "Total number of key presses in this session"
+msgstr "Numărul total de apăsări de taste din această sesiune"
+
+#: plugin.py:19
+msgid "Touch Piano"
+msgstr "Pian Tactil"
+
+msgid "Touch Piano Keys"
+msgstr "Clapele pianului tactil"
+
+#: plugin.py:91
+msgid "Touch Sensitivity"
+msgstr "Sensibilitate tactilă"
+
+msgid "Touch sensitivity (1-10, higher = more sensitive)"
+msgstr "Sensibilitate tactilă (1-10, mai mare = mai sensibil)"
+
 msgid "Touch the conductive materials to play notes!"
 msgstr "Atingeți materialele conductive pentru a cânta note!"
+
+msgid "Troubleshooting"
+msgstr "Depanare"
+
+msgid "Understanding electrical conductivity"
+msgstr "Înțelegerea conductivității electrice"
+
+msgid "Update"
+msgstr "Actualizează"
+
+msgid "Use Default Configuration"
+msgstr "Folosește configurația implicită"
+
+msgid "Valid key number (1-6) is required"
+msgstr "Numărul de tastă valid (1-6) este obligatoriu"
+
+msgid "Volume"
+msgstr "Volum"
+
+msgid "Volume (%)"
+msgstr "Volum (%)"
+
+msgid "When the key was pressed"
+msgstr "Când a fost apăsată tasta"
+
+msgid "When the session ended"
+msgstr "Când s-a terminat sesiunea"
+
+msgid "When the session started"
+msgstr "Când a început sesiunea"
+
+msgid "Whether this configuration is active"
+msgstr "Dacă această configurație este activă"
+
+msgid "Whether this key is enabled"
+msgstr "Dacă această tastă este activată"
+
+msgid "Whether this session is currently active"
+msgstr "Dacă această sesiune este activă în prezent"
+
+msgid "Wiring Explanation"
+msgstr "Explicația conexiunilor"
+
+msgid "e.g., C4"
+msgstr "ex., C4"
+
+# forms.py
+msgid "e.g., Classroom Piano"
+msgstr "ex., Pian de clasă"

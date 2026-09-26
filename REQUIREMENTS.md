@@ -45,6 +45,7 @@ Tinko is an educational platform running on Raspberry Pi, designed for interacti
 - [x] LED brightness control (10-100%)
 - [x] Session reset functionality
 - [x] Historical readings tracking
+- [x] History shown as a graph on the dashboard (session and instant lines over the threshold bands), drawn by the server as inline SVG — no CDN and no JavaScript, so it renders offline
 
 **Status**: ✅ **COMPLETED** (WebSocket support added)
 
@@ -924,7 +925,7 @@ The following features have been implemented:
   - Visual LED indicators on screen matching physical LEDs
   - Progress bars for both instant and session averages
   - Status banner showing monitoring state
-  - Historical readings table (last 50 readings)
+  - History graph of the last 20 minutes (240 readings), drawn as inline SVG
 - ✅ LED brightness control (10-100%)
 - ✅ Session reset functionality
 - ✅ Historical noise data tracking with database storage (one reading every 5 seconds)
@@ -994,6 +995,22 @@ The following features have been implemented:
 - ✅ Dashboard elements
 - ✅ Status messages
 - ✅ Error messages
+- ✅ Every plugin catalogue complete: `translation_audit.py` reports 0 untranslated
+  strings across activity_timer, lcd_display, noise_monitor, routines and
+  touch_piano (173 were missing)
+- ✅ Each `.po` compiles to the `.mo` of its own name, so `djangojs.mo` can no
+  longer replace the interface catalogue with the strings the browser needs
+- ✅ A plugin catalogue with an entry missing, empty, or defined twice fails the
+  test suite, as does a `.po` that is ahead of its `.mo`
+- ✅ A catalogue that will not compile is reported with its reason during install
+  and update, instead of being swallowed and reported as "no translations"
+- ✅ No template tag spans a line break, so no template source is ever printed
+  into a page. Django's lexer has no DOTALL flag, so a `{# ... #}` or
+  `{{ ... }}` left open at the end of a line is not a tag at all and reaches the
+  reader as literal text — a failure no test would otherwise catch. Two had
+  shipped (`base.html` printed its own comment, `home.html` printed a
+  `{% trans %}` in the "No Apps Installed" card); `tests/test_template_tags.py`
+  now fails the suite on any recurrence
 
 ### Configuration
 

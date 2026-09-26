@@ -221,30 +221,12 @@ msgid "Log Readings"
 msgstr "Înregistrare citiri"
 
 msgid "Store noise readings in database for historical view"
-msgstr "Stochează citirile de zgomot în baza de date pentru vizualizare istorică"
+msgstr ""
+"Stochează citirile de zgomot în baza de date pentru vizualizare istorică"
 
 msgid "Brightness level for RGB LEDs (10-100%)"
 msgstr "Nivelul luminozității pentru LED-urile RGB (10-100%)"
 
-# plugin.py - admin menu
-msgid "Noise Monitor"
-msgstr "Monitor zgomot"
-
-# plugin.py - register_setting (duplicates already above, but these from plugin.py)
-msgid "Instant Average Window (seconds)"
-msgstr "Fereastră medie instantanee (secunde)"
-
-msgid "Session Average Window (minutes)"
-msgstr "Fereastră medie de sesiune (minute)"
-
-msgid "LED Brightness (%)"
-msgstr "Luminozitate LED (%)"
-
-msgid "Enable Noise Monitoring"
-msgstr "Activează monitorizarea zgomotului"
-
-msgid "Start monitoring when plugin is enabled"
-msgstr "Pornește monitorizarea când modulul este activat"
 # Microphone selection and state (config_form.html, dashboard.html)
 msgid "Microphone"
 msgstr "Microfon"
@@ -252,19 +234,27 @@ msgstr "Microfon"
 msgid "Automatic (recommended)"
 msgstr "Automat (recomandat)"
 
-msgid "Automatic uses the first USB microphone it finds. Leave this alone unless the room has more than one."
-msgstr "Automat folosește primul microfon USB găsit. Nu modificați decât dacă în clasă există mai multe microfoane."
+msgid ""
+"Automatic uses the first USB microphone it finds. Leave this alone unless "
+"the room has more than one."
+msgstr ""
+"Automat folosește primul microfon USB găsit. Nu modificați decât dacă în "
+"clasă există mai multe microfoane."
 
 msgid "Could not list the microphones on this device."
 msgstr "Microfoanele acestui dispozitiv nu au putut fi listate."
 
 msgid "No microphone support on this device - the levels shown are simulated."
-msgstr "Acest dispozitiv nu are suport pentru microfon - nivelurile afișate sunt simulate."
+msgstr ""
+"Acest dispozitiv nu are suport pentru microfon - nivelurile afișate sunt "
+"simulate."
 
 msgid "Microphone unavailable - the levels shown are the last ones measured."
-msgstr "Microfonul nu este disponibil - nivelurile afișate sunt ultimele măsurate."
+msgstr ""
+"Microfonul nu este disponibil - nivelurile afișate sunt ultimele măsurate."
 
-# Dashboard and template strings (dashboard.html, config_form.html, custom_config.html)
+# Dashboard and template strings (dashboard.html, config_form.html,
+# custom_config.html)
 msgid "10-second rolling average"
 msgstr "Medie glisantă de 10 secunde"
 
@@ -313,8 +303,12 @@ msgstr "Configurare praguri personalizate"
 msgid "Custom Thresholds"
 msgstr "Praguri personalizate"
 
-msgid "Define your own noise thresholds. Yellow threshold should be lower than red threshold."
-msgstr "Definiți propriile praguri de zgomot. Pragul galben trebuie să fie mai mic decât pragul roșu."
+msgid ""
+"Define your own noise thresholds. Yellow threshold should be lower than red "
+"threshold."
+msgstr ""
+"Definiți propriile praguri de zgomot. Pragul galben trebuie să fie mai mic "
+"decât pragul roșu."
 
 msgid "Description"
 msgstr "Descriere"
@@ -350,7 +344,9 @@ msgid "Monitoring is currently stopped"
 msgstr "Monitorizarea este oprită"
 
 msgid "No profiles available. Default profiles will be created automatically."
-msgstr "Nu există profiluri disponibile. Profilurile implicite vor fi create automat."
+msgstr ""
+"Nu există profiluri disponibile. Profilurile implicite vor fi create "
+"automat."
 
 msgid "No readings yet. Start monitoring to see data."
 msgstr "Nu există încă măsurători. Porniți monitorizarea pentru a vedea date."
@@ -358,20 +354,42 @@ msgstr "Nu există încă măsurători. Porniți monitorizarea pentru a vedea da
 msgid "Noise Level (0-100)"
 msgstr "Nivel de zgomot (0-100)"
 
-msgid "Noise level is above the red threshold. Indicates the classroom is too loud and students should lower their voices."
-msgstr "Nivelul de zgomot depășește pragul roșu. Clasa este prea gălăgioasă, iar elevii ar trebui să vorbească mai încet."
+msgid ""
+"Noise level is above the red threshold. Indicates the classroom is too loud "
+"and students should lower their voices."
+msgstr ""
+"Nivelul de zgomot depășește pragul roșu. Clasa este prea gălăgioasă, iar "
+"elevii ar trebui să vorbească mai încet."
 
-msgid "Noise level is below the yellow threshold. Suitable for quiet work, individual study, or test conditions."
-msgstr "Nivelul de zgomot este sub pragul galben. Potrivit pentru muncă liniștită, studiu individual sau condiții de testare."
+msgid ""
+"Noise level is below the yellow threshold. Suitable for quiet work, "
+"individual study, or test conditions."
+msgstr ""
+"Nivelul de zgomot este sub pragul galben. Potrivit pentru muncă liniștită, "
+"studiu individual sau condiții de testare."
 
-msgid "Noise level is between yellow and red thresholds. Suitable for discussions, group work, or normal classroom activities."
-msgstr "Nivelul de zgomot este între pragul galben și cel roșu. Potrivit pentru discuții, lucru în grup sau activități obișnuite la clasă."
+msgid ""
+"Noise level is between yellow and red thresholds. Suitable for discussions, "
+"group work, or normal classroom activities."
+msgstr ""
+"Nivelul de zgomot este între pragul galben și cel roșu. Potrivit pentru "
+"discuții, lucru în grup sau activități obișnuite la clasă."
 
 msgid "Profile"
 msgstr "Profil"
 
-msgid "Recent Readings"
-msgstr "Măsurători recente"
+msgid "Noise Over Time"
+msgstr "Zgomot în timp"
+
+msgid ""
+"The last %(minutes)s minutes. The bands are the thresholds the LEDs use: "
+"yellow from %(yellow)s, red from %(red)s."
+msgstr ""
+"Ultimele %(minutes)s minute. Benzile sunt pragurile folosite de LED-uri: "
+"galben de la %(yellow)s, roșu de la %(red)s."
+
+msgid "Noise level over time"
+msgstr "Nivelul de zgomot în timp"
 
 msgid "Red (High Noise):"
 msgstr "Roșu (zgomot ridicat):"
@@ -426,8 +444,12 @@ msgid "Default"
 msgstr "Implicit"
 
 # Profile rename and delete (config_form.html, views.py)
-msgid "Rename a profile so it reads the way your class talks about it, or delete the ones you never use."
-msgstr "Redenumiți un profil astfel încât să sune așa cum vorbește clasa dumneavoastră, sau ștergeți-le pe cele pe care nu le folosiți."
+msgid ""
+"Rename a profile so it reads the way your class talks about it, or delete "
+"the ones you never use."
+msgstr ""
+"Redenumiți un profil astfel încât să sune așa cum vorbește clasa "
+"dumneavoastră, sau ștergeți-le pe cele pe care nu le folosiți."
 
 msgid "Rename"
 msgstr "Redenumește"
@@ -460,7 +482,8 @@ msgid "Profile saved as “%(name)s”."
 msgstr "Profil salvat ca „%(name)s”."
 
 msgid "This is the only profile left. Create another one before deleting it."
-msgstr "Acesta este singurul profil rămas. Creați altul înainte de a-l șterge."
+msgstr ""
+"Acesta este singurul profil rămas. Creați altul înainte de a-l șterge."
 
 msgid "Profile “%(name)s” deleted."
 msgstr "Profilul „%(name)s” a fost șters."
@@ -468,8 +491,12 @@ msgstr "Profilul „%(name)s” a fost șters."
 msgid "Start Automatically"
 msgstr "Pornește automat"
 
-msgid "Start monitoring as soon as the Pi is switched on, without anyone having to open this page and press Start."
-msgstr "Pornește monitorizarea imediat ce Raspberry Pi este pornit, fără ca cineva să deschidă această pagină și să apese Pornește."
+msgid ""
+"Start monitoring as soon as the Pi is switched on, without anyone having to "
+"open this page and press Start."
+msgstr ""
+"Pornește monitorizarea imediat ce Raspberry Pi este pornit, fără ca cineva "
+"să deschidă această pagină și să apese Pornește."
 
 msgid "Start monitoring as soon as the plugin loads"
 msgstr "Pornește monitorizarea imediat ce modulul este încărcat"

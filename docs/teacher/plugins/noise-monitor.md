@@ -185,16 +185,25 @@ Both LEDs use the same color scheme:
 
 ### Historical Data
 
-View recent noise readings:
+The **Noise Over Time** card draws the last **20 minutes** as a graph:
 
-- Last 50 readings displayed
-- Timestamp for each reading
-- Color-coded noise levels
-- Helps identify patterns
+- **Session Average** — the solid line, the same figure shown on the card above
+- **Instant Noise** — the fainter line, which is noisier by nature
+- **Coloured bands** — the thresholds the LEDs use, so a line inside the green
+  band means the LEDs were green at that moment
+- **Clock times** at each end, so it is clear how much time the window covers
+
+The graph is drawn by the server as part of the page. It needs no internet
+connection and no JavaScript, so it looks the same on a Pi with no network as it
+does on a laptop.
 
 One reading is stored every 5 seconds while the meter runs, not one per
-measurement. The measurement itself is ten times a second; storing all of them
-would fill the database and leave this table spanning a few seconds.
+measurement — 240 of them across the window. The measurement itself is ten times
+a second; storing all of them would fill the database and leave this window
+spanning a few seconds.
+
+The exact numbers are still available to other software through
+`/plugins/edupi/noise_monitor/api/history/`.
 
 ### Session Controls
 

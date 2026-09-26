@@ -20,8 +20,8 @@ msgstr ""
 msgid "0 degrees"
 msgstr "0 grade"
 
-msgid "90 degrees"
-msgstr "90 grade"
+msgid "100%"
+msgstr "100%"
 
 msgid "180 degrees"
 msgstr "180 grade"
@@ -29,39 +29,57 @@ msgstr "180 grade"
 msgid "270 degrees"
 msgstr "270 grade"
 
-msgid "Display rotation"
-msgstr "Rotația afișajului"
+msgid "90 degrees"
+msgstr "90 grade"
+
+msgid "Angry"
+msgstr "Furios"
+
+msgid "Backlight Brightness (%)"
+msgstr "Luminozitate iluminare din spate (%)"
+
+msgid "Backlight Control"
+msgstr "Control iluminare din spate"
 
 msgid "Backlight brightness (0-100%)"
 msgstr "Luminozitate iluminare din spate (0-100%)"
 
-msgid "Display contrast (0.5-2.0)"
-msgstr "Contrast afișaj (0.5-2.0)"
+#, python-format
+msgid "Backlight set to %(brightness)s%%"
+msgstr "Iluminarea din spate setată la %(brightness)s%%"
 
-msgid "Show smiling face on startup"
-msgstr "Afișează față zâmbitoare la pornire"
-
-msgid "LCD Configuration"
-msgstr "Configurație LCD"
-
-msgid "LCD Configurations"
-msgstr "Configurații LCD"
-
-# models.py - DisplaySession
-msgid "Smiling Face"
-msgstr "Față zâmbitoare"
-
-msgid "Text Message"
-msgstr "Mesaj text"
-
-msgid "Custom Image"
-msgstr "Imagine personalizată"
+msgid "Brightness:"
+msgstr "Luminozitate:"
 
 msgid "Clear Screen"
 msgstr "Ecran gol"
 
+msgid "Connected"
+msgstr "Conectat"
+
 msgid "Content displayed (text or image path)"
 msgstr "Conținut afișat (text sau cale imagine)"
+
+msgid "Control your SPI TFT LCD display"
+msgstr "Controlați afișajul LCD SPI TFT"
+
+msgid "Current mood:"
+msgstr "Starea actuală:"
+
+msgid "Custom Image"
+msgstr "Imagine personalizată"
+
+msgid "Disconnected"
+msgstr "Deconectat"
+
+msgid "Display Contrast"
+msgstr "Contrast afișaj"
+
+msgid "Display Information"
+msgstr "Informații afișaj"
+
+msgid "Display Rotation"
+msgstr "Rotație afișaj"
 
 msgid "Display Session"
 msgstr "Sesiune afișaj"
@@ -69,47 +87,117 @@ msgstr "Sesiune afișaj"
 msgid "Display Sessions"
 msgstr "Sesiuni afișaj"
 
+msgid "Display Settings"
+msgstr "Setări afișaj"
+
+msgid "Display Text"
+msgstr "Afișează text"
+
+msgid "Display Type"
+msgstr "Tip afișaj"
+
+msgid "Display contrast (0.5-2.0)"
+msgstr "Contrast afișaj (0.5-2.0)"
+
+msgid "Display rotation"
+msgstr "Rotația afișajului"
+
+msgid "Display settings saved."
+msgstr "Setările afișajului au fost salvate."
+
 # forms.py
 msgid "Enter text to display"
 msgstr "Introduceți textul de afișat"
 
-msgid "Text"
-msgstr "Text"
+msgid "Enter text to display:"
+msgstr "Introduceți textul de afișat:"
 
-# views.py
-msgid "Smiley face animation started"
-msgstr "Animația feței zâmbitoare a început"
-
-msgid "Text displayed"
-msgstr "Text afișat"
-
-msgid "Screen cleared"
-msgstr "Ecran șters"
-
-#, python-format
-msgid "Backlight set to %(brightness)s%%"
-msgstr "Iluminarea din spate setată la %(brightness)s%%"
-
-#, python-format
-msgid "Mood set to: %(mood)s"
-msgstr "Stare setată la: %(mood)s"
+msgid "Happy"
+msgstr "Fericit"
 
 #, python-format
 msgid "Invalid mood: %(mood)s"
 msgstr "Stare invalidă: %(mood)s"
 
-msgid "LCD not initialized"
-msgstr "LCD neinițializat"
+msgid "LCD Configuration"
+msgstr "Configurație LCD"
+
+msgid "LCD Configurations"
+msgstr "Configurații LCD"
 
 # plugin.py - register settings
 msgid "LCD Display"
 msgstr "Afișaj LCD"
 
-msgid "Display Rotation"
-msgstr "Rotație afișaj"
+msgid "LCD not initialized"
+msgstr "LCD neinițializat"
 
-msgid "Backlight Brightness (%)"
-msgstr "Luminozitate iluminare din spate (%)"
+msgid "Laughing"
+msgstr "Râzând"
 
-msgid "Display Contrast"
-msgstr "Contrast afișaj"
+msgid "Learning"
+msgstr "Învățare"
+
+#, python-format
+msgid "Mood set to: %(mood)s"
+msgstr "Stare setată la: %(mood)s"
+
+msgid "Neutral"
+msgstr "Neutru"
+
+msgid "Off"
+msgstr "Oprit"
+
+msgid "Quick Controls"
+msgstr "Comenzi rapide"
+
+msgid "Resolution"
+msgstr "Rezoluție"
+
+msgid "Robot Mood"
+msgstr "Starea robotului"
+
+msgid "SPI TFT LCD"
+msgstr "LCD SPI TFT"
+
+msgid "Sad"
+msgstr "Trist"
+
+msgid "Save Settings"
+msgstr "Salvează setările"
+
+msgid "Screen cleared"
+msgstr "Ecran șters"
+
+msgid "Show Smiley"
+msgstr "Afișează fața zâmbitoare"
+
+msgid "Show smiling face on startup"
+msgstr "Afișează față zâmbitoare la pornire"
+
+# views.py
+msgid "Smiley face animation started"
+msgstr "Animația feței zâmbitoare a început"
+
+# models.py - DisplaySession
+msgid "Smiling Face"
+msgstr "Față zâmbitoare"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Text Message"
+msgstr "Mesaj text"
+
+msgid "Text displayed"
+msgstr "Text afișat"
+
+msgid ""
+"The robot is detecting classroom misbehavior. Consider addressing the "
+"students."
+msgstr ""
+"Robotul detectează un comportament nepotrivit în clasă. Luați în considerare"
+" să discutați cu elevii."
+
+msgid "pixels"
+msgstr "pixeli"
