@@ -263,3 +263,164 @@ msgstr "Acest dispozitiv nu are suport pentru microfon - nivelurile afișate sun
 
 msgid "Microphone unavailable - the levels shown are the last ones measured."
 msgstr "Microfonul nu este disponibil - nivelurile afișate sunt ultimele măsurate."
+
+# Dashboard and template strings (dashboard.html, config_form.html, custom_config.html)
+msgid "10-second rolling average"
+msgstr "Medie glisantă de 10 secunde"
+
+msgid "minute rolling average"
+msgstr "medie glisantă de un minut"
+
+msgid "Apply Profile"
+msgstr "Aplică profilul"
+
+msgid "Available Profiles"
+msgstr "Profiluri disponibile"
+
+msgid "Back to Configuration"
+msgstr "Înapoi la configurare"
+
+msgid "Back to Dashboard"
+msgstr "Înapoi la panou"
+
+msgid "Back to Monitor"
+msgstr "Înapoi la monitor"
+
+msgid "Cancel"
+msgstr "Anulează"
+
+msgid "Configure"
+msgstr "Configurează"
+
+msgid "Controls"
+msgstr "Comenzi"
+
+msgid "Create Custom Configuration"
+msgstr "Creează configurație personalizată"
+
+msgid "Create Custom Thresholds"
+msgstr "Creează praguri personalizate"
+
+msgid "Current Configuration"
+msgstr "Configurația curentă"
+
+msgid "Custom Noise Threshold Configuration"
+msgstr "Configurare personalizată a pragurilor de zgomot"
+
+msgid "Custom Threshold Configuration"
+msgstr "Configurare praguri personalizate"
+
+msgid "Custom Thresholds"
+msgstr "Praguri personalizate"
+
+msgid "Define your own noise thresholds. Yellow threshold should be lower than red threshold."
+msgstr "Definiți propriile praguri de zgomot. Pragul galben trebuie să fie mai mic decât pragul roșu."
+
+msgid "Description"
+msgstr "Descriere"
+
+msgid "Green (Low Noise):"
+msgstr "Verde (zgomot redus):"
+
+msgid "Green: Low noise (quiet work)"
+msgstr "Verde: zgomot redus (muncă liniștită)"
+
+msgid "Instant Avg"
+msgstr "Media instantanee"
+
+msgid "Instant Color"
+msgstr "Culoare instantanee"
+
+msgid "Instant Noise"
+msgstr "Zgomot instantaneu"
+
+msgid "LED Brightness"
+msgstr "Luminozitate LED"
+
+msgid "LED Color Guide"
+msgstr "Ghid de culori LED"
+
+msgid "Minutes"
+msgstr "Minute"
+
+msgid "Monitoring is active"
+msgstr "Monitorizarea este activă"
+
+msgid "Monitoring is currently stopped"
+msgstr "Monitorizarea este oprită"
+
+msgid "No profiles available. Default profiles will be created automatically."
+msgstr "Nu există profiluri disponibile. Profilurile implicite vor fi create automat."
+
+msgid "No readings yet. Start monitoring to see data."
+msgstr "Nu există încă măsurători. Porniți monitorizarea pentru a vedea date."
+
+msgid "Noise Level (0-100)"
+msgstr "Nivel de zgomot (0-100)"
+
+msgid "Noise level is above the red threshold. Indicates the classroom is too loud and students should lower their voices."
+msgstr "Nivelul de zgomot depășește pragul roșu. Clasa este prea gălăgioasă, iar elevii ar trebui să vorbească mai încet."
+
+msgid "Noise level is below the yellow threshold. Suitable for quiet work, individual study, or test conditions."
+msgstr "Nivelul de zgomot este sub pragul galben. Potrivit pentru muncă liniștită, studiu individual sau condiții de testare."
+
+msgid "Noise level is between yellow and red thresholds. Suitable for discussions, group work, or normal classroom activities."
+msgstr "Nivelul de zgomot este între pragul galben și cel roșu. Potrivit pentru discuții, lucru în grup sau activități obișnuite la clasă."
+
+msgid "Profile"
+msgstr "Profil"
+
+msgid "Recent Readings"
+msgstr "Măsurători recente"
+
+msgid "Red (High Noise):"
+msgstr "Roșu (zgomot ridicat):"
+
+msgid "Red:"
+msgstr "Roșu:"
+
+msgid "Red: High noise (too loud)"
+msgstr "Roșu: zgomot ridicat (prea gălăgios)"
+
+msgid "Save Custom Configuration"
+msgstr "Salvează configurația personalizată"
+
+msgid "Seconds"
+msgstr "Secunde"
+
+msgid "Session Average"
+msgstr "Media sesiunii"
+
+msgid "Session Average (0-100)"
+msgstr "Media sesiunii (0-100)"
+
+msgid "Session Avg"
+msgstr "Media sesiunii"
+
+msgid "Session Color"
+msgstr "Culoare sesiune"
+
+msgid "Threshold Guide"
+msgstr "Ghid praguri"
+
+msgid "Time"
+msgstr "Ora"
+
+msgid "Yellow (Medium Noise):"
+msgstr "Galben (zgomot mediu):"
+
+msgid "Yellow:"
+msgstr "Galben:"
+
+msgid "Yellow: Medium noise (discussion allowed)"
+msgstr "Galben: zgomot mediu (discuțiile sunt permise)"
+
+# Seeded default profile and configuration (views.py)
+msgid "Teaching"
+msgstr "Predare"
+
+msgid "Moderate noise levels for normal teaching"
+msgstr "Niveluri moderate de zgomot pentru predare obișnuită"
+
+msgid "Default"
+msgstr "Implicit"

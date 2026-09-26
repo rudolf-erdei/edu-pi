@@ -123,6 +123,17 @@ device and silently reset the monitor to automatic (the fields now live on the
 profile form only), and the selection is stored as a name as well as an index,
 because ALSA renumbers the cards when a USB microphone is replugged.
 
+**5. Both configuration forms rewrote what was already saved.** Reported as
+"the custom configuration name is not saved". The name *was* saved — the form
+was rendered from its field defaults instead of from the stored configuration,
+so it came back as "Custom Configuration" with thresholds of 40/70 whatever was
+in the database. Worse, the defaults are what the form *posts*: opening the page
+and pressing the button without touching anything wrote those defaults back over
+the real settings. The profile form next to it had the identical defect — it
+showed 10/5/100 and the first profile in the list, so "Apply Profile" on an
+untouched page reset the windows, the brightness and the profile too. Both forms
+are now seeded from the active configuration.
+
 **Verified on the hardware** (not inferred): `arecord -l` shows
 `card 1: Device [USB PnP Sound Device]`, and a 3-second capture through
 `sounddevice` on device 1 measures mean RMS 0.004 → level 19, which is the green
