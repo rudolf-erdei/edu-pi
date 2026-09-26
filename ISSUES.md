@@ -2,41 +2,14 @@
 
 Open items only.
 
-Re-checked and re-cut 2026-09-26: seven entries were closed that day and the
-remaining ones were re-measured against the field Pi. The stash count below is
-the number read from the Pi, not a guess.
+Re-checked and re-cut 2026-09-26: entries were closed as they were fixed and the
+rest were re-measured against the field Pi. Every open item says why it is still
+open and what would close it.
 
-## Open — the field Pi still holds its accumulated stashes
-
-Every successful update used to leave one stash behind: a tracked build output
-(database, uploads, compiled catalogues) left the tree dirty, `git stash`
-captured it before the pull, and the stash was popped only when the pull
-*failed*. The Pi holds **79**. The cause is fixed in the repository; the
-stashes themselves are still on the Pi.
-
-All three sources are now handled: `hide_live_db` / `hide_media` take the
-database and the uploads out of the working tree for the duration of the pull,
-and the nine compiled `.mo` files are no longer tracked at all, so nothing the
-update generates is left dirty for the next run to stash. The stash condition
-also stops counting untracked files, which `git stash` never touches anyway.
-
-**The 79 were cleared on 2026-09-26** (79 → 0), with the working tree verified
-after: `db.sqlite3` present and the uploaded logo still 18168 bytes, not the
-4030-byte committed placeholder, and the app answering 200. Nothing had to be
-recovered from a stash — nothing in any of them was a unique copy of anything
-current — which is fortunate, because the two newest recorded the *deletion* of
-the logo from the update that untracked it (`Bin 4030 -> 0 bytes`) and popping
-one would have deleted the live file.
-
-**Confirmed 2026-09-26, after the update that deployed the untracking:** the Pi
-pulled `ca8f3c6`, ran the full update, and `git stash list | wc -l` is still 0 —
-it no longer creates one. The nine `.mo` were deleted by that pull (they were
-tracked in the outgoing commit) and recreated by the update itself, so the
-compile step demonstrably ran on the Pi: the files are newer than the pull and
-byte-identical to a fresh local compile.
-
-This entry stays open only as a watch item: if a stash ever reappears, something
-the update generates has been tracked again.
+*(Closed 2026-09-26: one stash left behind per update. The Pi held 79, the three
+tracked build inputs — `db.sqlite3`, `media/`, the nine compiled `.mo` — are now
+protected or untracked, and the count has stayed 0 across a full update since.
+A stash reappearing means something the update generates is tracked again.)*
 
 ## Open — captive portal offline/setup branch has never run on hardware
 

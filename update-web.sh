@@ -749,7 +749,17 @@ Environment="EDUPI_DEBUG=False"
 ExecStartPre=${UV_PATH} run python manage.py collectstatic --noinput
 ExecStart=${UV_PATH} run daphne -b 0.0.0.0 -p 80 -e ssl:443:privateKey=/etc/tinko-portal/key.pem:certKey=/etc/tinko-portal/cert.pem config.asgi:application
 AmbientCapabilities=CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+# The bounding set also governs what the app's OWN sudo calls can do. sudo is
+# setuid root, and this clamp limits the capabilities it gains: with only
+# CAP_NET_BIND_SERVICE in the set, sudo cannot setgid(0) and every sudo from
+# inside daphne dies with "unable to change to root gid: Operation not
+# permitted". The dashboard Power button and the run-directory repair in
+# core/update_system/views.py were both dead that way (found 2026-09-26).
+# CAP_SETUID/CAP_SETGID let sudo reach root; CAP_AUDIT_WRITE stops its audit
+# plugin reporting "unable to send audit message". Verified on the Pi: systemd
+# answers on D-Bus and both sysctl -w and writes to /proc/sysrq-trigger
+# succeed with this set, so the halt chain's privileged steps are unaffected.
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_AUDIT_WRITE
 Restart=always
 RestartSec=5
 

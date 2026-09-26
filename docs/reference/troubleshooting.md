@@ -946,8 +946,18 @@ safe to run at any time:
 sudo -n /usr/local/sbin/tinko-poweroff --check
 ```
 
-- **`ok`** — the chain is intact; the button will work. If the page still
-  refuses, the app is running as a different user than the one granted.
+!!! warning "This runs in *your* shell, not inside the app"
+    A shell over SSH is not subject to the service's sandbox, so it can print
+    `ok` while the button still fails. If the two disagree, read the app's own
+    reason — the endpoint logs it:
+
+    ```bash
+    sudo journalctl -u tinko --since "10 min ago" | grep "power helper not ready"
+    ```
+
+- **`ok`** — the chain is intact from your shell. If the button still refuses,
+  check the journal line above before anything else; the failure is inside the
+  service's environment, not in the helper.
 - **`sudo: a password is required`** — the rule is missing. Run an update, or
   reinstall the infrastructure: `sudo bash ~/edu-pi/update.sh`.
 - **`No such file or directory`** — the helper was never installed, usually
@@ -955,6 +965,16 @@ sudo -n /usr/local/sbin/tinko-poweroff --check
   installation step. One CLI update fixes it.
 - **`shutdown not found in PATH`** — the helper ran, but root's `secure_path`
   cannot see the binary; check `/usr/sbin` and the `sudo` package.
+- **`unable to change to root gid: Operation not permitted`** (in the journal —
+  your own shell will say `ok`) — `tinko.service` clamps the app's capabilities
+  with `CapabilityBoundingSet`. `sudo` is setuid root, and that clamp limits the
+  capabilities it gains, so a set without `CAP_SETUID`/`CAP_SETGID` leaves sudo
+  unable to become root. This killed **every** sudo call from inside the app,
+  not just the power button (found 2026-09-26, on the first real press). One
+  update fixes it — the unit now carries
+  `CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_AUDIT_WRITE`.
+  Confirm the running unit picked it up:
+  `systemctl show tinko -p CapabilityBoundingSet`.
 
 The Pi's own root access is a separate matter: Raspberry Pi OS ships
 `/etc/sudoers.d/010_pi-nopasswd` (`tinko ALL=(ALL) NOPASSWD: ALL`), which is
@@ -964,6 +984,16 @@ implementation ran `sudo bash -c` and was only ever allowed by that blanket
 rule. Tinko leaves the OS file alone: install and update run `sudo`
 non-interactively, and removing the rule would make them fail on a password
 prompt.
+
+Be clear about what that means, though: **while that file exists, it is the
+sudoers files — not the service's capability clamp — that decide what the app
+may do as root.** The clamp was widened on 2026-09-26 only so the app can use
+the rules Tinko installs; it does not restrict escalation, because the blanket
+rule already grants `tinko` any command. The narrow grant
+(`/usr/local/sbin/tinko-poweroff` with no arguments) is what keeps the Power
+button honest; if you want a real boundary for the app process, the place to
+draw it is `010_pi-nopasswd`, and that needs install and update to stop calling
+`sudo` non-interactively first.
 
 ### Service won't start
 

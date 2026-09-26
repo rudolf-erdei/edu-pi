@@ -1244,7 +1244,22 @@ power-off rather than a shell.
   business having.
 - The OS's own `/etc/sudoers.d/010_pi-nopasswd` is deliberately left alone.
   Install and update call `sudo` non-interactively, so removing it would make
-  them fail on a password prompt. Tinko's rules no longer depend on it.
+  them fail on a password prompt. Tinko's rules no longer depend on it. Note
+  what follows from that: while the blanket rule exists, the sudoers files —
+  not any sandbox knob — are what bound what the app may do as root.
+- `tinko.service`'s `CapabilityBoundingSet` must keep `CAP_SETUID` and
+  `CAP_SETGID` (plus `CAP_AUDIT_WRITE`, which only silences sudo's audit
+  plugin), alongside `CAP_NET_BIND_SERVICE` for port 80. `sudo` is setuid root
+  and the clamp limits the capabilities it gains, so a set without SETUID/SETGID
+  leaves sudo unable to `setgid(0)`: **every** `sudo` from inside the app dies
+  with *"unable to change to root gid: Operation not permitted"*. Found
+  2026-09-26 on the first real press of the button, which had been broken on the
+  field Pi for as long as the clamp existed — and the same clamp was silently
+  killing the run-directory repair in `core/update_system/views.py`. The three
+  unit heredocs (installer, `update.sh`, `update-web.sh`) are held in step by
+  `tests/test_power_shutdown.py`. A shell over SSH is *not* subject to the
+  service's sandbox, so `--check` prints `ok` while the button fails; the app's
+  own reason is in `journalctl -u tinko`.
 - A Pi cannot be woken remotely after a halt, so the button is only ever
   pressed by someone who can reach its power.
 

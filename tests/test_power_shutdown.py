@@ -224,6 +224,61 @@ def test_uninstall_removes_the_helper_and_its_grant():
     assert "/etc/sudoers.d/tinko-poweroff" in text
 
 
+# --- the unit that runs the app --------------------------------------------
+#
+# The first real press of the button, on the field Pi 2026-09-26, failed with
+# `sudo: unable to change to root gid: Operation not permitted` — logged by
+# power_helper_ready() itself. Cause: tinko.service clamps the app's
+# capabilities to CAP_NET_BIND_SERVICE (added for port 80). sudo is setuid
+# root, and the bounding set limits what it gains, so sudo had no CAP_SETGID,
+# could not setgid(0), and *every* sudo from inside the app was dead — the
+# Power button and the run-directory repair in core/update_system/views.py
+# alike. Nothing in the suite could see it: the tests stub sudo, and running
+# --check from an SSH shell passes, because an SSH session as tinko is not
+# inside that clamp.
+
+UNIT_SOURCES = ["install-raspberry-pi.sh", "update.sh", "update-web.sh"]
+
+
+def bounding_set(script: str) -> list[str]:
+    """The capabilities the app service is clamped to, as written."""
+    for line in (REPO_ROOT / script).read_text(encoding="utf-8").splitlines():
+        if line.startswith("CapabilityBoundingSet="):
+            return line.split("=", 1)[1].split()
+    raise AssertionError(f"{script} writes no CapabilityBoundingSet line")
+
+
+@pytest.mark.parametrize("script", UNIT_SOURCES)
+def test_the_app_service_can_still_reach_root_through_sudo(script):
+    caps = bounding_set(script)
+
+    # Without these two, sudo cannot setuid/setgid to root and refuses every
+    # command the app asks for.
+    assert "CAP_SETUID" in caps, f"{script}: sudo cannot become root"
+    assert "CAP_SETGID" in caps, f"{script}: sudo cannot setgid(0)"
+    # Cosmetic: without it sudo's audit plugin logs "unable to send audit
+    # message" on every call, which reads like a failure that is not one.
+    assert "CAP_AUDIT_WRITE" in caps, script
+
+
+@pytest.mark.parametrize("script", UNIT_SOURCES)
+def test_the_port_80_grant_survives_the_wider_clamp(script):
+    """The clamp exists to let daphne bind 80 without setcap; widening it must
+    not drop that, and the ambient grant is what actually delivers it."""
+    text = (REPO_ROOT / script).read_text(encoding="utf-8")
+
+    assert "AmbientCapabilities=CAP_NET_BIND_SERVICE" in text, script
+    assert "CAP_NET_BIND_SERVICE" in bounding_set(script), script
+
+
+def test_the_three_unit_heredocs_agree():
+    """A Pi inherits whichever script last wrote the unit, so the three copies
+    must not drift: an install, a CLI update and a web update all rewrite it."""
+    written = {script: bounding_set(script) for script in UNIT_SOURCES}
+
+    assert len({tuple(caps) for caps in written.values()}) == 1, written
+
+
 # --- the installer, run for real -------------------------------------------
 #
 # The tests above read text; these run install_power_helper() itself with `sudo`
