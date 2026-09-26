@@ -13,8 +13,23 @@ STAGE_FILE = Path("/run/tinko-update/stage.json")
 UPDATE_SCRIPT = Path(PROJECT_ROOT) / "update-web.sh"
 
 def ensure_directories():
-    """Ensure the /run/tinko-update directory exists."""
-    TRIGGER_FILE.parent.mkdir(parents=True, exist_ok=True)
+    """Ensure the /run/tinko-update directory exists and can be written to.
+
+    /run is a tmpfs, so this directory does not survive a reboot: it is
+    recreated here, by this daemon, which runs as root. mkdir alone leaves it
+    owned by root with root's umask (0755), and the web UI — which runs as the
+    unprivileged service user — then cannot write the trigger file at all:
+    "Permission denied: '/run/tinko-update/trigger'". So the mode is set
+    explicitly instead of being left to whoever created the directory first.
+    """
+    directory = TRIGGER_FILE.parent
+    directory.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(directory, 0o777)
+    except OSError as e:
+        # Best effort: if this fails the UI reports the permission error, but
+        # the daemon itself must keep running either way.
+        print(f"Warning: could not set permissions on {directory}: {e}")
 
 def write_status(data):
     """Atomically write status JSON."""

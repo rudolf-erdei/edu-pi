@@ -12,11 +12,49 @@ from .models import UpdateStatus
 STATUS_FILE = Path("/run/tinko-update/status.json")
 TRIGGER_FILE = Path("/run/tinko-update/trigger")
 
-def write_trigger_file(update_id):
-    """Writes the trigger file to start the daemon."""
-    TRIGGER_FILE.parent.mkdir(parents=True, exist_ok=True)
+RUN_DIR = TRIGGER_FILE.parent
+
+
+def _write_trigger(payload):
+    """Create the run directory if needed and write the trigger file."""
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
     with open(TRIGGER_FILE, 'w') as f:
-        json.dump({"update_id": str(update_id), "created_at": datetime.utcnow().isoformat() + "Z"}, f)
+        json.dump(payload, f)
+
+
+def _repair_run_directory():
+    """Best-effort restore of write access to /run/tinko-update.
+
+    The directory is created world-writable by the daemon, but this web app
+    runs as the unprivileged service user while the daemon runs as root, so
+    a directory that root created with its own umask cannot be written here.
+    The installer grants passwordless sudo for exactly these two commands, so
+    the UI can put it right without anyone logging in to the Pi.
+    """
+    for command in (["mkdir", "-p", str(RUN_DIR)], ["chmod", "777", str(RUN_DIR)]):
+        try:
+            subprocess.run(
+                ["sudo", "-n", *command], check=True, capture_output=True, timeout=10
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+
+
+def write_trigger_file(update_id):
+    """Writes the trigger file to start the daemon.
+
+    A refusal here means no update can be started from the UI at all, so the
+    directory is repaired and the write retried once before the error is
+    allowed out.
+    """
+    payload = {"update_id": str(update_id), "created_at": datetime.utcnow().isoformat() + "Z"}
+    try:
+        _write_trigger(payload)
+        return
+    except PermissionError:
+        pass
+    _repair_run_directory()
+    _write_trigger(payload)
 
 def reconcile_update_records():
     """Sync UpdateStatus DB rows with the daemon's status file.
@@ -118,7 +156,13 @@ def start_update(request):
     try:
         write_trigger_file(update.id)
     except Exception as e:
-        return JsonResponse({'error': f'Failed to trigger update daemon: {str(e)}'}, status=500)
+        return JsonResponse({
+            'error': (
+                f'Failed to trigger update daemon: {str(e)} '
+                f'({RUN_DIR} is not writable by the web app — fix on the Pi with '
+                f'"sudo chmod 777 {RUN_DIR}")'
+            )
+        }, status=500)
 
     return JsonResponse({'update_id': update.id})
 

@@ -252,3 +252,123 @@ def test_start_update_accepts_post_with_valid_csrf_token(tmp_path):
 
     assert resp.status_code == 200, resp.content
     assert trigger.call_count == 1
+
+
+# --- the trigger file and the directory it lives in ------------------------
+#
+# /run is a tmpfs and is recreated by the root daemon after every boot, so the
+# directory can end up root-only while the web app runs as the service user.
+# That made every web update fail with "Permission denied: /run/tinko-update/
+# trigger" on any Pi that had been rebooted since it was set up.
+
+
+def test_trigger_write_repairs_directory_and_retries():
+    """A refused first write repairs the directory and writes again."""
+    from core.update_system import views
+
+    calls = []
+
+    def fake_write(payload):
+        calls.append(payload)
+        if len(calls) == 1:
+            raise PermissionError(13, "Permission denied")
+
+    with mock.patch.object(views, "_write_trigger", side_effect=fake_write), mock.patch.object(
+        views, "_repair_run_directory"
+    ) as repair:
+        views.write_trigger_file(7)
+
+    assert len(calls) == 2, "the write must be retried after the repair"
+    assert calls[0] == calls[1], "the retry must carry the same payload"
+    assert repair.call_count == 1
+    assert calls[0]["update_id"] == "7"
+
+
+def test_trigger_write_raises_when_the_repair_does_not_help():
+    """If the directory is still unwritable the error must reach the view,
+    which reports it — silently swallowing it would leave the UI hanging."""
+    from core.update_system import views
+
+    with mock.patch.object(
+        views, "_write_trigger", side_effect=PermissionError(13, "Permission denied")
+    ), mock.patch.object(views, "_repair_run_directory"):
+        with pytest.raises(PermissionError):
+            views.write_trigger_file(7)
+
+
+def test_run_directory_repair_uses_sudo_mkdir_and_chmod():
+    """The repair must be exactly what the installer's sudoers file allows,
+    non-interactively (a password prompt would hang the request)."""
+    from pathlib import Path
+
+    from core.update_system import views
+
+    with mock.patch.object(views, "RUN_DIR", Path("/run/tinko-update")), mock.patch(
+        "core.update_system.views.subprocess.run"
+    ) as run:
+        views._repair_run_directory()
+
+    commands = [call.args[0] for call in run.call_args_list]
+    # -n: never prompt for a password; a prompt would hang the request.
+    assert [cmd[:3] for cmd in commands] == [
+        ["sudo", "-n", "mkdir"],
+        ["sudo", "-n", "chmod"],
+    ]
+    assert [cmd[3] for cmd in commands] == ["-p", "777"]
+    assert all(cmd[4] == str(views.RUN_DIR) for cmd in commands)
+    assert all(call.kwargs["check"] for call in run.call_args_list)
+
+
+def test_run_directory_repair_never_raises():
+    """No sudo (a dev machine), or a failing command, must not break the
+    request — the original permission error is the one worth reporting."""
+    from core.update_system import views
+
+    with mock.patch("core.update_system.views.subprocess.run", side_effect=OSError("no sudo")):
+        views._repair_run_directory()  # must not raise
+
+
+@pytest.mark.django_db
+def test_start_update_reports_an_unwritable_run_directory(client, tmp_path):
+    """The message a teacher sees must name the directory, since the fix is a
+    one-line command on the Pi."""
+    with mock.patch("core.update_system.views.STATUS_FILE", tmp_path / "status.json"), mock.patch(
+        "core.update_system.views.write_trigger_file",
+        side_effect=PermissionError(13, "Permission denied: '/run/tinko-update/trigger'"),
+    ):
+        resp = client.post("/updates/start/")
+
+    assert resp.status_code == 500
+    error = resp.json()["error"]
+    assert "Permission denied" in error
+    assert "/run/tinko-update" in error
+    assert "chmod 777" in error
+
+
+def test_daemon_makes_the_run_directory_writable(tmp_path):
+    """The daemon owns the directory across reboots, so it is the code that
+    has to make it writable — not the installer, which only ran once."""
+    from core.update_system import update_daemon
+
+    trigger = tmp_path / "tinko-update" / "trigger"
+    with mock.patch.object(update_daemon, "TRIGGER_FILE", trigger), mock.patch.object(
+        update_daemon.os, "chmod"
+    ) as chmod:
+        update_daemon.ensure_directories()
+
+    assert trigger.parent.is_dir()
+    chmod.assert_called_once_with(trigger.parent, 0o777)
+
+
+def test_daemon_survives_a_failed_chmod(tmp_path):
+    """The daemon must not die (and take the web update path with it) if the
+    directory cannot be chmodded."""
+    from core.update_system import update_daemon
+
+    trigger = tmp_path / "tinko-update" / "trigger"
+    with mock.patch.object(update_daemon, "TRIGGER_FILE", trigger), mock.patch.object(
+        update_daemon.os, "chmod", side_effect=OSError("read-only file system")
+    ):
+        update_daemon.ensure_directories()
+
+    assert trigger.parent.is_dir()
