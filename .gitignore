@@ -10,18 +10,24 @@ wheels/
 .venv
 
 # Database
+#
+# The live database is written by the running app and is deliberately NOT
+# tracked: if it were, every update would stash it, the merge would replace it
+# with the committed copy, and the teacher's data would be gone. Ship initial
+# data as a fixture/migration instead.
+#
+# The `.update-tmp-*` pattern is the name update.sh / update-web.sh give the
+# file while they move it out of the working tree for the duration of the pull.
 db.sqlite3
 db.sqlite3-journal
-db.sqlite3
+db.sqlite3.update-tmp-*
+*.sqlite3
 entities.json
-CLAUDE.md
 mempalace.yaml
 /docs/superpowers/
-db.sqlite3
-*.sqlite3
 /.serena/
 /.claude/
 /.vscode/
 .claude/settings.local.json
 ISSUES.md
-/.claude
+CLAUDE.md

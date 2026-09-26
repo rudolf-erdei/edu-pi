@@ -163,6 +163,59 @@ stop_service() {
     update_status "stop_service" "completed"
 }
 
+# --- Live database protection ---------------------------------------------
+#
+# db.sqlite3 is written by the running app, so it is ALWAYS dirty when an
+# update runs. git must never stash, merge or check out that file: doing so
+# replaces the teacher's live data with whatever was last committed. The
+# database is therefore moved out of the working tree for the duration of the
+# pull and put back afterwards, on every path.
+#
+# This is also what makes it safe to stop tracking the database at all: the
+# commit that untracks it would otherwise make the merge delete the live file.
+DB_NAME="db.sqlite3"
+DB_SAVED_PATH=""
+
+# Recover a database left aside by an update that died mid-pull. Never deletes
+# anything — if a live database is present too, both are kept.
+recover_orphaned_db() {
+    local leftover kept
+    for leftover in "$INSTALL_DIR/$DB_NAME".update-tmp-*; do
+        [[ -e "$leftover" ]] || continue
+        if [[ -f "$INSTALL_DIR/$DB_NAME" ]]; then
+            kept="${leftover}.recovered"
+            mv -f "$leftover" "$kept"
+            log_warning "Orphaned database copy found next to a live one; kept as $(basename "$kept")"
+        else
+            mv -f "$leftover" "$INSTALL_DIR/$DB_NAME"
+            log_warning "Recovered the database left aside by an interrupted update"
+        fi
+    done
+}
+
+hide_live_db() {
+    DB_SAVED_PATH=""
+    [[ -f "$INSTALL_DIR/$DB_NAME" ]] || return 0
+    DB_SAVED_PATH="$DB_NAME.update-tmp-$$"
+    if mv "$INSTALL_DIR/$DB_NAME" "$INSTALL_DIR/$DB_SAVED_PATH"; then
+        log_info "Moved the live database aside for the pull"
+    else
+        DB_SAVED_PATH=""
+        log_error "Could not move $DB_NAME aside — the pull may overwrite live data"
+    fi
+}
+
+restore_live_db() {
+    [[ -n "$DB_SAVED_PATH" ]] || return 0
+    # Overwrite whatever the merge left behind: the live database wins.
+    if mv -f "$INSTALL_DIR/$DB_SAVED_PATH" "$INSTALL_DIR/$DB_NAME"; then
+        log_success "Live database restored"
+    else
+        log_error "FAILED to restore $DB_NAME — it is still at $DB_SAVED_PATH"
+    fi
+    DB_SAVED_PATH=""
+}
+
 # Pull latest changes from git
 pull_latest() {
     update_status "pull" "in_progress"
@@ -172,6 +225,10 @@ pull_latest() {
 
     # Prevent git from prompting for credentials (hangs in non-interactive scripts)
     export GIT_TERMINAL_PROMPT=0
+
+    recover_orphaned_db
+    # Before the stash, so the stash cannot capture the live database.
+    hide_live_db
 
     # Stash any local changes
     STASHED=0
@@ -197,6 +254,9 @@ pull_latest() {
         fi
         update_status "pull" "skipped"
     fi
+
+    # Always, on both paths.
+    restore_live_db
 }
 
 # Update Python dependencies
