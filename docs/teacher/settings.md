@@ -159,6 +159,18 @@ Without that restart, changes the script makes to its own logic would only
 take effect on the *next* update, which is how a fix could appear to install
 successfully and still not be in force.
 
+### Your Data Is Never Overwritten by an Update
+
+The database is written constantly while Tinko runs, so an update always finds
+it different from the stored copy. Rather than trying to merge the two, the
+update sets the database aside while it fetches new code and puts it back
+afterwards, on both the success and the failure path. Timers, routines,
+readings and settings survive every update.
+
+The one thing that does not survive is a factory-style reinstall that wipes
+the database outright — back it up first if that is what you want to do (see
+[Configuration Backup](#configuration-backup)).
+
 ## Plugin-Specific Settings
 
 ### Activity Timer Settings
