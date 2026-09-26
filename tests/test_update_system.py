@@ -136,49 +136,10 @@ def test_last_update_info_returns_completed_db_row(client, tmp_path):
     )
 
 
-@pytest.mark.django_db
-def test_power_shutdown_spawns_detached_poweroff(client):
-    """POST /power/shutdown/ fires sudo systemctl poweroff as a detached
-    process (survives daphne going down) instead of blocking the request."""
-    from unittest import mock
-
-    with mock.patch("core.edupi_core.views.subprocess.Popen") as popen:
-        resp = client.post("/power/shutdown/")
-
-    assert resp.status_code == 200
-    assert resp.json() == {"ok": True}
-    popen.assert_called_once()
-    args = popen.call_args.args[0]
-    assert args[0:3] == ["sudo", "-n", "bash"]
-    assert args[3] == "-c"
-    # Primary is `shutdown now` (field-verified); force-cut fallbacks follow.
-    script = args[4]
-    assert script.startswith("shutdown now;")
-    assert "sleep 60;" in script
-    assert "systemctl poweroff -f" in script
-    assert "sysrq-trigger" in script  # hard power-off last resort
-    kwargs = popen.call_args.kwargs
-    assert kwargs.get("start_new_session") is True
-
-    resp_get = client.get("/power/shutdown/")
-    assert resp_get.status_code == 405
-
-
-@pytest.mark.django_db
-def test_power_shutdown_returns_500_on_oserror(client, tmp_path):
-    """If poweroff cannot be spawned (sudo missing, policy refused), the
-    endpoint reports failure instead of pretending the Pi is shutting down."""
-    from unittest import mock
-
-    with mock.patch(
-        "core.edupi_core.views.subprocess.Popen", side_effect=OSError("sudo missing")
-    ):
-        resp = client.post("/power/shutdown/")
-
-    assert resp.status_code == 500
-    assert resp.json()["ok"] is False
-
-
+# The dashboard Power button has its own file: tests/test_power_shutdown.py.
+# Its tests live there because the endpoint now depends on a helper the
+# installers must grant, which is a cross-file contract worth testing next to
+# the helper rather than beside the update system.
 # --- CSRF contract for the Updates tab ------------------------------------
 #
 # The Updates tab POSTs to /updates/start/ from JavaScript. Django enforces

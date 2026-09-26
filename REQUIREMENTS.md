@@ -1198,6 +1198,43 @@ Two things keep it working, because either alone leaves a case uncovered:
 The failure is reported with the directory and the fix in the message rather
 than as a bare errno, and only after the repair has been tried.
 
+#### The Power Button Halts Through a Root-Owned Helper
+
+The dashboard's **Shutdown** button POSTs `/power/shutdown/`, which runs
+`sudo -n /usr/local/sbin/tinko-poweroff` — a root-owned script the app user
+cannot rewrite. The halt chain (`shutdown now`, then bounded force-cut
+fallbacks) lives in that helper, not in the view, so the sudoers grant is the
+power-off rather than a shell.
+
+- `install_power_helper()` in `scripts/update_infra.sh` installs the helper as
+  `root:root` mode 0755 and writes `/etc/sudoers.d/tinko-poweroff` granting the
+  service user exactly two invocations: the bare command (`""`, the sudoers
+  idiom for "no arguments") and `--check`.
+- The rule is validated with `visudo -cf` **before** it is installed. A
+  malformed file in `sudoers.d` makes sudo refuse *every* command for that
+  user, which would take the update system's own rules, the run-directory
+  repair and the service restarts down with it.
+- Every path installs it: the installer and `update.sh` through
+  `setup_update_infrastructure()`, and `update-web.sh` directly — the web
+  script never called that function, so a Pi updated only from the dashboard
+  would otherwise never receive the helper.
+- The endpoint runs the helper's `--check` **before** spawning the halt and
+  reports the helper's own message when it fails. It used to spawn
+  `sudo bash -c "<chain>"` and answer `ok` immediately with stderr discarded:
+  that worked only because Raspberry Pi OS grants the app user
+  `NOPASSWD: ALL`, so with Tinko's own rules alone the teacher would have seen
+  *"Tinko is shutting down..."* forever while the Pi kept running, with nothing
+  logged. `--check` is safe to run by hand and is the chain minus the halt.
+- The two rules that Tinko used to install for the button (`systemctl poweroff`,
+  `/usr/sbin/shutdown`) were removed: nothing in the code called either binary,
+  and the second also allowed `sudo shutdown -r now` — a reboot the app has no
+  business having.
+- The OS's own `/etc/sudoers.d/010_pi-nopasswd` is deliberately left alone.
+  Install and update call `sudo` non-interactively, so removing it would make
+  them fail on a password prompt. Tinko's rules no longer depend on it.
+- A Pi cannot be woken remotely after a halt, so the button is only ever
+  pressed by someone who can reach its power.
+
 #### Systemd Services
 
 The install script creates two systemd services that work together:

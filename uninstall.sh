@@ -209,11 +209,13 @@ remove_resolved_config() {
     fi
 }
 
-# Step 7: Remove sudoers file
+# Step 7: Remove sudoers files and the power helper they grant
 remove_sudoers() {
     log_info "Removing sudoers configuration..."
 
     remove_file "/etc/sudoers.d/tinko-update" "sudoers entry for tinko-update"
+    remove_file "/etc/sudoers.d/tinko-poweroff" "sudoers entry for the power button"
+    remove_file "/usr/local/sbin/tinko-poweroff" "dashboard power button helper"
 }
 
 # Step 8: Remove update run directory

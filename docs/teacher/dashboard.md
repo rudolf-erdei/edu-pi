@@ -125,6 +125,25 @@ http://pi-ip:8000/plugins/edupi/routines/
 http://pi-ip:8000/plugins/edupi/touch_piano/
 ```
 
+## Shutting Down Tinko
+
+The **Shutdown** button in Quick Actions powers the Raspberry Pi off safely, so
+the SD card is not left mid-write. Use it before unplugging the Pi.
+
+1. Press **Shutdown** and confirm.
+2. The button disappears and the message *Tinko is shutting down...* appears.
+3. Wait for the green activity light to stop blinking, then remove power.
+
+If the button instead shows *Could not start shutdown. Try again.*, Tinko could
+not reach the power helper. Nothing was turned off, so it is safe to keep using
+the dashboard — see
+[Power button does nothing](../reference/troubleshooting.md#power-button-does-nothing)
+for what to check.
+
+**There is no way to turn the Pi back on remotely.** A Raspberry Pi has no
+wake-on-LAN from a powered-off state — someone has to be at the Pi to unplug and
+replug it. Only press Shutdown when that is true.
+
 ## Troubleshooting
 
 ### Dashboard Not Loading

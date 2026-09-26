@@ -308,30 +308,65 @@ def settings_view(request: HttpRequest) -> HttpResponse:
     return render(request, "settings/settings_page.html", context)
 
 
+# The dashboard Power button runs this and nothing else. It is installed
+# root:root in a directory the app user cannot write by
+# install_power_helper() in scripts/update_infra.sh, which also grants the
+# service user exactly this command in /etc/sudoers.d/tinko-poweroff. The halt
+# itself lives in the helper, not here, so the sudoers grant is the power-off
+# rather than a root shell.
+POWER_HELPER = "/usr/local/sbin/tinko-poweroff"
+
+
+def power_helper_ready() -> tuple[bool, str]:
+    """Ask the power helper whether it can actually halt the machine.
+
+    Runs the helper's ``--check`` under the same ``sudo -n`` grant the halt
+    will use, so it fails the same way the halt would: no grant (sudo refuses
+    non-interactively), no helper installed, or a missing binary. Returns
+    ``(ready, message)`` where *message* is the helper's own explanation.
+
+    Never raises: any failure to even run the check is reported as not ready.
+    """
+    try:
+        result = subprocess.run(
+            ["sudo", "-n", POWER_HELPER, "--check"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        return False, str(e)
+    if result.returncode == 0:
+        return True, ""
+    return False, (result.stderr or result.stdout).strip() or (
+        f"{POWER_HELPER} --check exited {result.returncode}"
+    )
+
+
 def power_shutdown(request: HttpRequest):
-    """Safely power off the Raspberry Pi (systemctl poweroff, root via
-    passwordless sudoers). Launched detached so daphne going down mid-request
-    never kills the poweroff itself. The UI shows an optimistic message on
-    click; this endpoint only triggers the shutdown."""
+    """Safely power off the Raspberry Pi (the root-owned helper, root via the
+    sudoers rule Tinko installs). Launched detached so daphne going down
+    mid-request never kills the poweroff itself.
+
+    The helper is checked synchronously first. It used to spawn
+    ``sudo bash -c "<chain>"`` and answer ``ok`` immediately: that only worked
+    because Raspberry Pi OS grants the app user ``NOPASSWD: ALL``, so with
+    Tinko's own rules alone the button would have shown "shutting down..."
+    forever with the Pi still running and nothing logged.
+    """
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
-    # Primary: `shutdown now` (field-verified; `systemctl poweroff` silently
-    # no-ops on some units, so never use it as the primary). Bounded fallback:
-    # if the orderly halt stalls (failing SD card, stuck unit) force-cut power
-    # so the teacher is never stuck watching a dead Pi.
+
+    ready, reason = power_helper_ready()
+    if not ready:
+        logger.error("Shutdown not started: power helper not ready: %s", reason)
+        return JsonResponse(
+            {"ok": False, "error": _("Could not start shutdown")}, status=500
+        )
+
     try:
         subprocess.Popen(
-            [
-                "sudo", "-n", "bash", "-c",
-                (
-                    "shutdown now; "
-                    "sleep 60; "
-                    "systemctl poweroff -f; "
-                    "sleep 5; "
-                    "sysctl -w kernel.sysrq=1 >/dev/null 2>&1; "
-                    "echo o > /proc/sysrq-trigger"
-                ),
-            ],
+            ["sudo", "-n", POWER_HELPER],
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

@@ -890,6 +890,47 @@ cd ~/edu-pi && uv run pytest tests/test_translation_catalogues.py -q
 4. **Do not install gettext to silence it.** It would fix this log line and add a
    system dependency to a device that is meant to work with no network at all.
 
+### Power button does nothing
+
+**Problem:** Pressing **Shutdown** on the dashboard shows *Could not start
+shutdown. Try again.* and the Pi keeps running. (Before 2026-09-26 the opposite
+happened: the page said *Tinko is shutting down...* and the Pi stayed on, with
+nothing in the log.)
+
+**Explanation:** the button POSTs `/power/shutdown/`, which runs
+`sudo -n /usr/local/sbin/tinko-poweroff` — a root-owned helper, granted to the
+service user by `/etc/sudoers.d/tinko-poweroff`. The endpoint runs the helper's
+`--check` first and reports the result, so a refusal reaches the page instead of
+looking like a slow shutdown. The helper and its rule are installed by
+`install_power_helper()` in `scripts/update_infra.sh`, which runs on every
+install, CLI update and web update.
+
+**Check it by hand** — this is the whole chain except the halt itself, and it is
+safe to run at any time:
+
+```bash
+sudo -n /usr/local/sbin/tinko-poweroff --check
+```
+
+- **`ok`** — the chain is intact; the button will work. If the page still
+  refuses, the app is running as a different user than the one granted.
+- **`sudo: a password is required`** — the rule is missing. Run an update, or
+  reinstall the infrastructure: `sudo bash ~/edu-pi/update.sh`.
+- **`No such file or directory`** — the helper was never installed, usually
+  because Tinko was updated on a Pi whose `update-web.sh` predates the
+  installation step. One CLI update fixes it.
+- **`shutdown not found in PATH`** — the helper ran, but root's `secure_path`
+  cannot see the binary; check `/usr/sbin` and the `sudo` package.
+
+The Pi's own root access is a separate matter: Raspberry Pi OS ships
+`/etc/sudoers.d/010_pi-nopasswd` (`tinko ALL=(ALL) NOPASSWD: ALL`), which is
+wider than Tinko needs. The power button deliberately does **not** rely on it —
+narrowing that file would otherwise silently break the button, since the old
+implementation ran `sudo bash -c` and was only ever allowed by that blanket
+rule. Tinko leaves the OS file alone: install and update run `sudo`
+non-interactively, and removing the rule would make them fail on a password
+prompt.
+
 ### Service won't start
 
 **Problem:** systemd service fails

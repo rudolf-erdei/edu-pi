@@ -41,6 +41,15 @@ if [[ -z "$SERVICE_USER" || "$SERVICE_USER" == "root" ]]; then
 fi
 SERVICE_HOME="/home/${SERVICE_USER}"
 
+# Shared infrastructure helpers (setup_update_infrastructure, and
+# install_power_helper for the dashboard Power button). This file only defines
+# functions, so sourcing it here costs nothing; the log_* helpers it needs are
+# defined further down, before any call. Without this, a Pi that is only ever
+# updated from the dashboard never receives the power helper or its sudoers
+# rule -- which is exactly the gap that made the button depend on the OS's own
+# blanket NOPASSWD rule.
+source "$INSTALL_DIR/scripts/update_infra.sh"
+
 # Run a command as the service user (the owner of the repo and uv).
 # The daemon runs as root; git/uv/django steps must run as $SERVICE_USER or
 # git's "dubious ownership" check fatals and `uv` is not on root's PATH.
@@ -782,6 +791,11 @@ main() {
     compile_translations
     update_wifi_connect
     ensure_tinko_service
+    # The helper must exist before the restarted app serves the new view that
+    # calls it. Deliberately not setup_update_infrastructure(): that restarts
+    # tinko-update.service, and this script IS that service's work.
+    install_power_helper "$SERVICE_USER" ||
+        log_warning "Power button helper not installed; the dashboard will report that when pressed"
     restart_service
 
     echo

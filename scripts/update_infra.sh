@@ -2,13 +2,91 @@
 #
 # Tinko - Update Infrastructure Setup
 #
-# Sourced by update.sh and install-raspberry-pi.sh.
+# Sourced by update.sh, install-raspberry-pi.sh and update-web.sh.
 # Provides setup_update_infrastructure(), which installs, enables and starts
 # the tinko-update.service daemon that powers web-driven updates
-# (Settings -> Updates). Requires log_info/log_success/log_warning/log_error
-# to be defined by the sourcing script BEFORE sourcing this file.
+# (Settings -> Updates), and install_power_helper(), which installs the
+# dashboard power-button helper. Requires log_info/log_success/log_warning/
+# log_error to be defined by the sourcing script BEFORE sourcing this file.
+#
+# This file only defines functions; sourcing it has no side effects.
 #
 # Usage: source "$INSTALL_DIR/scripts/update_infra.sh"
+
+# Install the dashboard power-button helper and grant the service user exactly
+# that command, and nothing else.
+#
+# $1 - the service user to grant it to. Defaults to $USER, which is right when a
+#      human runs update.sh; update-web.sh runs as ROOT under the update daemon,
+#      so it must pass the service user explicitly or the grant lands on root.
+#
+# Never fatal by itself: a caller that aborts the whole update because the power
+# button could not be wired up would leave the Pi half-updated. It logs and
+# returns 1, and the endpoint reports the missing helper to the teacher.
+install_power_helper() {
+    local svc_user="${1:-${USER}}"
+    local helper_src="$INSTALL_DIR/scripts/tinko-poweroff"
+    local helper_dst="/usr/local/sbin/tinko-poweroff"
+    local drop_in="/etc/sudoers.d/tinko-poweroff"
+    local sudoers_tmp
+
+    if [ ! -f "$helper_src" ]; then
+        log_error "Power helper source not found: $helper_src"
+        return 1
+    fi
+
+    # Root-owned, mode 0755, in a directory the service user cannot write: the
+    # rule below grants root, so the file it runs must not be rewritable by the
+    # app that calls it.
+    if ! sudo install -o root -g root -m 0755 "$helper_src" "$helper_dst"; then
+        log_error "Could not install $helper_dst"
+        return 1
+    fi
+
+    # Its own drop-in rather than an append to tinko-update's file: writing one
+    # file per concern means a mistake here cannot clobber the update system's
+    # own rules, and the validity check below covers only what changed.
+    sudoers_tmp="$(mktemp)"
+    cat > "$sudoers_tmp" << EOF
+# Tinko dashboard Power button (templates/home.html -> /power/shutdown/).
+# The halt itself lives in the helper below, root-owned and not writable by
+# $svc_user, so this grants the power-off and nothing else. "" is the sudoers
+# idiom for "no arguments": the real halt cannot be dressed up with any, and
+# --check is the only argument allowed.
+$svc_user ALL=(ALL) NOPASSWD: /usr/local/sbin/tinko-poweroff ""
+$svc_user ALL=(ALL) NOPASSWD: /usr/local/sbin/tinko-poweroff --check
+EOF
+
+    # Validate BEFORE installing. sudo refuses every command for a user whose
+    # sudoers.d entry is malformed, which would take the update system's own
+    # rules, the run-directory repair and the service restarts down with it.
+    # --check the file, so only what we are adding is on trial.
+    if command -v visudo >/dev/null 2>&1; then
+        local visudo_output
+        if ! visudo_output=$(sudo visudo -cf "$sudoers_tmp" 2>&1); then
+            log_error "Refusing to install an invalid sudoers file:"
+            # visudo points at the offending column; log its own words rather
+            # than a guess, since this is the only thing that can go wrong here.
+            while IFS= read -r line; do
+                [ -n "$line" ] && log_warning "  $line"
+            done <<< "$visudo_output"
+            log_warning "  ($drop_in not installed; the power button will report this when pressed)"
+            rm -f "$sudoers_tmp"
+            return 1
+        fi
+    else
+        log_warning "visudo not found; installing the power rule without syntax validation"
+    fi
+
+    if ! sudo install -o root -g root -m 0440 "$sudoers_tmp" "$drop_in"; then
+        log_error "Could not install $drop_in"
+        rm -f "$sudoers_tmp"
+        return 1
+    fi
+    rm -f "$sudoers_tmp"
+
+    log_success "Power button helper installed ($helper_dst)"
+}
 
 # Setup update infrastructure for web updates
 setup_update_infrastructure() {
@@ -26,10 +104,13 @@ $USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop tinko
 $USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl start tinko
 $USER ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /run/tinko-update
 $USER ALL=(ALL) NOPASSWD: /usr/bin/chmod 777 /run/tinko-update
-# Safe shutdown from the dashboard (Power button)
-$USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff
-$USER ALL=(ALL) NOPASSWD: /usr/sbin/shutdown
 EOF
+    # The dashboard Power button is NOT granted here: it goes through
+    # install_power_helper() into its own drop-in, so that the halt runs a
+    # root-owned script instead of a shell. The old lines that granted
+    # /usr/bin/systemctl poweroff and /usr/sbin/shutdown were removed
+    # 2026-09-26 -- nothing in the code ever called either binary, and
+    # `sudo shutdown -r now` is a reboot the app has no business having.
 
     # 3. Install the update daemon service
     log_info "Installing tinko-update.service..."
@@ -78,6 +159,11 @@ EOF
     else
         sudo systemctl start tinko-update.service
     fi
+
+    # 4. Dashboard power button (helper + its own sudoers drop-in). Non-fatal:
+    # see install_power_helper().
+    install_power_helper "${TINKO_SERVICE_USER:-$USER}" ||
+        log_warning "Power button helper not installed; the dashboard will report that when pressed"
 
     log_success "Update infrastructure set up successfully"
 }

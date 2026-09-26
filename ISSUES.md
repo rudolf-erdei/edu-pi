@@ -28,9 +28,15 @@ current — which is fortunate, because the two newest recorded the *deletion* o
 the logo from the update that untracked it (`Bin 4030 -> 0 bytes`) and popping
 one would have deleted the live file.
 
-**Still to confirm, after the next update deploys the untracking:** `git stash
-list | wc -l` should stay at 0. A new stash appearing means something the update
-generates is tracked again.
+**Confirmed 2026-09-26, after the update that deployed the untracking:** the Pi
+pulled `ca8f3c6`, ran the full update, and `git stash list | wc -l` is still 0 —
+it no longer creates one. The nine `.mo` were deleted by that pull (they were
+tracked in the outgoing commit) and recreated by the update itself, so the
+compile step demonstrably ran on the Pi: the files are newer than the pull and
+byte-identical to a fresh local compile.
+
+This entry stays open only as a watch item: if a stash ever reappears, something
+the update generates has been tracked again.
 
 ## Open — captive portal offline/setup branch has never run on hardware
 

@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+# Tinko - Dashboard power button.
+#
+# Installed to /usr/local/sbin/tinko-poweroff as root:root, mode 0755, by
+# install_power_helper() in scripts/update_infra.sh, which also grants the
+# service user this exact command (and only this command) in
+# /etc/sudoers.d/tinko-update.
+#
+# Why a helper instead of `sudo bash -c "<chain>"` from the view: a sudoers
+# rule for `bash` grants a root shell, and the rule Tinko installs would then
+# be a blanket one. This file lives in a root-owned directory the app user
+# cannot write, so the grant is the power-off and nothing else.
+#
+# `--check` runs the same readiness test the endpoint runs before it spawns the
+# halt, and never halts. It is the safe way to test the whole chain by hand:
+#
+#     sudo -n /usr/local/sbin/tinko-poweroff --check
+#
+# Exit status: 0 ready (or halt started), 1 not ready / not root.
+
+set -u
+
+if [ "${1:-}" = "--check" ]; then
+    # Readiness only. The endpoint reports what this prints, so a refused sudo
+    # grant or a missing binary reaches the teacher as an error instead of
+    # looking like a shutdown that never happened.
+    if [ "$(id -u)" != "0" ]; then
+        echo "tinko-poweroff must run as root (got uid $(id -u))" >&2
+        exit 1
+    fi
+    for cmd in shutdown systemctl sysctl; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo "$cmd not found in PATH" >&2
+            exit 1
+        fi
+    done
+    # Not fatal: this is the last-resort cut, and an orderly halt does not need
+    # it. Worth saying out loud because it only matters when nothing else worked.
+    if [ ! -w /proc/sysrq-trigger ]; then
+        echo "warning: /proc/sysrq-trigger is not writable; no force-cut fallback" >&2
+    fi
+    echo "ok"
+    exit 0
+fi
+
+if [ "$(id -u)" != "0" ]; then
+    echo "tinko-poweroff must run as root (got uid $(id -u))" >&2
+    exit 1
+fi
+
+# `shutdown now` is the field-verified primary: `systemctl poweroff` silently
+# no-ops on some units, so it is never the first thing tried. The steps after it
+# are bounded fallbacks for a halt that stalls (failing SD card, stuck unit) so
+# a teacher is never left watching a dead Pi that never powers off.
+#
+# On success this process is killed within a second of `shutdown now`, so the
+# fallbacks only ever run if the orderly halt really did stall.
+shutdown now
+sleep 60
+systemctl poweroff -f
+sleep 5
+sysctl -w kernel.sysrq=1 >/dev/null 2>&1
+echo o > /proc/sysrq-trigger
