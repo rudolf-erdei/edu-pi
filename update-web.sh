@@ -79,6 +79,53 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# --- Self-update guard ----------------------------------------------------
+#
+# bash reads a running script from its open file descriptor. `git pull`
+# replaces update-web.sh via an atomic rename (new inode), so without this the
+# in-flight run keeps executing the PRE-pull function bodies: any change this
+# script makes to its own logic silently waits for the NEXT run.
+#
+# Record the digest at startup, then re-exec once after the pull if it moved.
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+SCRIPT_ARGS=("$@")
+
+script_digest() {
+    if command -v sha256sum &> /dev/null; then
+        sha256sum "$1" 2>/dev/null | awk '{print $1}'
+    elif command -v md5sum &> /dev/null; then
+        md5sum "$1" 2>/dev/null | awk '{print $1}'
+    fi
+}
+
+SCRIPT_DIGEST_AT_START="$(script_digest "$SCRIPT_PATH" || true)"
+
+reexec_if_self_changed() {
+    # The re-executed run must never re-exec again, or a script that keeps
+    # changing would loop forever.
+    if [[ "${TINKO_UPDATE_REEXEC:-0}" == "1" ]]; then
+        return 0
+    fi
+
+    local now
+    now="$(script_digest "$SCRIPT_PATH" || true)"
+
+    if [[ -z "$now" || -z "$SCRIPT_DIGEST_AT_START" || "$now" == "$SCRIPT_DIGEST_AT_START" ]]; then
+        return 0
+    fi
+
+    log_warning "update-web.sh was replaced by the pull — this run is still on the old copy."
+    log_info "Re-executing with the new version so its changes take effect now..."
+
+    # The environment is inherited across exec, so TINKO_UPDATE_DAEMON (which
+    # drives stage telemetry) survives into the new run.
+    export TINKO_UPDATE_REEXEC=1
+    # exec replaces this process, so the EXIT trap does NOT fire and the
+    # emergency handler stays out of the way. The PID is unchanged, so the
+    # daemon still waits on the same process.
+    exec /bin/bash "$SCRIPT_PATH" "${SCRIPT_ARGS[@]}"
+}
+
 # Check if we're in a git repository
 check_git_repo() {
     if [[ ! -d "$INSTALL_DIR/.git" ]]; then
@@ -532,6 +579,9 @@ main() {
     check_git_repo
     stop_service
     pull_latest
+    # If the pull replaced this script, switch to the new copy before running
+    # the stages whose code it may have changed.
+    reexec_if_self_changed
     update_dependencies
     fix_ownership
     update_python_capabilities

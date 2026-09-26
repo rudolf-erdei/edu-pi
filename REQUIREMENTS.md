@@ -996,6 +996,14 @@ Or update an existing installation:
 bash update.sh
 ```
 
+Both `update.sh` and the web update path (`update-web.sh`) re-execute
+themselves once if the pull replaced the script mid-run. A running bash
+process reads its script from the open file descriptor, and `git pull`
+swaps the file by atomic rename, so without the re-exec the in-flight run
+would keep executing the pre-pull code and any change the script makes to
+its own logic would silently wait for the next run. The re-executed run is
+marked with `TINKO_UPDATE_REEXEC=1` so it cannot loop.
+
 #### Systemd Services
 
 The install script creates two systemd services that work together:
