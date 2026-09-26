@@ -14,6 +14,18 @@ urlpatterns = [
         views.CustomThresholdConfigView.as_view(),
         name="custom_config",
     ),
+    # Management of the profile list itself. One profile exists per type, so
+    # these are addressed by primary key.
+    path(
+        "profiles/<int:pk>/rename/",
+        views.NoiseProfileRenameView.as_view(),
+        name="profile_rename",
+    ),
+    path(
+        "profiles/<int:pk>/delete/",
+        views.NoiseProfileDeleteView.as_view(),
+        name="profile_delete",
+    ),
     path("control/", views.NoiseMonitorControlView.as_view(), name="control"),
     path("api/level/", views.NoiseLevelAPIView.as_view(), name="api_level"),
     path("api/history/", views.NoiseHistoryAPIView.as_view(), name="api_history"),

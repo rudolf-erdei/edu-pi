@@ -424,3 +424,43 @@ msgstr "Niveluri moderate de zgomot pentru predare obișnuită"
 
 msgid "Default"
 msgstr "Implicit"
+
+# Profile rename and delete (config_form.html, views.py)
+msgid "Rename a profile so it reads the way your class talks about it, or delete the ones you never use."
+msgstr "Redenumiți un profil astfel încât să sune așa cum vorbește clasa dumneavoastră, sau ștergeți-le pe cele pe care nu le folosiți."
+
+msgid "Rename"
+msgstr "Redenumește"
+
+msgid "Name"
+msgstr "Nume"
+
+msgid "Save"
+msgstr "Salvează"
+
+msgid "Delete"
+msgstr "Șterge"
+
+msgid "In use"
+msgstr "În uz"
+
+msgid "Delete this profile?"
+msgstr "Ștergeți acest profil?"
+
+msgid "The profile name cannot be empty."
+msgstr "Numele profilului nu poate fi gol."
+
+msgid "The profile name cannot be longer than 100 characters."
+msgstr "Numele profilului nu poate depăși 100 de caractere."
+
+msgid "Another profile already uses that name."
+msgstr "Un alt profil folosește deja acest nume."
+
+msgid "Profile saved as “%(name)s”."
+msgstr "Profil salvat ca „%(name)s”."
+
+msgid "This is the only profile left. Create another one before deleting it."
+msgstr "Acesta este singurul profil rămas. Creați altul înainte de a-l șterge."
+
+msgid "Profile “%(name)s” deleted."
+msgstr "Profilul „%(name)s” a fost șters."

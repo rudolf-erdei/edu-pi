@@ -98,6 +98,13 @@ MIC_BLOCK_SECONDS = 0.05
 MIC_FLOOR_DBFS = -60.0
 MIC_CEILING_DBFS = 0.0
 
+# The face shown for each colour, keyed by the same colour names the LEDs use.
+# Values are Mood values from the display plugin (lcd_display/mood.py), matched
+# by name so this module does not have to import it.
+FACE_MOODS = {"green": "happy", "yellow": "neutral", "red": "sad"}
+# Mirrors Mood.get_default(). Shown when the monitor stops driving the face.
+DEFAULT_FACE_MOOD = "happy"
+
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +190,11 @@ class NoiseMonitorService:
         self._session_average: int = 0
         self._instant_color: str = "green"
         self._session_color: str = "green"
+
+        # Last colour put on the LCD face. The face is redrawn only when the
+        # colour changes, not on every 10 Hz sample: each redraw is a full
+        # panel write over SPI.
+        self._last_face_color: Optional[str] = None
 
         # Audio device settings. _device_index/_device_name are what the
         # teacher configured; _resolved_index/_resolved_name are what the
@@ -568,6 +580,10 @@ class NoiseMonitorService:
         self._set_instant_led_color(0, 0, 0)
         self._set_session_led_color(0, 0, 0)
 
+        # The face is part of this monitor's output too, so it goes back to the
+        # display's own default rather than staying stuck on the last colour.
+        self._reset_face()
+
         # Broadcast status change
         self._broadcast_status(False)
 
@@ -613,6 +629,9 @@ class NoiseMonitorService:
 
                 # Update LEDs
                 self._update_leds()
+
+                # Face follows LED 2
+                self._update_face()
 
                 # Call callback if provided
                 if self._callback:
@@ -735,6 +754,53 @@ class NoiseMonitorService:
             return "yellow"
         else:
             return "green"
+
+    @staticmethod
+    def _lcd():
+        """The LCD service, or None when there is no usable display.
+
+        Imported inside the call rather than at module scope: the display
+        plugin is a declared dependency, but a missing or disabled display must
+        not stop the microphone from working.
+        """
+        try:
+            from plugins.edupi.lcd_display.lcd_service import lcd_service
+        except ImportError:
+            return None
+
+        return lcd_service if lcd_service.is_initialized() else None
+
+    def _update_face(self) -> None:
+        """Show the session colour as the robot's face.
+
+        Session, not instant: the face is the room's verdict over the lesson,
+        and mirroring the live colour would have it flicker every time one
+        child shouts. It is the same colour LED 2 shows, so the face and the
+        LED never contradict each other.
+        """
+        if self._session_color == self._last_face_color:
+            return
+
+        mood_name = FACE_MOODS.get(self._session_color)
+        if not mood_name:
+            return
+
+        lcd = self._lcd()
+        if not lcd:
+            # Deliberately not remembered: the display can initialize after
+            # monitoring has already started, and the face is owed then.
+            return
+
+        if lcd.set_mood_by_name(mood_name):
+            self._last_face_color = self._session_color
+
+    def _reset_face(self) -> None:
+        """Hand the face back to the display's own default mood."""
+        self._last_face_color = None
+
+        lcd = self._lcd()
+        if lcd:
+            lcd.set_mood_by_name(DEFAULT_FACE_MOOD)
 
     def _update_leds(self) -> None:
         """Update both LEDs based on current averages."""

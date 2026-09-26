@@ -202,11 +202,14 @@
     <!-- Available Profiles Info -->
     <div class="card bg-base-100 shadow-xl mt-6">
         <div class="card-body">
-            <h2 class="card-title text-xl mb-4">{% trans "Available Profiles" %}</h2>
+            <h2 class="card-title text-xl mb-1">{% trans "Available Profiles" %}</h2>
+            <p class="text-sm text-gray-500 mb-4">
+                {% trans "Rename a profile so it reads the way your class talks about it, or delete the ones you never use." %}
+            </p>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {% for profile in profiles %}
-                    <div class="bg-base-200 p-4 rounded-lg">
-                        <h3 class="font-semibold text-lg">{{ profile.name }}</h3>
+                    <div class="bg-base-200 p-4 rounded-lg flex flex-col">
+                        <h3 class="font-semibold text-lg break-words">{{ profile.name }}</h3>
                         <p class="text-sm text-gray-500 mb-2">{{ profile.get_profile_type_display }}</p>
                         <div class="space-y-1 text-sm">
                             <div class="flex justify-between">
@@ -219,8 +222,46 @@
                             </div>
                         </div>
                         {% if profile.description %}
-                            <p class="text-xs text-gray-500 mt-2">{{ profile.description }}</p>
+                            <p class="text-xs text-gray-500 mt-2 break-words">{{ profile.description }}</p>
                         {% endif %}
+
+                        {% if profile.pk == config.profile_id %}
+                            <span class="badge badge-primary badge-sm mt-2 self-start">{% trans "In use" %}</span>
+                        {% endif %}
+
+                        <div class="mt-auto pt-3">
+                            <details>
+                                <summary class="btn btn-xs btn-outline w-full">{% trans "Rename" %}</summary>
+                                <form method="post"
+                                      action="{% url 'noise_monitor:profile_rename' profile.pk %}"
+                                      class="mt-3 space-y-2">
+                                    {% csrf_token %}
+                                    <label class="label py-0">
+                                        <span class="label-text-alt">{% trans "Name" %}</span>
+                                    </label>
+                                    <input type="text" name="name" value="{{ profile.name }}"
+                                           maxlength="100" required
+                                           class="input input-bordered input-sm w-full">
+                                    <label class="label py-0">
+                                        <span class="label-text-alt">{% trans "Description" %}</span>
+                                    </label>
+                                    <textarea name="description" rows="2"
+                                              class="textarea textarea-bordered textarea-sm w-full">{{ profile.description }}</textarea>
+                                    <button type="submit" class="btn btn-primary btn-sm w-full">
+                                        {% trans "Save" %}
+                                    </button>
+                                </form>
+                            </details>
+
+                            <form method="post"
+                                  action="{% url 'noise_monitor:profile_delete' profile.pk %}"
+                                  onsubmit="return confirm('{% trans 'Delete this profile?' %}');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-ghost btn-xs text-error w-full mt-1">
+                                    <i class="fas fa-trash mr-1"></i>{% trans "Delete" %}
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 {% empty %}
                     <p class="text-gray-500 col-span-full text-center">
@@ -234,8 +275,13 @@
 
 <!-- Style the form inputs -->
 <style>
-input[type="number"], select {
+input[type="number"], input[type="text"], textarea, select {
     @apply input input-bordered w-full;
+}
+/* The rename form sits inside a profile card, where full-size controls are too
+   big next to the thresholds. */
+.bg-base-200 input[type="text"], .bg-base-200 textarea {
+    @apply input-sm;
 }
 /* Django renders the device fields itself; the picker below is the visible
    one, so the hidden inputs must not take up space. */
