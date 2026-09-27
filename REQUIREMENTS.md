@@ -900,6 +900,10 @@ The following features have been implemented:
 - ✅ Teacher dashboard at `/` showing all installed apps
 - ✅ Translatable interface (English + Romanian)
 - ✅ Language selector in navbar
+- ✅ Live clock in the navbar, beside the menu items — the Pi's own time
+  (`templates/base.html` renders the baseline from its zone, `static/js/clock.js`
+  ticks forward from it, so it agrees with the LCD and the activity timers;
+  hidden below the `sm` breakpoint, where the navbar has no room)
 - ✅ "App" terminology for teachers (backend still uses "Plugin")
 
 **Plugin System Features:**

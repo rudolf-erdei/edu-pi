@@ -25,6 +25,10 @@ The dashboard displays all installed plugins as interactive cards.
 At the top of the page you'll find:
 
 - **Logo/Title**: Your school name (if configured) or "Tinko"
+- **Clock**: The current time, at the end of the navbar next to the menu items,
+  ticking in 24-hour `HH:MM:SS`. It is the Pi's own clock — the same one the LCD
+  and the activity timers run on — so what it shows is what a scheduled activity
+  will show. It is hidden on a phone, where the navbar has no room for it.
 - **Navigation**: Links to Dashboard, Admin, and Settings
 - **Language Selector**: Globe icon to switch between English and Romanian
 

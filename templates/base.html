@@ -35,7 +35,27 @@
                     </div>
                 </a>
             </div>
-            <div class="flex-none">
+            <div class="flex-none flex items-center">
+                {% comment %}
+                    Live clock, beside the menu items. Rendered by the server
+                    from the Pi's own zone — the one the LCD and every activity
+                    timer use — and then ticked by static/js/clock.js, which
+                    adds the elapsed time to this baseline rather than reading
+                    the browser's clock. `c` is the reading in ISO 8601 (for
+                    the reader and for assistive tech), `U` the same instant as
+                    a Unix timestamp and `Z` its offset in seconds — numbers
+                    for the script, because a number needs no date-string
+                    parsing, and browsers disagree about what they accept.
+
+                    The <time> element is hidden on phones, where the navbar
+                    wraps and the clock is the first thing worth dropping.
+                {% endcomment %}
+                <time id="nav-clock"
+                      class="hidden sm:inline-block mr-2 px-3 py-1 rounded-lg bg-primary-content/20 font-medium tabular-nums"
+                      datetime="{% now 'c' %}"
+                      data-epoch="{% now 'U' %}"
+                      data-offset="{% now 'Z' %}">{% now "H:i:s" %}</time>
+
                 <ul class="menu menu-horizontal px-1">
                     <li><a href="{% url 'home' %}" class="font-medium">{% trans "Home" %}</a></li>
                     <li><a href="{% url 'settings' %}" class="font-medium">{% trans "Settings" %}</a></li>
@@ -111,6 +131,9 @@
             <p class="text-xs opacity-60">{% trans "Tinko Educational Platform" %} © 2025 - {% now "Y" %}</p>
         </div>
     </footer>
+
+    <!-- The navbar clock, on every page. -->
+    <script src="{% static 'js/clock.js' %}"></script>
 
     {% block extra_js %}{% endblock %}
 </body>
