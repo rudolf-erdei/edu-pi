@@ -4,6 +4,7 @@
 * Provide a button to clean the database (whatever is not needed, like old history).
 * Provide a backup button for the data (download). Also provide upload possibilities for backed-up data.
 * Show the health of the SD card, if possible. Tell the teacher to change it when health is at a dangerous level.
+* Show the energy consumption of the entire system (is this possible?).
 * Show how many clients are connected to the django service. Prevents unwanted connection.
 * On boot, display the current status and eventual errors on the screen.
    - Maybe with a loading indicator and if everything is OK?

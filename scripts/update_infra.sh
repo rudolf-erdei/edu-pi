@@ -429,28 +429,48 @@ sd_fstab_add_commit() {
 # --verify` accepted `defaults,bogusopt` on the field Pi without a murmur. That
 # is still worth running, because a table systemd cannot parse is what drops a
 # Pi into emergency mode with no network and no keyboard.
+#
+# Three output shapes, and reading them wrong is how this step silently did
+# nothing on the field Pi (2026-09-27) -- the first version only understood the
+# second, so a *perfectly clean* table looked like a rejection:
+#
+#   clean          "Success, no errors or warnings detected"      (no counts)
+#   errors         "0 parse errors, 2 errors, 0 warnings" + detail lines
+#   unreadable     "findmnt: <file>: parse error at line 4 -- ignored", and on
+#                  Debian 13's util-linux it dies with SIGSEGV (rc 139) doing
+#                  it, so there is no summary line to read either way.
+#
+# So: a success line is a pass, a counts line is a pass only when both counts
+# are zero, and anything else is "could not tell" -- which has to be a failure,
+# because refusing to install leaves the Pi as it was, while installing on a
+# guess is the one mistake here that costs a boot.
 sd_fstab_verify() {
-    local candidate="$1" output parse_errors errors
+    local candidate="$1" output parse_errors errors verify_rc=0
 
     if ! command -v findmnt >/dev/null 2>&1; then
         log_warning "findmnt not found; $candidate checked structurally only"
         return 0
     fi
 
-    output=$(sudo findmnt --verify --tab-file "$candidate" 2>&1) || true
-    # "0 parse errors, 0 errors, 2 warnings" is the summary line, and the
-    # warnings are usually just an unreadable superblock. Anything above zero in
-    # either count means systemd will not read this table the way we mean it.
+    output=$(sudo findmnt --verify --tab-file "$candidate" 2>&1) || verify_rc=$?
+
+    if printf '%s\n' "$output" | grep -q '^Success'; then
+        return 0
+    fi
+
     parse_errors=$(printf '%s\n' "$output" |
         sed -n 's/^\([0-9][0-9]*\) parse errors.*/\1/p' | head -n 1)
     errors=$(printf '%s\n' "$output" |
         sed -n 's/^[0-9][0-9]* parse errors, \([0-9][0-9]*\) errors.*/\1/p' | head -n 1)
 
-    if [ "$parse_errors" = "0" ] && [ "$errors" = "0" ]; then
+    # Warnings do not fail this: they are usually just an unreadable superblock
+    # on a device that is not attached, which says nothing about the table.
+    if [ -n "$parse_errors" ] && [ -n "$errors" ] &&
+        [ "$parse_errors" = "0" ] && [ "$errors" = "0" ]; then
         return 0
     fi
 
-    log_error "findmnt rejected $candidate:"
+    log_error "findmnt could not confirm $candidate (exit $verify_rc):"
     while IFS= read -r line; do
         [ -n "$line" ] && log_warning "  $line"
     done <<< "$output"

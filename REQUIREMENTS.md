@@ -1415,6 +1415,17 @@ _Last updated: 2026-04-13_
   assumed. Every step is idempotent, non-fatal, and reversed by `uninstall.sh`;
   what each one costs is documented in `docs/reference/sd-card.md`. Added
   2026-09-27.
+
+  Verified on the field Pi after the first update and reboot: timers, zram
+  writeback, `/var/tmp`, the sysctls, log2ram and Bluetooth all applied — and
+  `commit=600` had **not**. `sd_fstab_verify()` was reading `findmnt --verify`'s
+  output wrong: on a table with nothing wrong with it findmnt prints
+  "Success, no errors or warnings detected" and *no counts line at all*, so a
+  parser that looks for the counts read the cleanest possible fstab as a
+  rejection and refused to install. It now recognises all three output shapes
+  (clean / counts / no summary — a parse error makes it exit 139), and "cannot
+  tell" is a refusal, because refusing leaves the Pi as it was. Four tests cover
+  the shapes. Fixed 2026-09-27.
 - **The write-ahead log belongs to the database**: the update scripts moved
   `db.sqlite3` aside around the pull but left `db.sqlite3-wal` and
   `db.sqlite3-shm` in the tree, and a WAL whose database has gone describes a

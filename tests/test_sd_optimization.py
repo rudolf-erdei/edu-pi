@@ -17,6 +17,7 @@ sudo and a Raspberry Pi to actually run: the ordering that matters there is the
 order of the steps, and that is visible in the text.
 """
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -103,6 +104,39 @@ def run_filter(tmp_path, function: str, args: str, stdin: str) -> str:
         cwd=str(tmp_path),
     )
     assert result.returncode == 0, f"{function} failed:\n{result.stderr}"
+    return result.stdout
+
+
+def run_verify(tmp_path, output: str, rc: int) -> str:
+    """Run the shipped ``sd_fstab_verify`` against a stubbed ``findmnt``.
+
+    ``sudo`` is stubbed too: the function runs under it, and the tests must not
+    need root. ``command -v findmnt`` finds the shell function, so the function
+    under test sees everything it looks for.
+    """
+    harness = tmp_path / "verify.sh"
+    harness.write_text(
+        "\n".join(
+            [
+                "set -u",
+                'log_warning() { echo "WARN: $*"; }',
+                'log_error() { echo "ERR: $*"; }',
+                extract_function("sd_fstab_verify"),
+                'sudo() { "$@"; }',
+                'findmnt() { printf \'%s\\n\' "$FAKE_OUT"; return "$FAKE_RC"; }',
+                'sd_fstab_verify /tmp/candidate && echo PASS || echo FAIL',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["bash", str(harness)],
+        capture_output=True,
+        text=True,
+        cwd=str(tmp_path),
+        env={**os.environ, "FAKE_OUT": output, "FAKE_RC": str(rc)},
+    )
+    assert result.returncode == 0, f"harness failed:\n{result.stderr}"
     return result.stdout
 
 
@@ -298,6 +332,55 @@ def test_the_fstab_edit_is_backed_up_verified_and_reverted():
         "a file that fails verification must be restored from the backup"
     )
     assert "root entry" in body, "a rewrite that loses the root line must be refused"
+
+
+def test_a_clean_table_is_read_as_a_pass(tmp_path):
+    """`findmnt --verify` on a table with nothing wrong with it prints one line
+    and *no counts at all*: "Success, no errors or warnings detected".
+
+    The first version of this function looked for the counts line, so the
+    cleanest possible fstab read as a rejection and `commit=600` was never
+    applied on the field Pi (2026-09-27). This test is that afternoon.
+    """
+    out = run_verify(tmp_path, "Success, no errors or warnings detected", 0)
+
+    assert "PASS" in out, "a clean table must pass"
+    assert "ERR" not in out
+
+
+def test_a_warning_is_not_a_failure(tmp_path):
+    """Warnings are an unreadable superblock on a device that is not attached —
+    a fact about the machine, not about the table."""
+    out = run_verify(tmp_path, "0 parse errors, 0 errors, 2 warnings", 1)
+
+    assert "PASS" in out, "warnings must not stop the option being applied"
+
+
+def test_a_real_error_is_a_failure_and_is_reported(tmp_path):
+    """The counts line, and the detail lines under it, reach the log."""
+    out = run_verify(
+        tmp_path,
+        "0 parse errors, 2 errors, 0 warnings\n/mnt/nope\n"
+        "   [E] unreachable on boot required source: PARTUUID=deadbeef-99",
+        1,
+    )
+
+    assert "FAIL" in out
+    assert "ERR" in out, "the failure has to reach the log, not just the return code"
+    assert "[E] unreachable" in out, "and the reason has to be visible"
+
+
+def test_an_unreadable_answer_is_a_failure(tmp_path):
+    """`findmnt` segfaults on a parse error (rc 139) after printing the message
+    to stderr, so there is no summary line to read. "Cannot tell" must be a
+    refusal: refusing leaves the Pi as it was, installing on a guess is the one
+    mistake here that costs a boot."""
+    out = run_verify(
+        tmp_path, "findmnt: /tmp/candidate: parse error at line 4 -- ignored", 139
+    )
+
+    assert "FAIL" in out
+    assert "parse error at line 4" in out
 
 
 def test_the_fstab_edit_is_structural_before_it_is_semantic():
