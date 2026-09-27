@@ -1,6 +1,7 @@
 """Models for LCD Display plugin."""
 
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 
@@ -79,7 +80,8 @@ class DisplaySession(models.Model):
         ordering = ["-started_at"]
 
     def __str__(self):
-        return f"{self.mode} - {self.started_at.strftime('%Y-%m-%d %H:%M')}"
+        started = timezone.localtime(self.started_at).strftime("%Y-%m-%d %H:%M")
+        return f"{self.mode} - {started}"
 
     def end_session(self):
         """Mark the session as ended."""

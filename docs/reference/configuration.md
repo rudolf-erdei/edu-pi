@@ -42,10 +42,28 @@ TIME_ZONE=Europe/Bucharest
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TIME_ZONE` | UTC | Local timezone |
+| `TIME_ZONE` | the machine's own zone | Fallback timezone, see below |
 | `DATABASE_URL` | sqlite:///db.sqlite3 | Database connection |
 | `STATIC_ROOT` | staticfiles/ | Static files directory |
 | `MEDIA_ROOT` | media/ | Uploaded files directory |
+
+!!! note "`TIME_ZONE` is a fallback, not the setting"
+    `config/settings.py` works the zone out in this order: the **machine's own
+    zone** (the name in `/etc/timezone`, or `/etc/localtime` pointing into
+    `/usr/share/zoneinfo`), then `TIME_ZONE` from `.env`, then UTC. The machine
+    wins because that is what `date` prints, what the LCD and every other clock
+    in the room show, and what NTP keeps correct — so `sudo timedatectl
+    set-timezone Europe/Bucharest` moves the whole app on the next restart,
+    without editing `.env` on the device. The `.env` value matters on platforms
+    with no system zone (Windows, a container); `install-raspberry-pi.sh` writes
+    it from `timedatectl` at install time, so it is already right there.
+
+    This is not cosmetic. With `TIME_ZONE = "UTC"` hardcoded, the field Pi's
+    dashboard showed every time three hours behind the wall clock — the noise
+    chart's clock labels, the admin timestamps and template `|date` alike —
+    while `.env` had said `Europe/Bucharest` all along. A value Django cannot
+    resolve is rejected rather than passed on (it would raise on the first
+    conversion, taking pages down), so a typo costs the right hour, not the app.
 
 ### Uploaded Files Are Served in Production Too
 
@@ -259,10 +277,14 @@ CACHES = {
 
 ```python
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Europe/Bucharest'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
+
+# Derived, not hardcoded — machine zone, then TIME_ZONE from .env, then UTC.
+# See the note on Optional Variables above, and `time_zone()` in
+# config/settings.py for the reasoning.
+TIME_ZONE = time_zone()
 
 LANGUAGES = [
     ('en', 'English'),

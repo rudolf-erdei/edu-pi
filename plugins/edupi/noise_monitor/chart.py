@@ -8,6 +8,8 @@ because a remote script did not load.
 
 from typing import List, Optional, Sequence, Tuple
 
+from django.utils import timezone
+
 # Viewbox units. The SVG scales to the width of its card; the aspect ratio is
 # kept so the labels do not stretch, and the card caps the height.
 WIDTH = 720
@@ -254,5 +256,12 @@ def _dot(coords: List[Tuple[float, float]]) -> Optional[dict]:
 
 
 def _time_label(reading) -> str:
-    """The reading's clock time, in the format the rest of the page uses."""
-    return reading.timestamp.strftime("%H:%M")
+    """The reading's clock time, in the format the rest of the page uses.
+
+    Converted to the current time zone first: rows are stored in UTC, and
+    `strftime` on an aware datetime prints *its own* offset, not the reader's.
+    Reading it straight gave a chart whose clock labels were hours behind the
+    wall clock and the rest of the page — on the field Pi, exactly the UTC
+    offset — however right the stored values were.
+    """
+    return timezone.localtime(reading.timestamp).strftime("%H:%M")

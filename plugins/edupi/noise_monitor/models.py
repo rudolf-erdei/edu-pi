@@ -219,7 +219,8 @@ class NoiseReading(models.Model):
         ordering = ["-timestamp"]
 
     def __str__(self):
-        return f"Reading at {self.timestamp.strftime('%H:%M:%S')} - Instant: {self.instant_average}"
+        stamp = timezone.localtime(self.timestamp).strftime("%H:%M:%S")
+        return f"Reading at {stamp} - Instant: {self.instant_average}"
 
     def get_instant_color_display(self):
         """Get display color for instant LED."""

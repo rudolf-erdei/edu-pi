@@ -1376,6 +1376,19 @@ _Last updated: 2026-04-13_
   falling back to a web server's `Date:` header for networks that drop UDP 123.
   Both are non-fatal and honest about the outcome; the app's own start is
   deliberately not gated on `systemd-time-wait-sync`. Added 2026-09-27.
+- **Displayed time is the local time**: `TIME_ZONE` was hardcoded `"UTC"` while
+  `.env` — written by the installer from `timedatectl` — said
+  `Europe/Bucharest` and was never read, so every time the app showed was three
+  hours behind the wall clock (the noise chart's labels, admin timestamps,
+  template `|date`; Django also exports this setting as the process's `TZ`, so
+  even `datetime.now()` followed it). `settings.time_zone()` now derives it:
+  the machine's own zone (`/etc/timezone`, else the `/etc/localtime` symlink
+  into `/usr/share/zoneinfo`), then `.env`, then UTC — a value is only accepted
+  if `zoneinfo` can resolve it, since Django raises on conversion with an
+  unresolvable zone. The places that format a stored time for a person convert
+  with `timezone.localtime()` first, because `strftime` on an aware datetime
+  prints its own offset. `tzdata` added so the lookup works on Windows too.
+  Added 2026-09-27.
 - **Developer Guidelines**: `AGENTS.md`
 - **Code Standards**: PEP 8 with 88-character line length
 - **Admin User**: admin / admin123

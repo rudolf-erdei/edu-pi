@@ -150,7 +150,8 @@ class PianoSession(models.Model):
         ordering = ["-started_at"]
 
     def __str__(self):
-        return f"Session {self.id} - {self.started_at.strftime('%Y-%m-%d %H:%M')}"
+        started = timezone.localtime(self.started_at).strftime("%Y-%m-%d %H:%M")
+        return f"Session {self.id} - {started}"
 
     def end_session(self):
         """End the piano session."""
@@ -217,4 +218,5 @@ class KeyPress(models.Model):
         ordering = ["-pressed_at"]
 
     def __str__(self):
-        return f"Key {self.key_number} ({self.note}) at {self.pressed_at.strftime('%H:%M:%S')}"
+        pressed = timezone.localtime(self.pressed_at).strftime("%H:%M:%S")
+        return f"Key {self.key_number} ({self.note}) at {pressed}"

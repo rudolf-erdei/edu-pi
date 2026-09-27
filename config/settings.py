@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import logging
 import os
 import socket
+import zoneinfo
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -249,7 +250,79 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+# Where the machine's own zone is named. Constants because the tests build a
+# throwaway tree instead of reading the host's /etc.
+TIME_ZONE_FILE = "/etc/timezone"
+LOCALTIME_FILE = "/etc/localtime"
+ZONEINFO_ROOT = "/usr/share/zoneinfo/"
+
+
+def valid_time_zone(name: str | None) -> str | None:
+    """`name` if this system can resolve it as a time zone, else None.
+
+    Both halves matter. The name comes from a file or a symlink (see below), and
+    a value Django cannot resolve is not a cosmetic problem: it raises the moment
+    it converts a time, so a typo would take pages down instead of showing a
+    wrong hour. Rejecting absolute paths and `..` keeps a strange file from
+    naming a zone outside the zoneinfo tree.
+    """
+    candidate = (name or "").strip()
+    if not candidate or candidate.startswith("/") or ".." in candidate:
+        return None
+    try:
+        zoneinfo.ZoneInfo(candidate)
+    except (ValueError, KeyError, OSError):
+        # KeyError covers ZoneInfoNotFoundError (no such zone, or no tzdata on
+        # the machine at all), ValueError a malformed key.
+        return None
+    return candidate
+
+
+def system_time_zone() -> str | None:
+    """The zone this machine is set to, or None if it cannot be named."""
+    # Debian and Raspberry Pi OS keep the name in a file ...
+    try:
+        name = Path(TIME_ZONE_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        name = ""
+    if valid_time_zone(name):
+        return name
+
+    # ... and everywhere else /etc/localtime is a symlink into the zoneinfo
+    # tree, whose path *is* the name (`.../zoneinfo/Europe/Bucharest`).
+    try:
+        # `as_posix()` because Windows resolves to backslashes, and the root
+        # below is compared against with forward slashes on every platform.
+        target = Path(LOCALTIME_FILE).resolve().as_posix()
+    except OSError:
+        return None
+    if ZONEINFO_ROOT in target:
+        return valid_time_zone(target.split(ZONEINFO_ROOT, 1)[1])
+    return None
+
+
+def time_zone(default: str = "UTC") -> str:
+    """The zone times are shown and stored in.
+
+    The machine's own zone wins, because that is what `date` prints, what the
+    LCD and every other clock in the room show, and what NTP keeps correct:
+    move the Pi with `timedatectl set-timezone` and the dashboard follows on the
+    next restart. `TIME_ZONE` in `.env` — which `install-raspberry-pi.sh` writes
+    from the machine's zone at install time — is the fallback for platforms with
+    no system zone (Windows, a container), and UTC the last resort.
+
+    This order is deliberate: the field Pi had `Europe/Bucharest` in `.env` and
+    `TIME_ZONE = "UTC"` hardcoded here, so every time the app showed was three
+    hours behind the wall clock (`datetime.now()`, template `|date` and the
+    noise chart's clock labels alike, since Django also exports this setting as
+    the process's `TZ`). Honouring the configured value alone would have fixed
+    that one Pi while leaving the app pinned to a zone the machine may later
+    leave.
+    """
+    return system_time_zone() or valid_time_zone(os.environ.get("TIME_ZONE")) or default
+
+
+TIME_ZONE = time_zone()
 
 USE_I18N = True
 

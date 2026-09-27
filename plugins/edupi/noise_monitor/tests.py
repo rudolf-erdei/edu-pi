@@ -1236,7 +1236,9 @@ class HistoryChartTest(TestCase):
     reads three attributes off them, and the tests are about coordinates.
     """
 
-    START = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
+    # A *local* 09:00, because the chart labels the clock on the wall: the
+    # readings below stand in for rows taken at that hour, stored in UTC.
+    START = timezone.localtime().replace(hour=9, minute=0, second=0, microsecond=0)
 
     def _readings(self, *values):
         """Readings one minute apart, from (instant, session) pairs."""
@@ -1383,7 +1385,7 @@ class ChartDecibelLabelsTest(TestCase):
     labels and the end-of-line readouts that put a number on it.
     """
 
-    START = timezone.now().replace(hour=14, minute=5, second=0, microsecond=0)
+    START = timezone.localtime().replace(hour=14, minute=5, second=0, microsecond=0)
 
     def _chart(self, *values, yellow=40, red=70):
         import types
@@ -1618,9 +1620,8 @@ class DashboardChartTest(TestCase):
         # in the page, which the rest of the dashboard also prints.
         # session_points is the SVG points attribute: one "x,y" per reading.
         assert len(chart["session_points"].split()) == window
-        assert chart["first_label"] == (start + timedelta(minutes=extra)).strftime(
-            "%H:%M"
-        )
+        expected = timezone.localtime(start + timedelta(minutes=extra))
+        assert chart["first_label"] == expected.strftime("%H:%M")
 
 
 class ChartWindowTest(TestCase):
