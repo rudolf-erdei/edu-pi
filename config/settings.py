@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import logging
 import os
+import socket
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -68,12 +69,57 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "t", "yes")
 
-# Parse ALLOWED_HOSTS from environment variable
-_allowed_hosts = os.environ.get("ALLOWED_HOSTS", "")
-if _allowed_hosts:
-    ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",") if host.strip()]
-else:
-    ALLOWED_HOSTS = []
+
+def local_host_names() -> list[str]:
+    """Names this machine can be reached by right now, without being told them.
+
+    The installer bakes into `.env` the address it saw at install time, but the
+    Pi takes its address over DHCP and moves. On the field Pi the file said
+    `192.168.68.63` while the machine later came up on `.66`, so a teacher
+    browsing the address they had been given got Django's 400 DisallowedHost —
+    and the bare hostname (`tinko`), which is what the LCD and the setup portal
+    display, was rejected the same way. Both are recorded facts about this
+    machine that nothing ever revisits, so ask the machine instead.
+    """
+    names = {socket.gethostname()}
+    # ".local" with the leading dot: Django reads that as "this domain and any
+    # of its subdomains", which covers the mDNS name (tinko.local) however the
+    # hostname itself changes.
+    names.add(".local")
+
+    # The address of the interface that would carry traffic off the Pi. A UDP
+    # connect sends no packets, so this needs no network and no DNS and nothing
+    # leaves the machine; with no route at all it raises, and the names above
+    # still apply.
+    probe = None
+    try:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        probe.connect(("192.0.2.1", 9))  # TEST-NET-1: reserved, never routed
+        names.add(probe.getsockname()[0])
+    except OSError:
+        pass
+    finally:
+        if probe is not None:
+            probe.close()
+
+    return sorted(names)
+
+
+def allowed_hosts(configured: str) -> list[str]:
+    """Merge the configured host list with the names this machine answers to.
+
+    `configured` is the raw `ALLOWED_HOSTS` environment value, comma separated.
+    """
+    hosts = [host.strip() for host in configured.split(",") if host.strip()]
+    if not hosts:
+        # `ALLOWED_HOSTS = []` with DEBUG off rejects every request, including
+        # the dashboard on the Pi's own screen. Keep the loopback names.
+        hosts = ["localhost", "127.0.0.1", "0.0.0.0"]
+
+    return sorted(set(hosts) | set(local_host_names()))
+
+
+ALLOWED_HOSTS = allowed_hosts(os.environ.get("ALLOWED_HOSTS", ""))
 
 
 # Application definition

@@ -19,9 +19,10 @@ All three end the same way: new code on disk, `uv sync`, migrations, static
 files, translations compiled, tinko.service restarted.
 
 **The shared piece is `scripts/update_infra.sh`.** It defines
-`setup_update_infrastructure()` and `install_power_helper()`, and all three
-paths `source` it. It is sourced for its functions only — sourcing has no side
-effects, and the caller must have defined the `log_*` helpers first.
+`setup_update_infrastructure()`, `install_power_helper()` and
+`install_persistent_journal()`, and all three paths `source` it. It is sourced
+for its functions only — sourcing has no side effects, and the caller must have
+defined the `log_*` helpers first.
 
 ## What install and update write outside the repository
 
@@ -32,6 +33,8 @@ effects, and the caller must have defined the `log_*` helpers first.
 | `/etc/sudoers.d/tinko-update` | `setup_update_infrastructure()` | Lets the app stop and start *its own* service, and repair `/run/tinko-update`. |
 | `/usr/local/sbin/tinko-poweroff` | `install_power_helper()` | The dashboard Power button's halt chain — root-owned, mode 0755. |
 | `/etc/sudoers.d/tinko-poweroff` | `install_power_helper()` | Grants the service user that helper, and nothing else. |
+| `/etc/systemd/journald.conf.d/tinko.conf` | `install_persistent_journal()` | Keeps the journal across reboots (`Storage=persistent`, `SystemMaxUse=200M`). |
+| `/var/log/journal/` | `install_persistent_journal()` | Where the journal then lives — systemd's own directory, prepared with `systemd-tmpfiles`. |
 | `/run/tinko-update/` | runtime | Trigger, status and stage files. tmpfs — recreated at every boot. |
 
 !!! warning "Three copies of the same unit file"
@@ -50,6 +53,34 @@ Two things deliberately do **not** go through Tinko's sudoers files:
   so the app is granted the halt and nothing else.
 - `setcap` on the venv's Python (web path only) is belt-and-suspenders;
   `AmbientCapabilities` in the unit is what actually lets daphne bind port 80.
+
+## The journal across reboots
+
+`install_persistent_journal()` runs on all three paths — it is called from
+`setup_update_infrastructure()` for install and CLI updates, and directly from
+`update-web.sh`, which deliberately does not call that function because it would
+restart `tinko-update.service` while that service is running the update. A Pi
+updated only from the dashboard would otherwise never get it.
+
+Without it the journal is **volatile**: the image ships an empty
+`/var/log/journal` and no `Storage` setting, so journald keeps its log on tmpfs
+(`/run/log/journal`) and each boot starts with an empty history —
+`journalctl --list-boots` lists one boot and nothing else. On the field Pi
+(checked 2026-09-27) that meant the log written on the way down was gone by the
+time anyone could read it, which is exactly the record the Power button leaves
+behind.
+
+Two details matter:
+
+- **`systemd-tmpfiles --create --prefix /var/log/journal`** is what prepares the
+  directory with the ownership, mode and ACLs journald expects. A plain `mkdir`
+  leaves a directory journald cannot create its machine-id subdirectory in, and
+  it falls back to tmpfs *silently*.
+- The function reports **what journald actually chose**, not what it asked for,
+  by reading the path out of `journalctl --header` and warning if it is still
+  under `/run`. Asking is not having.
+
+`SystemMaxUse=200M` bounds it, because the log now lives on the SD card.
 
 ## Sourced-file staleness and the re-exec guard
 
@@ -170,6 +201,10 @@ cat /etc/sudoers.d/tinko-poweroff
 
 # Nothing was left behind by the last pull
 cd ~/edu-pi && git stash list
+
+# The journal survives a reboot, and holds more than this boot
+journalctl --list-boots
+journalctl --header | grep '^File:'          # /var/log/journal/... means persistent
 ```
 
 A CLI update prints its own summary to the terminal; the files above stay empty

@@ -28,6 +28,16 @@ TIME_ZONE=Europe/Bucharest
 | `DEBUG` | Debug mode | `True` or `False` |
 | `ALLOWED_HOSTS` | Allowed hostnames | `localhost,127.0.0.1` |
 
+!!! note "`ALLOWED_HOSTS` is a starting list, not the whole list"
+    `config/settings.py` merges what you configure with the names the machine
+    answers to at that moment: its own hostname, `.local` (Django's subdomain
+    wildcard, which covers the mDNS name `tinko.local`) and the address of the
+    interface that reaches the network. The installer can only record the
+    address it sees at install time, and on DHCP that goes stale — the field Pi
+    was installed at `192.168.68.63` and later came up on `.66`, which answered
+    `400 Bad Request` until every process started deriving it. Nothing you add
+    here is ever removed, so this stays the place to list extra names.
+
 ### Optional Variables
 
 | Variable | Default | Description |

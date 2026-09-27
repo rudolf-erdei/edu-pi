@@ -68,6 +68,11 @@ TIME_ZONE=Europe/Bucharest
 
 Replace `your-secret-key-here` with a random string and update `TIME_ZONE` to your location.
 
+`ALLOWED_HOSTS` accepts `your-pi-ip-address` (or several, comma separated), but
+you do not have to get it right: the app also accepts the Pi's own hostname, its
+mDNS name (`tinko.local` — the one to give teachers) and whichever address it
+currently holds. Add addresses only to allow *extra* names.
+
 ## Step 5: Run Migrations
 
 Set up the database:

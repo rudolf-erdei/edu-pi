@@ -218,6 +218,20 @@ remove_sudoers() {
     remove_file "/usr/local/sbin/tinko-poweroff" "dashboard power button helper"
 }
 
+# Step 7b: Remove the journald drop-in that made the journal persistent
+remove_journal_config() {
+    log_info "Removing journald configuration..."
+
+    if [ -f /etc/systemd/journald.conf.d/tinko.conf ]; then
+        remove_file "/etc/systemd/journald.conf.d/tinko.conf" "journald persistent-storage drop-in"
+        sudo rmdir /etc/systemd/journald.conf.d/ 2>/dev/null || true
+        sudo systemctl restart systemd-journald 2>/dev/null || true
+    fi
+
+    # /var/log/journal itself is left in place: it holds the log history, and it
+    # is systemd's own directory rather than something Tinko owns.
+}
+
 # Step 8: Remove update run directory
 remove_run_dir() {
     log_info "Removing update run directory..."
@@ -367,6 +381,7 @@ main() {
     remove_nm_config
     remove_resolved_config
     remove_sudoers
+    remove_journal_config
     remove_run_dir
     remove_gpio_groups
     remove_apt_packages

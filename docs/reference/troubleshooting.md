@@ -233,6 +233,54 @@ uv run python manage.py createsuperuser
 # path('admin/', admin.site.urls)
 ```
 
+### 400 Bad Request when browsing to the Pi by its address
+
+**Problem:** The dashboard works at `http://tinko.local` and answers
+
+```
+Bad Request (400)
+Invalid HTTP_HOST header: '192.168.68.66'. You may need to add '192.168.68.66' to ALLOWED_HOSTS.
+```
+
+for the address the teacher was given — and the same for the bare hostname
+`http://tinko`. (Found on the field Pi 2026-09-27: the install-time address was
+`.63`, DHCP had moved it to `.66`.)
+
+**Explanation:** `install-raspberry-pi.sh` writes the address it sees at install
+time into `.env` (`ALLOWED_HOSTS=...,192.168.68.63,tinko.local`), and with
+`DEBUG=False` Django rejects any other `Host` header. On a network that hands
+out addresses by DHCP, that recorded address goes stale on its own.
+
+`config/settings.py` no longer depends on it: `local_host_names()` adds the
+machine's own hostname, `.local` (Django's subdomain wildcard, which covers the
+mDNS name however the hostname changes) and the address of the interface that
+reaches the network, at every process start. The configured entries still apply
+— they are merged, not replaced.
+
+**Check it:**
+
+```bash
+grep ALLOWED_HOSTS ~/edu-pi/.env                     # what was configured
+for h in tinko.local tinko $(hostname -I); do
+    printf '%-20s ' "$h"
+    curl -s -o /dev/null -w '%{http_code}\n' -H "Host: $h" http://127.0.0.1/
+done
+```
+
+`200` for the hostname and for each current address is the expected result. If
+everything but `tinko.local` gives 400, the Pi is running code older than
+2026-09-27 — one update fixes it.
+
+**Solutions:**
+- **Update the Pi.** `ALLOWED_HOSTS` is then built from the machine, not from
+  install day.
+- **Now, without updating:** add the current address to `~/edu-pi/.env`
+  (`ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,tinko.local,<address>`) and restart
+  the service: `sudo systemctl restart tinko`.
+- **Tell teachers to use `http://tinko.local`.** It follows the Pi, and it is
+  what the LCD shows during setup. It needs no DNS server — the Pi advertises it
+  over mDNS (`avahi-daemon`).
+
 ## Performance Issues
 
 ### Slow page loading
@@ -1000,6 +1048,51 @@ draw it is `010_pi-nopasswd`, and that needs install and update to stop calling
 
 See [Update System](update-system.md#services-capabilities-and-root-access)
 for the capability settings and every file install and update write.
+
+### The log is empty after a reboot, or its timestamps are from yesterday
+
+**Problem:** Two symptoms that are easy to misread as two faults:
+
+- `journalctl --since "10 min ago"` prints nothing, or `journalctl --list-boots`
+  lists a single boot, right after the Pi has been power-cycled.
+- The first lines of the current boot are stamped with *yesterday's* time — the
+  moment the Pi last went down.
+
+**Explanation, part 1 — the clock.** A Raspberry Pi has no battery-backed clock.
+`fake-hwclock` restores the last time it recorded, which is the moment the Pi
+halted (for the field Pi: `2026-09-26 18:30`), and the kernel boots believing
+that. NTP then corrects it — a jump of hours — so everything logged before the
+network came up carries the old date, and any `--since`/`--until` window
+measured from the current time misses it. `timedatectl` shows
+`System clock synchronized: yes` once corrected. This is expected, and it is why
+`/run/tinko-update` can look like it was created yesterday when it was created
+at this boot: `/run` is tmpfs, and the daemon made that directory before the
+clock was fixed.
+
+**Explanation, part 2 — the journal.** Tinko's images keep the journal on tmpfs
+(`/run/log/journal`), so nothing survives a power cut: the log written on the
+way down is gone, which is exactly the evidence the dashboard Power button
+produces. `install_persistent_journal()` in `scripts/update_infra.sh` fixes that
+on install and on both update paths — see
+[Update System](update-system.md#the-journal-across-reboots).
+
+**Check it:**
+
+```bash
+journalctl --list-boots                       # more than one = persistent
+journalctl --header | grep '^File:'           # /var/log/journal/... = persistent
+sudo journalctl -b -o short-iso | head -3     # first lines of this boot
+timedatectl | grep -i synchron
+```
+
+**Solutions:**
+- **Read this boot, not a time window:** `journalctl -b -u tinko` (add `-p err`
+  for errors only). `-b` is immune to the clock jump.
+- **Make the journal survive reboots:** one update, or run the helper directly
+  with `sudo bash ~/edu-pi/update.sh`. Until then, note anything you need from
+  the log before you power the Pi off.
+- **If a timestamp looks impossible**, check `uptime -s` for when the machine
+  actually booted; that comes from the monotonic clock and is not affected.
 
 ### Service won't start
 

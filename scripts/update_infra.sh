@@ -5,8 +5,9 @@
 # Sourced by update.sh, install-raspberry-pi.sh and update-web.sh.
 # Provides setup_update_infrastructure(), which installs, enables and starts
 # the tinko-update.service daemon that powers web-driven updates
-# (Settings -> Updates), and install_power_helper(), which installs the
-# dashboard power-button helper. Requires log_info/log_success/log_warning/
+# (Settings -> Updates), install_power_helper(), which installs the
+# dashboard power-button helper, and install_persistent_journal(), which keeps
+# the journal across reboots. Requires log_info/log_success/log_warning/
 # log_error to be defined by the sourcing script BEFORE sourcing this file.
 #
 # This file only defines functions; sourcing it has no side effects.
@@ -88,6 +89,78 @@ EOF
     log_success "Power button helper installed ($helper_dst)"
 }
 
+# Make the journal survive a power cut.
+#
+# The image ships /var/log/journal empty and no Storage setting, so journald
+# keeps its log on tmpfs (/run/log/journal) and every boot starts with an empty
+# history: `journalctl --list-boots` lists one boot and nothing else. That is
+# exactly the evidence the dashboard Power button leaves behind -- the log that
+# would say why a Pi halted, or failed to come back -- so it is worth the two
+# lines of configuration.
+#
+# `systemd-tmpfiles --create --prefix` is the supported way to create the
+# directory with the ownership, mode and ACLs journald expects; SystemMaxUse
+# caps it so a long-lived Pi cannot fill its SD card with log.
+#
+# Never fatal by itself: a Pi whose journal is volatile still runs, and a caller
+# that aborted the update over this would leave it half-updated.
+install_persistent_journal() {
+    local drop_in="/etc/systemd/journald.conf.d/tinko.conf"
+    local journal_dir="/var/log/journal"
+    local conf_tmp
+
+    if ! sudo mkdir -p "$journal_dir" /etc/systemd/journald.conf.d; then
+        log_error "Could not create $journal_dir"
+        return 1
+    fi
+
+    if command -v systemd-tmpfiles >/dev/null 2>&1; then
+        # Sets root:systemd-journal and the ACLs; without it journald cannot
+        # create its machine-id directory here and quietly stays volatile.
+        sudo systemd-tmpfiles --create --prefix "$journal_dir" ||
+            log_warning "systemd-tmpfiles could not prepare $journal_dir"
+    else
+        log_warning "systemd-tmpfiles not found; $journal_dir may not be writable by journald"
+    fi
+
+    conf_tmp="$(mktemp)"
+    cat > "$conf_tmp" << EOF
+# Written by Tinko (scripts/update_infra.sh). Keep the journal across reboots so
+# a halt or a failed boot can still be read afterwards. SystemMaxUse bounds it:
+# the log lives on the SD card.
+[Journal]
+Storage=persistent
+SystemMaxUse=200M
+EOF
+
+    if ! sudo install -o root -g root -m 0644 "$conf_tmp" "$drop_in"; then
+        log_error "Could not install $drop_in"
+        rm -f "$conf_tmp"
+        return 1
+    fi
+    rm -f "$conf_tmp"
+
+    sudo systemctl restart systemd-journald.service ||
+        log_warning "Could not restart systemd-journald"
+
+    # Report what journald actually chose, not what was asked of it: the
+    # fallback to tmpfs is silent, and a silent failure here is the one that
+    # costs the evidence.
+    local journal_file
+    journal_file=$(sudo journalctl --header 2>/dev/null | awk '/^File:/ {print $2; exit}')
+    case "$journal_file" in
+        "$journal_dir"/*)
+            log_success "Persistent journal enabled ($journal_file)"
+            ;;
+        "")
+            log_warning "Could not read the journal header; check 'journalctl --header'"
+            ;;
+        *)
+            log_warning "journald is still logging to $journal_file -- the journal will not survive a reboot"
+            ;;
+    esac
+}
+
 # Setup update infrastructure for web updates
 setup_update_infrastructure() {
     log_info "Setting up update infrastructure for web updates..."
@@ -164,6 +237,11 @@ EOF
     # see install_power_helper().
     install_power_helper "${TINKO_SERVICE_USER:-$USER}" ||
         log_warning "Power button helper not installed; the dashboard will report that when pressed"
+
+    # 5. Keep the journal across reboots, so a halt or a failed boot can still
+    # be read afterwards. Non-fatal: see install_persistent_journal().
+    install_persistent_journal ||
+        log_warning "Journal left volatile; logs will not survive a reboot"
 
     log_success "Update infrastructure set up successfully"
 }

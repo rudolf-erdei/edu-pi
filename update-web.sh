@@ -834,6 +834,12 @@ main() {
     # tinko-update.service, and this script IS that service's work.
     install_power_helper "$SERVICE_USER" ||
         log_warning "Power button helper not installed; the dashboard will report that when pressed"
+    # Same reason as the helper: a Pi updated only from the dashboard would
+    # otherwise keep a journal that vanishes at the next power cut. Deliberately
+    # not setup_update_infrastructure(), which restarts tinko-update.service --
+    # this script IS that service's work.
+    install_persistent_journal ||
+        log_warning "Journal left volatile; logs will not survive a reboot"
     restart_service
 
     echo

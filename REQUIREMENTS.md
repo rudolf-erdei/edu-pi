@@ -1343,10 +1343,24 @@ _Last updated: 2026-04-13_
 - **Full Documentation**: Available via `uv run mkdocs serve` (Material for MkDocs)
 - **Update System**: `docs/reference/update-system.md` — the three update paths,
   what install and update write outside the repository, the files protected
-  across a pull, the sourced-file re-exec guard, and the service capability
-  settings (`AmbientCapabilities` vs `CapabilityBoundingSet` and the app's own
-  `sudo` calls). Added 2026-09-26 with the power-button/capability work; the
-  April design spec it supersedes now says so at the top.
+  across a pull, the sourced-file re-exec guard, the persistent-journal setup,
+  and the service capability settings (`AmbientCapabilities` vs
+  `CapabilityBoundingSet` and the app's own `sudo` calls). Added 2026-09-26 with
+  the power-button/capability work; the April design spec it supersedes now says
+  so at the top.
+- **Hosts the Pi answers to**: `ALLOWED_HOSTS` in `.env` was install-day truth
+  and the Pi takes its address over DHCP — the field Pi was installed at
+  `192.168.68.63`, came up on `.66`, and answered `400 Bad Request` there and for
+  the bare hostname `tinko`. `config/settings.py` now merges the configured list
+  with the machine's own names (hostname, `.local`, the address of the interface
+  that reaches the network), so a teacher is never locked out by a moved address.
+  Added 2026-09-27, after the post-power-cycle check on the field Pi.
+- **Journal across reboots**: the images kept the journal on tmpfs, so a power
+  cut erased the record of why a Pi halted — precisely what the dashboard Power
+  button produces. `install_persistent_journal()` in `scripts/update_infra.sh`
+  sets `Storage=persistent` with a `SystemMaxUse` cap, runs on install and on
+  both update paths, and reports where journald actually put the log. Added
+  2026-09-27.
 - **Developer Guidelines**: `AGENTS.md`
 - **Code Standards**: PEP 8 with 88-character line length
 - **Admin User**: admin / admin123
