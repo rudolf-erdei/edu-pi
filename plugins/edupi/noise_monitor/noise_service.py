@@ -843,9 +843,14 @@ class NoiseMonitorService:
         self._last_prune_at = timestamp
 
         try:
+            from django.utils import timezone
+
             from .models import NoiseReading
 
-            cutoff = timestamp - timedelta(hours=READING_RETENTION_HOURS)
+            # timezone.now(), not the sampling timestamp: that one is a naive
+            # local reading, and comparing it against the aware column raises a
+            # RuntimeWarning (and lands an hour out across a DST change).
+            cutoff = timezone.now() - timedelta(hours=READING_RETENTION_HOURS)
             deleted, _ = NoiseReading.objects.filter(timestamp__lt=cutoff).delete()
             if deleted:
                 logger.debug(f"Pruned {deleted} noise readings older than {cutoff}")

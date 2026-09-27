@@ -26,6 +26,12 @@ from core.edupi_core.views import (
     settings_view,
     power_shutdown,
 )
+from core.edupi_core.system.views import (
+    system_backup,
+    system_clean,
+    system_clients,
+    system_vacuum,
+)
 from core.plugin_system.views import (
     plugin_dashboard_view,
     enable_plugin_view,
@@ -59,6 +65,13 @@ urlpatterns = [
     ),
     # Settings page
     path("settings/", settings_view, name="settings"),
+    # System tab on the settings page. `clean` and `vacuum` are POST-only;
+    # `backup` is a download and so has to be a GET. None of the four asks for
+    # a login, because nothing on this site does yet — see ISSUES.md.
+    path("settings/system/clients/", system_clients, name="settings_system_clients"),
+    path("settings/system/backup/", system_backup, name="settings_system_backup"),
+    path("settings/system/clean/", system_clean, name="settings_system_clean"),
+    path("settings/system/vacuum/", system_vacuum, name="settings_system_vacuum"),
     # Uploaded files (school logo, generated audio), under MEDIA_URL rather
     # than a hard-coded "media/" so the route and the URLs the templates build
     # cannot drift apart. Deliberately not gated on DEBUG: the logo is

@@ -405,6 +405,35 @@ As a teacher, I want to be able to change the robot's name, so I can adapt it to
 - [x] Settings support nested sections using arrow notation (e.g., "Audio > TTS")
 - [x] Settings values are cached for performance with automatic cache invalidation
 - [x] Image uploads are automatically resized (max 400x400px) with thumbnails (200x200px)
+- [x] A **System** tab shows what the machine is doing: the space used and free
+      on the card, and the size of what Tinko itself stores (the database with
+      its `-wal`/`-shm` companions, `media/`, the logs). Measured while the page
+      renders, never raising — an unreadable path is a missing row, not an error
+- [x] Storage warnings with the figures in the sentence: under 10% free on a
+      filesystem, or over 80% on `/var/log` or `/var/tmp`, where full means
+      logging stops. `/var/log` and `/var/tmp` appear only when they are
+      separate mounts, so the tab degrades on a machine without log2ram
+- [x] A count of **connected clients** — browsers that requested a page in the
+      last two minutes, with address, page and idle time. Held in process
+      memory: no database row, no file, no SD-card write. The tab refreshes it
+      every minute while it is open, and the values are written as text
+- [x] **Download backup** returns one archive: a `VACUUM INTO` snapshot of the
+      database (not a copy — the app runs in WAL mode), `media/`, and a manifest
+      with the integrity check, per-table row counts and the site settings.
+      Built in the temp directory, which is tmpfs on the Pi, so a backup writes
+      nothing to the SD card; a database too large to build there is refused
+      with a message rather than attempted
+- [x] **Delete old history** removes only rows past their retention window
+      (24 h for noise readings, 30 days for sessions and update records) and
+      never a row in a live state — a running timer is held in memory and
+      re-saved, and an in-progress update row is what blocks a second update.
+      It reports the counts, or that nothing was old enough
+- [x] **Compact the database** runs `VACUUM` behind a 30-second busy timeout,
+      because the noise monitor commits every five seconds and the default
+      timeout would fail those commits mid-rewrite. Reports the size before and
+      after, and says when there was nothing to reclaim
+- [x] Both destructive actions are **POST-only** (a `GET` answers `405`) and
+      carry Django's CSRF token, with a confirmation dialog in front of them
 
 **Technical Implementation**:
 
@@ -415,6 +444,13 @@ As a teacher, I want to be able to change the robot's name, so I can adapt it to
 - **Settings Page**: `/settings/` with DaisyUI tabbed interface
 - **Image Processing**: Pillow-based resize and crop for school logo
 - **Auto-migration**: System automatically runs migrations on boot
+- **System tab**: `core/edupi_core/system/` — `storage.py` (read-only
+  measurements), `history.py` (retention targets, models resolved lazily through
+  `apps.get_model` so `core/` never imports a plugin), `clients.py` (the
+  in-memory registry and the middleware that fills it), `backup.py` (the
+  snapshot, manifest and archive) and `views.py` (the four endpoints). Routes
+  live under `/settings/system/`; the tab is one `{% include %}` in
+  `templates/settings/settings_page.html`
 
 **Access**: http://localhost:8000/settings/
 
@@ -574,7 +610,12 @@ if lcd_service.is_initialized():
 
 - Graceful handling of missing hardware (mock mode)
 - Auto-restart on crash
-- Database backups
+- Database backups — **download half shipped** (`GET /settings/system/backup/`,
+  Settings → System): a `VACUUM INTO` snapshot of the live database, the
+  uploaded files, and a manifest, built in tmpfs so the card is not written.
+  **There is no restore**: putting an archive back needs a root helper and a
+  decision about overwriting the live database, and the page says so where the
+  button is rather than implying otherwise
 - **Captive portal WiFi setup** — Pi creates "Tinko-Setup" hotspot when no internet is available, allowing headless WiFi configuration from any phone
 - **Type=oneshot service ordering** — systemd waits for captive portal to finish before starting Django, preventing port 80 conflicts
 - **Saved networks are remembered** — `wifi_worker.sh` matches profiles on the SSID they carry (not the profile name, which is `netplan-wlan0-<SSID>` on an Imager/netplan Pi and used to cause a duplicate profile per network), reuses the stored password before the one just typed, restores the old password if the new one fails, and never deletes a profile. A network configured once is rejoined at the next boot with no setup page.
@@ -584,7 +625,13 @@ if lcd_service.is_initialized():
 
 ### Security
 
-- PIN-based authentication for teacher settings
+- PIN-based authentication for teacher settings — **not built**. Nothing outside
+  `/admin/` asks anyone to sign in, so the Settings page (school name, logo,
+  robot name), the Updates tab (installs code) and the System tab (deletes rows,
+  rewrites the database, **hands over the whole database to any `GET`**) are all
+  open to anyone who can reach the port. The destructive pair is POST-only with
+  Django's CSRF check, which stops a third-party page but not a client that
+  fetches the page first. Tracked in `ISSUES.md`
 - No external network exposure by default
 - Input validation on all GPIO operations
 - Safe pin numbering validation
@@ -929,6 +976,44 @@ The following features have been implemented:
 **Audio:**
 - ✅ pygame for audio playback (Touch Piano plugin)
 - ✅ Multi-engine TTS support (Routines plugin)
+
+#### Settings → System Tab ✅
+
+**User Story**: As a teacher, I want to see the state of the machine I was given
+— how full it is, who else is looking at it — and to take a copy of the school's
+data, without needing someone technical to log into it.
+
+**Features Implemented:**
+- ✅ Storage: free/used space per filesystem, with `/var/log` (log2ram) and
+  `/var/tmp` shown when they are separate mounts; sizes for the database (plus
+  its `-wal` and `-shm`), `media/` and the logs; warnings under 10% free, and
+  over 80% on the two RAM mounts, each with the figures and the consequence
+- ✅ Connected clients: browsers seen in the last two minutes, with address,
+  page and idle time; kept in process memory, so it writes no database row and
+  no SD card; refreshed every minute by `static/js/system.js`, which writes
+  text and never markup
+- ✅ Backup download: `db.sqlite3` (a `VACUUM INTO` snapshot), `media/` and
+  `manifest.json`, built in tmpfs and cleaned up when the response closes, with
+  a 15-minute sweep for a download that was cancelled
+- ✅ Maintenance: delete history past its retention window (never a live row),
+  and `VACUUM` behind a 30-second busy timeout, both reporting what they did
+- ✅ Retention windows: 24 hours for noise readings (the plugin prunes the same
+  window, and a test asserts the two agree), 30 days for timer, routine, piano,
+  display and update records. The plugin event log is deliberately untouched
+
+**Technical Implementation:**
+- `core/edupi_core/system/` — `storage.py`, `history.py`, `clients.py`,
+  `backup.py`, `views.py`
+- `ClientRegistryMiddleware` after `AuthenticationMiddleware`; assets
+  (`STATIC_URL`, `MEDIA_URL`, `/jsi18n/`, `/favicon.ico`) return before the
+  session is touched, so an asset request cannot mint a cookie
+- Three test files: `tests/test_system_tab.py`, `tests/test_system_backup.py`,
+  `tests/test_client_registry.py`
+
+**Access URL**: `/settings/?tab=system`
+
+**Known gap**: the endpoints are unauthenticated, like the rest of the site —
+see `ISSUES.md`.
 
 #### Noise Monitor Plugin ✅
 

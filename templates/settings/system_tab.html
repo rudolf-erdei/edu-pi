@@ -1,0 +1,234 @@
+{% load i18n %}
+{% load static %}
+
+{% comment %}
+    The System tab: what the machine is doing (space, connected browsers) and
+    the three things it lets you do about it (download a backup, drop old
+    history, compact the database).
+
+    The storage figures are measured while this page is rendered, so they are
+    a snapshot rather than a live reading. The client list is refreshed by
+    static/js/system.js, which writes text only — never markup — because the
+    numbers it writes come from the server.
+{% endcomment %}
+
+<div class="space-y-8">
+
+    {% if storage.warnings %}
+    <div class="space-y-2">
+        {% for warning in storage.warnings %}
+        <div class="alert alert-warning">
+            <span>{{ warning }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Storage -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-2">{% trans "Storage" %}</h2>
+            <p class="text-sm text-base-content/70 mb-4">
+                {% trans "Measured when this page was rendered." %}
+                {{ storage.measured_at }}
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Location" %}</th>
+                            <th>{% trans "Used" %}</th>
+                            <th>{% trans "Free" %}</th>
+                            <th>{% trans "Size" %}</th>
+                            <th class="w-1/3">{% trans "Full" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mount in storage.mounts %}
+                        <tr>
+                            <td class="font-mono">{{ mount.path }}</td>
+                            <td>{{ mount.used_h }}</td>
+                            <td>{{ mount.free_h }}</td>
+                            <td>{{ mount.total_h }}</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <progress class="progress {% if mount.is_full %}progress-error{% else %}progress-primary{% endif %} w-40" value="{{ mount.percent_used }}" max="100"></progress>
+                                    <span class="text-sm">{{ mount.percent_used_display }}</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="overflow-x-auto mt-6">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>{% trans "What Tinko stores" %}</th>
+                            <th>{% trans "Size" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usage in storage.paths %}
+                        <tr>
+                            <td>
+                                <div>{{ usage.label }}</div>
+                                <div class="text-xs text-base-content/60 font-mono">{{ usage.path }}</div>
+                            </td>
+                            <td>
+                                {% if usage.exists %}
+                                {{ usage.size_h }}
+                                {% else %}
+                                <span class="text-base-content/50">{% trans "not present" %}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connected clients -->
+    <div class="card bg-base-100 shadow-xl"
+         id="clients-card"
+         data-poll-seconds="{{ client_poll_seconds }}"
+         data-clients-url="{% url 'settings_system_clients' %}"
+         data-idle-suffix="{% trans 'seconds' %}">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-2">{% trans "Connected clients" %}</h2>
+            <p class="text-base-content/70">
+                {% blocktrans %}Browsers that asked for a page in the last {{ client_ttl_seconds }} seconds.{% endblocktrans %}
+                {% trans "This page refreshes the list while it is open." %}
+            </p>
+
+            <p class="text-3xl font-bold my-2">
+                <span id="clients-count">{{ clients|length }}</span>
+                <span class="text-base font-normal">{% trans "connected" %}</span>
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Address" %}</th>
+                            <th>{% trans "User" %}</th>
+                            <th>{% trans "Page" %}</th>
+                            <th>{% trans "Idle" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clients-rows" data-empty-text="{% trans 'Nobody else is connected.' %}">
+                        {% for client in clients %}
+                        <tr>
+                            <td class="font-mono">{{ client.ip }}</td>
+                            <td>{{ client.user|default:"—" }}</td>
+                            <td class="font-mono">{{ client.route|default:"—" }}</td>
+                            <td>{% blocktrans with idle=client.idle_seconds %}{{ idle }} seconds{% endblocktrans %}</td>
+                        </tr>
+                        {% empty %}
+                        <tr id="clients-empty">
+                            <td colspan="4" class="text-base-content/60">{% trans "Nobody else is connected." %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-sm text-base-content/60 mt-2">
+                {% trans "A browser on a page that is not being used stops counting after two minutes." %}
+                {% trans "The count is kept in memory and is not written to the database or the SD card." %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Backup -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-2">{% trans "Backup" %}</h2>
+            <p class="text-base-content/70">
+                {% trans "Download a copy of everything the school has put in: the database, the uploaded files, and a manifest that describes them." %}
+            </p>
+            <ul class="list-disc list-inside text-sm text-base-content/70 my-2">
+                <li>{% trans "The database is copied with SQLite's own snapshot command, so the copy includes the rows written moments before it." %}</li>
+                <li>{% trans "The archive is built in memory (the temporary folder on this machine is RAM), so taking a backup does not write to the SD card." %}</li>
+                <li>{% trans "Log files are not included: they are not school data and they would multiply the size of the download." %}</li>
+            </ul>
+            <div class="card-actions mt-2">
+                <a href="{% url 'settings_system_backup' %}" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    {% trans "Download backup" %}
+                </a>
+            </div>
+            <p class="text-sm text-base-content/60 mt-2">
+                {% trans "This downloads the database. There is no way to upload one back yet." %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Maintenance -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-2">{% trans "Maintenance" %}</h2>
+            <p class="text-base-content/70">
+                {% trans "History older than these windows can be deleted now instead of waiting for the app's own timers." %}
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>{% trans "History" %}</th>
+                            <th>{% trans "Kept for" %}</th>
+                            <th>{% trans "Older now" %}</th>
+                            <th>{% trans "Notes" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for preview in clean_previews %}
+                        <tr>
+                            <td>{{ preview.label }}</td>
+                            <td>{{ preview.retention_days_display }}</td>
+                            <td>
+                                {% if preview.missing %}
+                                <span class="text-base-content/50">{% trans "not installed" %}</span>
+                                {% else %}
+                                {{ preview.count }}
+                                {% endif %}
+                            </td>
+                            <td class="text-sm text-base-content/70">{{ preview.note }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex flex-wrap gap-4 pt-4">
+                <form method="post" action="{% url 'settings_system_clean' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning" onclick="return confirm('{% trans "Delete the history older than the windows above? This cannot be undone." %}')">
+                        {% trans "Delete old history" %}
+                    </button>
+                </form>
+                <form method="post" action="{% url 'settings_system_vacuum' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-ghost btn-outline" onclick="return confirm('{% trans "Compact the database? This rewrites the whole file and takes a moment." %}')">
+                        {% trans "Compact the database" %}
+                    </button>
+                </form>
+            </div>
+
+            <p class="text-sm text-base-content/60 mt-2">
+                {% trans "Deleting rows does not make the file smaller — the space is reused. Only compacting returns it, and compacting rewrites the whole database, so it is not something to do often." %}
+                {% trans "A running timer, an active session and an update in progress are never deleted." %}
+            </p>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/system.js' %}"></script>

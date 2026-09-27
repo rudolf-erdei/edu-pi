@@ -156,6 +156,12 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Counts the browsers using the dashboard, for the settings System tab.
+    # Must stay after AuthenticationMiddleware, so it can record who is signed
+    # in, and after SessionMiddleware, because it keeps the client id there.
+    # It writes nothing to the database on purpose: a session lives in
+    # LocMemCache here, and the SD card is the part of a Pi that wears out.
+    "core.edupi_core.system.clients.ClientRegistryMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -392,6 +398,20 @@ LOGS_DIR.mkdir(exist_ok=True)
 # card sees a bounded amount of writing for however long the app runs.
 LOG_MAX_BYTES = 1 * 1024 * 1024
 LOG_BACKUP_COUNT = 2
+
+# System tab (settings page): the backup download and the client counter.
+#
+# The backup is built here before it is sent, and here is the system temp
+# directory, which on the Pi is tmpfs — so taking a backup writes to RAM and
+# not to the SD card. That is also its limit: a database larger than the
+# refusal limit, or larger than the free RAM, is refused rather than attempted,
+# because filling memory on a 2 GB Pi is worse than not having a backup.
+BACKUP_TMP_DIR = None  # None = the system temp directory
+BACKUP_MAX_BYTES = 64 * 1024 * 1024
+
+# How often the System tab asks the server who is still connected. The noise
+# chart already polls on the same minute.
+CLIENT_POLL_SECONDS = 60
 
 LOGGING = {
     "version": 1,

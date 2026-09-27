@@ -13,6 +13,10 @@ from django.conf import settings
 from core.plugin_system.models import PluginStatus
 from core.plugin_system.settings import SiteSettings
 from core.plugin_system.settings_forms import GlobalSettingsForm, LogoUploadForm
+from core.edupi_core.system.clients import CLIENT_TTL_SECONDS
+from core.edupi_core.system.clients import snapshot as client_snapshot
+from core.edupi_core.system.history import survey_clean
+from core.edupi_core.system.storage import measure_storage
 from django.shortcuts import redirect
 from django import forms
 import logging
@@ -284,10 +288,24 @@ def settings_view(request: HttpRequest) -> HttpResponse:
         }
     )
 
+    # Add System tab (storage, connected clients, backup, maintenance)
+    tabs.append(
+        {
+            "id": "system",
+            "label": _("System"),
+            "icon": "server",
+            "active": False,
+        }
+    )
+
     tab_id = request.GET.get("tab", "global")
     is_global = tab_id == "global"
     is_update = tab_id == "updates"
-    is_plugin = not is_global and not is_update
+    is_system = tab_id == "system"
+    # Everything that is not one of the known tabs. The plugin branch renders
+    # nothing today, because nothing ever builds a PluginSettings instance, so
+    # an unknown ?tab= has to land somewhere harmless.
+    is_plugin = not is_global and not is_update and not is_system
 
     # Set active status for tabs
     for tab in tabs:
@@ -300,10 +318,24 @@ def settings_view(request: HttpRequest) -> HttpResponse:
         "logo_path": logo_path,
         "is_global": is_global,
         "is_update": is_update,
+        "is_system": is_system,
         "is_plugin": is_plugin,
         "tabs": tabs,
         "MEDIA_URL": settings.MEDIA_URL,
     }
+
+    if is_system:
+        # Only measured for the tab that shows them: walking the media and log
+        # directories on every settings request would be work nobody asked for.
+        context.update(
+            {
+                "storage": measure_storage(),
+                "clean_previews": survey_clean(),
+                "clients": client_snapshot(),
+                "client_poll_seconds": settings.CLIENT_POLL_SECONDS,
+                "client_ttl_seconds": int(CLIENT_TTL_SECONDS),
+            }
+        )
 
     return render(request, "settings/settings_page.html", context)
 

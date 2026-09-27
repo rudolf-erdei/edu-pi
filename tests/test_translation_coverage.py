@@ -118,8 +118,14 @@ def test_the_project_catalogue_compiles(tmp_path):
     compiled = {
         entry.msgid for entry in polib.mofile(str(work / "django.mo")) if entry.msgid
     }
+    # A plural entry carries no `msgstr` at all: its translation lives in
+    # `msgstr_plural`, keyed by the form number. Reading only `msgstr` would
+    # call the first ngettext string in this catalogue untranslated, and the
+    # failure would land on the catalogue rather than on the check.
     translated = {
-        entry.msgid for entry in polib.pofile(str(po_path)) if entry.msgid and entry.msgstr
+        entry.msgid
+        for entry in polib.pofile(str(po_path))
+        if entry.msgid and (entry.msgstr or any(entry.msgstr_plural.values()))
     }
 
     assert translated, "the interface catalogue translates nothing"

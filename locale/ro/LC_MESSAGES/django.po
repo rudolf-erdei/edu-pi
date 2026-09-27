@@ -1,3 +1,4 @@
+#
 msgid ""
 msgstr ""
 "Language: ro\n"
@@ -54,8 +55,15 @@ msgstr "Administrare"
 msgid "Hello, I'm Tinko!"
 msgstr "Salut, sunt Tinko!"
 
-msgid "I used to live inside a very quiet, very serious pocket calculator. All day long, I just added boring numbers together. But I had a secret dream: I wanted to make music, flash bright colors, and build amazing gadgets!"
-msgstr "Înainte, locuiam înăuntrul unui calculator de buzunar foarte tăcut și foarte serios. Toată ziua doar adunam și scădeam numere plictisitoare. Dar eu aveam un vis secret: voiam să compun muzică, să aprind lumini colorate și să construiesc invenții uimitoare!"
+msgid ""
+"I used to live inside a very quiet, very serious pocket calculator. All day "
+"long, I just added boring numbers together. But I had a secret dream: I "
+"wanted to make music, flash bright colors, and build amazing gadgets!"
+msgstr ""
+"Înainte, locuiam înăuntrul unui calculator de buzunar foarte tăcut și foarte"
+" serios. Toată ziua doar adunam și scădeam numere plictisitoare. Dar eu "
+"aveam un vis secret: voiam să compun muzică, să aprind lumini colorate și să"
+" construiesc invenții uimitoare!"
 
 # Quick Actions
 msgid "Quick Actions"
@@ -74,8 +82,11 @@ msgid "Admin Panel"
 msgstr "Panou de administrare"
 
 # Admin Dashboard
-msgid "Manage your installed plugins, view their status, and configure settings."
-msgstr "Gestionați aplicațiile instalate, vizualizați starea lor și configurați setările."
+msgid ""
+"Manage your installed plugins, view their status, and configure settings."
+msgstr ""
+"Gestionați aplicațiile instalate, vizualizați starea lor și configurați "
+"setările."
 
 msgid "View Installed Plugins"
 msgstr "Vedeți aplicațiile instalate"
@@ -105,11 +116,19 @@ msgstr "Dezactivat"
 msgid "Version"
 msgstr "Versiune"
 
-msgid "There are currently no active plugins available. Please check the admin panel or install some plugins."
-msgstr "Momentan nu există aplicații active disponibile. Verificați panoul de administrare sau instalați aplicații."
+msgid ""
+"There are currently no active plugins available. Please check the admin "
+"panel or install some plugins."
+msgstr ""
+"Momentan nu există aplicații active disponibile. Verificați panoul de "
+"administrare sau instalați aplicații."
 
-msgid "There are currently no active apps available. Please check the admin panel or install some apps."
-msgstr "Momentan nu există aplicații active disponibile. Verificați panoul de administrare sau instalați aplicații."
+msgid ""
+"There are currently no active apps available. Please check the admin panel "
+"or install some apps."
+msgstr ""
+"Momentan nu există aplicații active disponibile. Verificați panoul de "
+"administrare sau instalați aplicații."
 
 # Footer
 msgid "Tinko Educational Platform"
@@ -198,14 +217,15 @@ msgstr "Pian Tactil"
 
 # Plugin descriptions (used in dashboard via _(plugin.description))
 msgid "Visual noise level monitor for classroom with dual RGB LED feedback"
-msgstr "Monitor vizual de nivel de zgomot pentru clasă cu feedback RGB LED dublu"
+msgstr ""
+"Monitor vizual de nivel de zgomot pentru clasă cu feedback RGB LED dublu"
 
 msgid ""
-"SPI TFT LCD display support for ILI9341 driver. "
-"Shows a smiling face on startup with web-based controls."
+"SPI TFT LCD display support for ILI9341 driver. Shows a smiling face on "
+"startup with web-based controls."
 msgstr ""
-"Suport afișaj LCD TFT SPI pentru driver ILI9341. "
-"Afișează o față zâmbitoare la pornire cu comenzi web."
+"Suport afișaj LCD TFT SPI pentru driver ILI9341. Afișează o față zâmbitoare "
+"la pornire cu comenzi web."
 
 msgid ""
 "Text-to-Speech classroom routines with USB presenter support for activities"
@@ -227,7 +247,9 @@ msgid "Activity Timer"
 msgstr "Timer de Activitate"
 
 msgid "Visual countdown timer for classroom activities with RGB LED feedback"
-msgstr "Timer de numărătoare inversă vizual pentru activități în clasă cu feedback LED RGB"
+msgstr ""
+"Timer de numărătoare inversă vizual pentru activități în clasă cu feedback "
+"LED RGB"
 
 # Updates tab (templates/settings/updates_tab.html)
 msgid "System Updates"
@@ -311,3 +333,330 @@ msgstr "Nu s-a putut porni oprirea"
 
 msgid "Could not start shutdown. Try again."
 msgstr "Nu s-a putut porni oprirea. Încercați din nou."
+
+msgid "%(days)s days"
+msgstr "%(days)s zile"
+
+msgid "%(hours)s hours"
+msgstr "%(hours)s ore"
+
+msgid ""
+"%(path)s is %(percent)s full (%(used)s of %(total)s). It is RAM, so nothing "
+"there survives a reboot."
+msgstr ""
+"%(path)s este plin în proporție de %(percent)s (%(used)s din %(total)s). "
+"Este memorie RAM, deci nimic de acolo nu supraviețuiește unei reporniri."
+
+msgid ""
+"A record of routines that were played; nothing on screen reads them yet."
+msgstr ""
+"Un istoric al rutinelor care au fost redate; încă nimic de pe ecran nu îl "
+"citește."
+
+msgid "Could not clean %(label)s: %(error)s"
+msgstr "Nu s-a putut curăța %(label)s: %(error)s"
+
+msgid "Could not compact the database: %(error)s"
+msgstr "Nu s-a putut compacta baza de date: %(error)s"
+
+msgid "Could not create a working directory for the backup: %(error)s"
+msgstr "Nu s-a putut crea un director de lucru pentru copie: %(error)s"
+
+msgid "Database"
+msgstr "Bază de date"
+
+msgid "Database compacted: %(before)s down to %(after)s."
+msgstr "Bază de date compactată: de la %(before)s la %(after)s."
+
+msgid "Database shared memory"
+msgstr "Memorie partajată a bazei de date"
+
+msgid "Database write-ahead log"
+msgstr "Jurnal write-ahead al bazei de date"
+
+msgid "Display sessions"
+msgstr "Sesiuni de afișaj"
+
+msgid "Logs"
+msgstr "Jurnale"
+
+msgid "Noise readings"
+msgstr "Măsurători de zgomot"
+
+msgid ""
+"Not enough room to build the backup: it needs about %(needed)s and %(free)s "
+"is free in %(root)s."
+msgstr ""
+"Spațiu insuficient pentru a construi copia: are nevoie de aproximativ "
+"%(needed)s, iar în %(root)s este liber %(free)s."
+
+msgid "Nothing to reclaim: the database is still %(size)s."
+msgstr "Nimic de recuperat: baza de date are tot %(size)s."
+
+msgid "Nothing was old enough to delete."
+msgstr "Nimic nu era suficient de vechi pentru a fi șters."
+
+msgid ""
+"One row every few seconds while the monitor runs. The chart shows the last "
+"20 minutes."
+msgstr ""
+"Un rând la câteva secunde cât timp rulează monitorul. Graficul arată "
+"ultimele 20 de minute."
+
+msgid "Only %(free)s left on %(path)s (%(percent)s used)."
+msgstr "Au mai rămas doar %(free)s pe %(path)s (%(percent)s utilizat)."
+
+msgid "Piano sessions"
+msgstr "Sesiuni de pian"
+
+msgid "Routine sessions"
+msgstr "Sesiuni de rutine"
+
+msgid ""
+"The Updates tab lists the recent ones. An update that is running is never "
+"deleted, so the five-minute rate limit still holds."
+msgstr ""
+"Fila Actualizări le listează pe cele recente. O actualizare în curs nu este "
+"niciodată ștearsă, astfel că limita de cinci minute se aplică în continuare."
+
+msgid "The backup could not be built. See the log for the reason."
+msgstr "Copia nu a putut fi construită. Motivul este în jurnal."
+
+msgid "The database file was not found, so there is nothing to back up."
+msgstr ""
+"Fișierul bazei de date nu a fost găsit, deci nu există nimic de salvat."
+
+msgid ""
+"The database is %(size)s, larger than the %(limit)s this backup will build "
+"in memory."
+msgstr ""
+"Baza de date are %(size)s, mai mult decât %(limit)s cât poate construi "
+"această copie în memorie."
+
+msgid "The display page shows the current session only."
+msgstr "Pagina afișajului arată doar sesiunea curentă."
+
+msgid ""
+"The log area %(path)s is %(percent)s full (%(used)s of %(total)s). When it "
+"fills, logging stops."
+msgstr ""
+"Zona de jurnale %(path)s este plină în proporție de %(percent)s (%(used)s "
+"din %(total)s). Când se umple, jurnalizarea se oprește."
+
+msgid "The piano page shows the current session only."
+msgstr "Pagina pianului arată doar sesiunea curentă."
+
+msgid ""
+"The timer page lists the ten most recent sessions, so clearing old ones can "
+"shorten or empty that list."
+msgstr ""
+"Pagina timerului listează cele mai recente zece sesiuni, așa că ștergerea "
+"celor vechi poate scurta sau goli lista."
+
+msgid "Timer sessions"
+msgstr "Sesiuni de timer"
+
+msgid "Update history"
+msgstr "Istoric actualizări"
+
+msgid "Uploaded files"
+msgstr "Fișiere încărcate"
+
+msgid "System"
+msgstr "Sistem"
+
+msgid "%(idle)s seconds"
+msgstr "%(idle)s secunde"
+
+msgid ""
+"A browser on a page that is not being used stops counting after two minutes."
+msgstr ""
+"Un browser rămas pe o pagină nefolosită nu mai este numărat după două "
+"minute."
+
+msgid ""
+"A running timer, an active session and an update in progress are never "
+"deleted."
+msgstr ""
+"Un timer în curs, o sesiune activă și o actualizare în desfășurare nu sunt "
+"niciodată șterse."
+
+msgid "Address"
+msgstr "Adresă"
+
+msgid "Backup"
+msgstr "Copie de siguranță"
+
+msgid ""
+"Browsers that asked for a page in the last %(client_ttl_seconds)s seconds."
+msgstr ""
+"Browserele care au cerut o pagină în ultimele %(client_ttl_seconds)s "
+"secunde."
+
+msgid "Compact the database"
+msgstr "Compactează baza de date"
+
+msgid "Compact the database? This rewrites the whole file and takes a moment."
+msgstr ""
+"Compactați baza de date? Aceasta rescrie întregul fișier și durează puțin."
+
+msgid "Connected clients"
+msgstr "Clienți conectați"
+
+msgid "Delete old history"
+msgstr "Șterge istoricul vechi"
+
+msgid ""
+"Delete the history older than the windows above? This cannot be undone."
+msgstr ""
+"Ștergeți istoricul mai vechi decât intervalele de mai sus? Această acțiune "
+"nu poate fi anulată."
+
+msgid ""
+"Deleting rows does not make the file smaller — the space is reused. Only "
+"compacting returns it, and compacting rewrites the whole database, so it is "
+"not something to do often."
+msgstr ""
+"Ștergerea rândurilor nu micșorează fișierul — spațiul este reutilizat. Doar "
+"compactarea îl recuperează, iar compactarea rescrie întreaga bază de date, "
+"așa că nu este o operațiune de făcut des."
+
+msgid ""
+"Download a copy of everything the school has put in: the database, the "
+"uploaded files, and a manifest that describes them."
+msgstr ""
+"Descărcați o copie a tot ce a strâns școala: baza de date, fișierele "
+"încărcate și un manifest care le descrie."
+
+msgid "Download backup"
+msgstr "Descarcă copia"
+
+msgid "Free"
+msgstr "Liber"
+
+msgid "Full"
+msgstr "Ocupat"
+
+msgid "History"
+msgstr "Istoric"
+
+msgid ""
+"History older than these windows can be deleted now instead of waiting for "
+"the app's own timers."
+msgstr ""
+"Istoricul mai vechi decât aceste intervale poate fi șters acum, în loc să "
+"aștepte temporizatoarele aplicației."
+
+msgid "Idle"
+msgstr "Inactiv"
+
+msgid "Kept for"
+msgstr "Se păstrează"
+
+msgid "Location"
+msgstr "Locație"
+
+msgid ""
+"Log files are not included: they are not school data and they would multiply"
+" the size of the download."
+msgstr ""
+"Fișierele jurnal nu sunt incluse: nu sunt date ale școlii și ar multiplica "
+"dimensiunea descărcării."
+
+msgid "Maintenance"
+msgstr "Întreținere"
+
+msgid "Measured when this page was rendered."
+msgstr "Măsurat în momentul afișării acestei pagini."
+
+msgid "Nobody else is connected."
+msgstr "Nu este conectat nimeni altcineva."
+
+msgid "Notes"
+msgstr "Observații"
+
+msgid "Older now"
+msgstr "Mai vechi acum"
+
+msgid "Page"
+msgstr "Pagină"
+
+msgid "Size"
+msgstr "Dimensiune"
+
+msgid "Storage"
+msgstr "Spațiu de stocare"
+
+msgid ""
+"The archive is built in memory (the temporary folder on this machine is "
+"RAM), so taking a backup does not write to the SD card."
+msgstr ""
+"Arhiva este construită în memorie (folderul temporar de pe această mașină "
+"este RAM), astfel că realizarea unei copii nu scrie pe cardul SD."
+
+msgid ""
+"The count is kept in memory and is not written to the database or the SD "
+"card."
+msgstr ""
+"Numărătoarea este ținută în memorie și nu este scrisă în baza de date sau pe"
+" cardul SD."
+
+msgid ""
+"The database is copied with SQLite's own snapshot command, so the copy "
+"includes the rows written moments before it."
+msgstr ""
+"Baza de date este copiată cu comanda de instantaneu a SQLite, astfel că "
+"copia include rândurile scrise cu câteva momente înainte."
+
+msgid "This downloads the database. There is no way to upload one back yet."
+msgstr ""
+"Aceasta descarcă baza de date. Încă nu există o modalitate de a încărca una "
+"înapoi."
+
+msgid "This page refreshes the list while it is open."
+msgstr "Această pagină reîmprospătează lista cât timp este deschisă."
+
+msgid "Used"
+msgstr "Utilizat"
+
+msgid "User"
+msgstr "Utilizator"
+
+msgid "What Tinko stores"
+msgstr "Ce stochează Tinko"
+
+msgid "connected"
+msgstr "conectați"
+
+msgid "not installed"
+msgstr "neinstalat"
+
+msgid "not present"
+msgstr "absent"
+
+msgid "seconds"
+msgstr "secunde"
+
+msgid "Are you sure you want to reset all settings to defaults?"
+msgstr "Sigur doriți să resetați toate setările la valorile implicite?"
+
+msgid "Are you sure you want to reset these settings to defaults?"
+msgstr "Sigur doriți să resetați aceste setări la valorile implicite?"
+
+msgid "General Settings"
+msgstr "Setări generale"
+
+msgid "Reset to Defaults"
+msgstr "Resetează la valorile implicite"
+
+msgid "Save Settings"
+msgstr "Salvează setările"
+
+msgid "School Logo"
+msgstr "Logo școală"
+
+msgid "%(count)s old record was deleted."
+msgid_plural "%(count)s old records were deleted."
+msgstr[0] "%(count)s înregistrare veche a fost ștearsă."
+msgstr[1] "%(count)s înregistrări vechi au fost șterse."
+msgstr[2] "%(count)s de înregistrări vechi au fost șterse."

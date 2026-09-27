@@ -145,6 +145,29 @@ committed fstab is read at boot, and `sd_add_root_commit_option()` remounts the
 running root as well, which is why `findmnt` is the check rather than reading
 the file.
 
+## Reading it off the Settings page
+
+Everything the commands above ask about has a read-out on
+**Settings → System → Storage**: the card's used and free space, and — on the Pi
+only — `/var/log` and `/var/tmp` as separate rows, with a warning above the
+table once `/var/log` passes 80% full. Those two rows are the ones to look at,
+because they are the tmpfs slices this page exists for; on a machine without
+log2ram they are simply absent, which is the intended degradation rather than a
+missing measurement.
+
+The two buttons on that tab are worth knowing about here:
+
+- **Download backup** builds the archive under the system temp directory, which
+  is tmpfs — so taking a backup writes to RAM and adds **no SD-card writes at
+  all**, at the cost of refusing a database too large to fit in memory. Copying
+  `db.sqlite3` by hand would be a write, and a wrong one: see
+  [Settings → Configuration Backup](../teacher/settings.md#configuration-backup).
+- **Compact the database** is the opposite trade: `VACUUM` rewrites the entire
+  database, so it is a real burst of writes to the card. It is worth it once
+  after a large deletion; it is not a routine. Deleting history without
+  compacting frees no space for the card but costs it nothing either — SQLite
+  reuses the freed pages in place.
+
 ## Turning it off
 
 `sudo bash uninstall.sh` reverses all of it — see

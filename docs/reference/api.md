@@ -174,6 +174,98 @@ ws.onmessage = (event) => {
 }
 ```
 
+### System
+
+The settings page's **System** tab is rendered by the server; these four routes
+are what it calls, plus the ones behind its buttons.
+
+!!! warning "These endpoints require no login"
+    Nothing outside `/admin/` authenticates, so any client that can reach the Pi
+    can call all four. The two destructive ones are POST-only with Django's CSRF
+    check, which stops a *third-party page* from triggering them — the token
+    cannot be read cross-origin — but that is not a substitute for a login: a
+    client that fetches `/settings/?tab=system` first gets a token, and
+    `GET /settings/system/backup/` needs nothing at all and returns the entire
+    database. Treat the port as trusted-network only. See
+    [`ISSUES.md`](https://github.com/rudolf-erdei/edu-pi/blob/master/ISSUES.md).
+
+#### Connected Clients
+
+```http
+GET /settings/system/clients/
+```
+
+Browsers that requested a page in the last 120 seconds, most recently seen
+first. Kept in process memory: no database row, no session row, no file.
+
+**Response:**
+```json
+{
+  "count": 2,
+  "generated_at": "2026-09-27T14:31:07+03:00",
+  "clients": [
+    {
+      "ip": "10.42.0.14",
+      "user": "",
+      "route": "settings/",
+      "idle_seconds": 3,
+      "seen_for_seconds": 412
+    }
+  ]
+}
+```
+
+`route` is Django's resolved route pattern, never the raw path, so no
+client-supplied string is stored or returned. `user` is empty until something
+signs in, which today is nobody. The registry is capped at 32 entries and drops
+the least recently seen when it is full.
+
+#### Download Backup
+
+```http
+GET /settings/system/backup/
+```
+
+Returns the archive described in
+[Settings → System](../teacher/settings.md#backup) as an attachment:
+`db.sqlite3` (a `VACUUM INTO` snapshot, so it includes the rows the write-ahead
+log has not checkpointed), `media/` if present, and `manifest.json`.
+
+| Answer | When |
+|---|---|
+| `200` + `.zip` attachment | The usual case |
+| `302` back to `?tab=system` with a message | Refused: the database is larger than `BACKUP_MAX_BYTES`, there is no room in the temp directory, or the database file is missing |
+
+The archive is built in the system temp directory, which is tmpfs on the Pi, and
+the directory is removed once the response closes. A download that is cancelled
+before it finishes leaves a directory behind — the sweep at the top of the next
+request removes it after 15 minutes.
+
+#### Delete Old History
+
+```http
+POST /settings/system/clean/
+```
+
+Deletes rows older than the retention windows in
+[Settings → System](../teacher/settings.md#maintenance), excluding any row in a
+live state. `GET` answers `405`. A missing or invalid CSRF token answers `403`.
+On success, `302` to `/settings/?tab=system` with a `django.contrib.messages`
+message naming the counts.
+
+#### Compact the Database
+
+```http
+POST /settings/system/vacuum/
+```
+
+Runs SQLite's `VACUUM`, which rewrites the database file and returns the space
+that deleted rows left behind. `GET` answers `405`. The statement sets a
+30-second busy timeout first, because the noise monitor commits every five
+seconds and the default timeout would fail those commits while the file is being
+rewritten. Reports the size before and after, or that there was nothing to
+reclaim.
+
 ## Plugin-Specific Endpoints
 
 ### Activity Timer

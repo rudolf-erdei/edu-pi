@@ -57,6 +57,7 @@ Tinko enables teachers to create engaging, hands-on learning experiences by comb
 - [x] **Activity Timer**: Visual countdown with LED progress bar and configurable preset profiles
 - [x] **Routines**: Text-to-speech classroom routines with USB presenter control
 - [x] **Settings Area**: Centralized settings page with global and plugin-specific configuration
+- [x] **System Tab**: Storage figures, connected-browser count, backup download and history maintenance on `/settings/?tab=system`
 - [x] **LCD Display**: SPI TFT LCD support (ILI9341) with startup smiley face
 
 #### Activity Timer Plugin ⏱️
@@ -196,6 +197,22 @@ SPI TFT LCD display support for ILI9341-based screens with startup smiley face:
 - Language selector in navigation
 - "App" terminology for teachers (backend uses "Plugin")
 - Mobile-friendly interface
+
+#### System Tab (`/settings/?tab=system`)
+
+- **Storage** — used and free space, plus what Tinko itself stores (database
+  with its `-wal`/`-shm`, `media/`, logs), with warnings when something is
+  nearly full
+- **Connected clients** — browsers seen in the last two minutes, counted in
+  process memory (no database row, no SD-card write)
+- **Backup download** — one archive with a `VACUUM INTO` snapshot of the live
+  database, `media/` and a manifest; built in tmpfs, so it writes no card.
+  Download only — there is no restore yet
+- **Maintenance** — delete history past its retention window (never a live
+  row), and `VACUUM` behind a busy timeout
+- ⚠️ **No login anywhere in this interface**, so these endpoints are open to
+  anyone who can reach the Pi on the network — including a `GET` on the backup
+  URL, which returns the whole database. See `ISSUES.md`
 
 ### Planned Features 📋
 
@@ -401,7 +418,9 @@ edu-pi/
 ├── core/                    # Core functionality
 │   ├── edupi_core/         # Main Django app
 │   │   ├── views.py        # Dashboard views
-│   │   └── urls.py         # App URLs
+│   │   ├── urls.py         # App URLs
+│   │   └── system/         # Settings → System tab (storage, clients,
+│   │                       #   backup, retention, maintenance views)
 │   └── plugin_system/      # Plugin framework
 │       ├── base.py         # PluginBase class
 │       ├── models.py       # Plugin models
