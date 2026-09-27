@@ -270,7 +270,7 @@ msgid "System is restarting. Reconnecting..."
 msgstr "Sistemul repornește. Se reconectează..."
 
 msgid "This may take a minute."
-msgstr "Aceasta poate dura un minut."
+msgstr "Aceasta poate dura câteva minute."
 
 msgid "Update Complete!"
 msgstr "Actualizare completă!"

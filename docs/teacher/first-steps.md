@@ -144,6 +144,14 @@ This means you can:
 
 Learn more: [Background Activities](background-activities.md)
 
+## Switching It Off at the End of the Day
+
+Press **Shutdown** in the dashboard's Quick Actions, wait for the green activity
+light to stop blinking, then unplug the Pi. Do not switch it off at the wall
+while it is running — the Pi writes everything to its SD card, and a card caught
+mid-write is how the platform gets taken down. See
+[Shutting Down Tinko](dashboard.md#shutting-down-tinko).
+
 ## Next Steps
 
 - [Dashboard](dashboard.md) - Detailed interface guide

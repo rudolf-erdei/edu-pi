@@ -69,6 +69,14 @@ Bluetooth still on is a working Pi.
     trade, and it is why the database is the one thing that still syncs to disk
     on every commit.
 
+    **That window only exists for an unplanned cut.** Switching the Pi off with
+    the dashboard's Shutdown button — or any orderly halt — makes systemd stop
+    the app, close the database and flush the filesystems before the power goes,
+    so nothing is pending by the time it is safe to unplug. This is why the
+    teachers' instructions are to always switch off from the dashboard: see
+    [Shutting Down Tinko](../teacher/dashboard.md#shutting-down-tinko). What
+    `commit=600` costs is the power failure nobody asked for.
+
 `vm.dirty_expire_centisecs` is set alongside `vm.dirty_writeback_centisecs`
 because a flusher interval longer than the expire time would just be rounded
 back to the expire time: it is the *shorter* of the two that decides how long a

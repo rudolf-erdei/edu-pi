@@ -1433,6 +1433,16 @@ _Last updated: 2026-04-13_
   `hide_live_db()`/`restore_live_db()` now carry all three, and
   `recover_orphaned_db()` recovers an interrupted run with its siblings intact
   rather than renaming a WAL over its database. Added 2026-09-27.
+- **Switching off is the teacher's job, and the dashboard is how**: the SD-card
+  settings defer writes (`commit=600`, a 60 s kernel writeback interval), which
+  costs data only on an *unplanned* cut — an orderly halt stops the app, closes
+  the database and flushes the filesystems before the power goes. The teacher
+  docs therefore say it plainly, in `teacher/dashboard.md` and
+  `teacher/first-steps.md`: press **Shutdown**, wait for the green activity light
+  to stop, then unplug, and never switch it off at the wall while it is running.
+  No `sync` was added to the power helper — the orderly halt already does it, and
+  the guidance covers the case the helper could not (a plug pulled mid-halt, or
+  the force-cut fallback, neither of which syncs). Added 2026-09-27.
 - **Developer Guidelines**: `AGENTS.md`
 - **Code Standards**: PEP 8 with 88-character line length
 - **Admin User**: admin / admin123

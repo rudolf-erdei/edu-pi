@@ -138,6 +138,16 @@ the SD card is not left mid-write. Use it before unplugging the Pi.
 2. The button disappears and the message *Tinko is shutting down...* appears.
 3. Wait for the green activity light to stop blinking, then remove power.
 
+!!! warning "Always switch the Pi off this way — never by pulling the plug"
+    The Pi writes everything to its SD card, and the card is the one part of it
+    that does not survive being caught mid-write. Switching off with the
+    **Shutdown** button lets Tinko finish what it is writing, close the database
+    and park the card before the power goes; pulling the plug or flipping the
+    wall switch while Tinko is running does not. That is how a card ends up
+    needing to be replaced — and a card that fails takes the whole platform with
+    it. The same applies at the end of the day: press **Shutdown**, wait for the
+    green light to stop blinking, then unplug.
+
 If the button instead shows *Could not start shutdown. Try again.*, Tinko could
 not reach the power helper. Nothing was turned off, so it is safe to keep using
 the dashboard — see
