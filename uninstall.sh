@@ -232,6 +232,20 @@ remove_journal_config() {
     # is systemd's own directory rather than something Tinko owns.
 }
 
+# Step 7c: Remove the timesyncd drop-in that tightened the retry interval
+remove_timesync_config() {
+    log_info "Removing timesync configuration..."
+
+    if [ -f /etc/systemd/timesyncd.conf.d/tinko.conf ]; then
+        remove_file "/etc/systemd/timesyncd.conf.d/tinko.conf" "timesyncd retry drop-in"
+        sudo rmdir /etc/systemd/timesyncd.conf.d/ 2>/dev/null || true
+        sudo systemctl restart systemd-timesyncd 2>/dev/null || true
+    fi
+
+    # The clock itself is left alone: NTP is on by default on this image with or
+    # without Tinko, and stopping it would leave the Pi with no time source.
+}
+
 # Step 8: Remove update run directory
 remove_run_dir() {
     log_info "Removing update run directory..."
@@ -382,6 +396,7 @@ main() {
     remove_resolved_config
     remove_sudoers
     remove_journal_config
+    remove_timesync_config
     remove_run_dir
     remove_gpio_groups
     remove_apt_packages

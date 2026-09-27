@@ -1,8 +1,7 @@
 # Future ideas for the project
 
 * Show how many clients are connected to the django service. Prevents unwanted connection.
-* Break the scripts into multiple atomic ones: startup, install, update, start_captive_portal
-  * Usually update.sh is the old version when running. Need to find a way to solve this and run the new script after pull.
+* A live clock in the menu, near the menu items, so the teacher knows what time is it.
 * On boot, display the current status and eventual errors on the screen.
    - Maybe with a loading indicator and if everything is OK?
 * Some issues need to be also displayed on the screen, to have a better view of what is happening.

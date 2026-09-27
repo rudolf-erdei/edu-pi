@@ -19,10 +19,16 @@ All three end the same way: new code on disk, `uv sync`, migrations, static
 files, translations compiled, tinko.service restarted.
 
 **The shared piece is `scripts/update_infra.sh`.** It defines
-`setup_update_infrastructure()`, `install_power_helper()` and
-`install_persistent_journal()`, and all three paths `source` it. It is sourced
-for its functions only — sourcing has no side effects, and the caller must have
-defined the `log_*` helpers first.
+`setup_update_infrastructure()`, `install_power_helper()`,
+`install_persistent_journal()` and `install_timesync_config()` /
+`ensure_clock_is_set()`, and all three paths `source` it. It is sourced for its
+functions only — sourcing has no side effects, and the caller must have defined
+the `log_*` helpers first.
+
+`update-web.sh` deliberately does **not** call `setup_update_infrastructure()`: it
+restarts `tinko-update.service`, and that service is what is running the script.
+Each helper therefore needs its own call there, which is why the helper list above
+appears twice in the web path's `main()`.
 
 ## What install and update write outside the repository
 
@@ -33,8 +39,9 @@ defined the `log_*` helpers first.
 | `/etc/sudoers.d/tinko-update` | `setup_update_infrastructure()` | Lets the app stop and start *its own* service, and repair `/run/tinko-update`. |
 | `/usr/local/sbin/tinko-poweroff` | `install_power_helper()` | The dashboard Power button's halt chain — root-owned, mode 0755. |
 | `/etc/sudoers.d/tinko-poweroff` | `install_power_helper()` | Grants the service user that helper, and nothing else. |
-| `/etc/systemd/journald.conf.d/tinko.conf` | `install_persistent_journal()` | Keeps the journal across reboots (`Storage=persistent`, `SystemMaxUse=200M`). |
+| `/etc/systemd/journald.conf.d/tinko.conf` | `install_persistent_journal()` | Keeps the journal across reboots (`Storage=persistent`, `SystemMaxUse=32M`, `RuntimeMaxUse=32M`). Overrides the vendor's `Storage=volatile` — the name must sort after `40-rpi-volatile-storage.conf`. |
 | `/var/log/journal/` | `install_persistent_journal()` | Where the journal then lives — systemd's own directory, prepared with `systemd-tmpfiles`. |
+| `/etc/systemd/timesyncd.conf.d/tinko.conf` | `install_timesync_config()` | `ConnectionRetrySec=5`, so a first NTP attempt that fails while wifi is still coming up is retried sooner than the default 30 s. |
 | `/run/tinko-update/` | runtime | Trigger, status and stage files. tmpfs — recreated at every boot. |
 
 !!! warning "Three copies of the same unit file"
@@ -62,15 +69,40 @@ Two things deliberately do **not** go through Tinko's sudoers files:
 restart `tinko-update.service` while that service is running the update. A Pi
 updated only from the dashboard would otherwise never get it.
 
-Without it the journal is **volatile**: the image ships an empty
-`/var/log/journal` and no `Storage` setting, so journald keeps its log on tmpfs
-(`/run/log/journal`) and each boot starts with an empty history —
+Without it the journal is **volatile**: journald keeps its log on tmpfs
+(`/run/log/journal`), each boot starts with an empty history, and
 `journalctl --list-boots` lists one boot and nothing else. On the field Pi
 (checked 2026-09-27) that meant the log written on the way down was gone by the
 time anyone could read it, which is exactly the record the Power button leaves
 behind.
 
-Two details matter:
+Three separate things have to line up, and the first version of this function
+had only the middle one — it reported success while the journal stayed volatile:
+
+1. **The vendor drop-in must be out-sorted.** Raspberry Pi OS ships
+   `/usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf` setting
+   `Storage=volatile`, to keep the journal off the SD card. journald reads
+   drop-ins sorted by name with the last one winning, so an override in `/etc`
+   only wins if its basename sorts after `40-rpi-volatile-storage.conf` —
+   `tinko.conf` does, a name starting with a digit would not. Renaming that file
+   is how the setting silently stops applying.
+2. **A flush is required.** With `Storage=persistent` in place, journald still
+   writes to `/run/log/journal` until a flush has been requested:
+   `server_system_journal_open()` opens the system journal only when
+   `flush_requested || server_flushed_flag_is_set`, and that flag is set by
+   `systemd-journal-flush.service` at boot or by `journalctl --flush` by hand.
+   So installing the drop-in and restarting journald changes nothing on a
+   *running* system, and journald says nothing about it. The function runs
+   `journalctl --flush` for exactly this reason, and it is what made the fix work
+   on the field Pi without a reboot.
+3. **log2ram syncs the journal only from under `/var/log`.** `/var/log` is
+   log2ram's tmpfs, and `journald_logrotate()` backs the journal up to disk only
+   when `journalctl --header` reports a `File path` under `/var/log` — it greps
+   that field. With the vendor's volatile setting the path was `/run/log/journal`,
+   so nothing was ever copied to log2ram's disk copy (`/var/hdd.log`) and nothing
+   survived the reboot. (1) is what fixes this too.
+
+Preparation and honesty:
 
 - **`systemd-tmpfiles --create --prefix /var/log/journal`** is what prepares the
   directory with the ownership, mode and ACLs journald expects. A plain `mkdir`
@@ -78,9 +110,58 @@ Two details matter:
   it falls back to tmpfs *silently*.
 - The function reports **what journald actually chose**, not what it asked for,
   by reading the path out of `journalctl --header` and warning if it is still
-  under `/run`. Asking is not having.
+  under `/run`. The field to read is `File path:` — one line per open journal
+  (the system journal, plus one per logged-in user), so the check matches only
+  the line containing `/system`. An earlier version grepped `^File:`, matched
+  nothing, and warned "Could not read the journal header" on a Pi whose journal
+  was in fact still volatile — a false alarm pointing at the check rather than
+  the journal.
 
-`SystemMaxUse=200M` bounds it, because the log now lives on the SD card.
+`SystemMaxUse=32M` and `RuntimeMaxUse=32M` bound it. The log now lives on the SD
+card, and `/var/log` is a 128M tmpfs here: a journal allowed its default share of
+it would crowd out the dnsmasq and `tinko_wifi` logs the captive portal is
+diagnosed from.
+
+## The clock after a boot
+
+A Raspberry Pi 4 has no battery-backed clock, and this image has no
+`fake-hwclock`. Until NTP answers, the clock is the last time systemd saved: PID1
+logs `System time advanced to timestamp on /var/lib/systemd/timesync/clock` and
+starts from that file's **mtime** — the moment the Pi last shut down. So the
+clock is approximately right from the first second and exactly right once
+`systemd-timesyncd` gets an answer, and the gap in between is the whole problem:
+log lines are stamped with yesterday's date, and `git pull` over HTTPS can fail
+on a certificate that is not yet valid, which reads like a network fault.
+
+On the field Pi the first sync landed 42 seconds after boot — the time wifi
+association and DHCP take — with four `Network configuration changed, trying to
+establish connection` retries first. Two changes narrow that:
+
+- **`install_timesync_config()`** writes
+  `/etc/systemd/timesyncd.conf.d/tinko.conf` with `ConnectionRetrySec=5`. The
+  default is 30 s, so a first attempt that fails while the network is still
+  coming up can be followed by a wait longer than the network took. Retrying
+  every 5 s costs a handful of UDP packets. The *server* is deliberately left
+  alone: timesyncd uses what DHCP hands out (option 42) and falls back to the
+  Debian pool, and a school's own server is usually the nearest one.
+- **`ensure_clock_is_set()`** runs before every update pull
+  (`update.sh:pull_latest`, `update-web.sh:pull_latest`), because that is the
+  step where a wrong clock turns into a confusing failure rather than a wrong
+  timestamp. It returns immediately if the clock is already NTP-synchronized;
+  otherwise it restarts timesyncd and polls for 20 s; otherwise it falls back to
+  reading the `Date:` header of `http://github.com` or
+  `http://deb.debian.org` and setting the clock from it — a plain HTTP request
+  needs no certificate and so works while the clock is wrong, which matters on
+  networks that drop UDP 123.
+
+Both are non-fatal and both are honest about the outcome: with no network there
+is nothing to sync with, and the setup/captive-portal path must not depend on the
+internet. The app's own start is deliberately **not** gated on
+`systemd-time-wait-sync` — Django does not need the wall clock, and blocking boot
+on the internet is how a Pi in a school with no uplink stops working.
+
+`uninstall.sh` removes both drop-ins and leaves `/var/log/journal` (systemd's own
+directory, and it holds the history) and NTP itself in place.
 
 ## Sourced-file staleness and the re-exec guard
 
@@ -204,7 +285,12 @@ cd ~/edu-pi && git stash list
 
 # The journal survives a reboot, and holds more than this boot
 journalctl --list-boots
-journalctl --header | grep '^File:'          # /var/log/journal/... means persistent
+journalctl --header | grep '^File path:'     # /var/log/journal/... means persistent
+systemd-analyze cat-config systemd/journald.conf | grep -E 'Storage|MaxUse'
+
+# The clock: synchronized, and by which server
+timedatectl show -p NTPSynchronized --value  # yes
+timedatectl timesync-status
 ```
 
 A CLI update prints its own summary to the terminal; the files above stay empty

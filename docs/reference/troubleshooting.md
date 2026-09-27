@@ -1058,31 +1058,42 @@ for the capability settings and every file install and update write.
 - The first lines of the current boot are stamped with *yesterday's* time — the
   moment the Pi last went down.
 
-**Explanation, part 1 — the clock.** A Raspberry Pi has no battery-backed clock.
-`fake-hwclock` restores the last time it recorded, which is the moment the Pi
-halted (for the field Pi: `2026-09-26 18:30`), and the kernel boots believing
-that. NTP then corrects it — a jump of hours — so everything logged before the
-network came up carries the old date, and any `--since`/`--until` window
-measured from the current time misses it. `timedatectl` shows
-`System clock synchronized: yes` once corrected. This is expected, and it is why
+**Explanation, part 1 — the clock.** A Raspberry Pi 4 has no battery-backed
+clock, and this image carries no `fake-hwclock` either (check with
+`dpkg -l fake-hwclock` — it is not installed). The clock before NTP answers is
+whatever systemd last saved: PID1 logs `System time advanced to timestamp on
+/var/lib/systemd/timesync/clock`, and that is the file's *mtime* — the moment the
+Pi last shut down (for the field Pi: `2026-09-26 18:30`). The kernel boots
+believing that, and `systemd-timesyncd` corrects it once the network is up — 42
+seconds after boot on the field Pi, the time wifi association and DHCP take.
+Everything logged before then carries the old date, so any `--since`/`--until`
+window measured from the current time misses it. This is expected, and it is why
 `/run/tinko-update` can look like it was created yesterday when it was created
 at this boot: `/run` is tmpfs, and the daemon made that directory before the
-clock was fixed.
+clock was fixed. `install_timesync_config()` retries every 5 s instead of the
+default 30 s to shorten that window; `ensure_clock_is_set()` re-checks the clock
+before every update pull — see
+[Update System](update-system.md#the-clock-after-a-boot).
 
-**Explanation, part 2 — the journal.** Tinko's images keep the journal on tmpfs
-(`/run/log/journal`), so nothing survives a power cut: the log written on the
-way down is gone, which is exactly the evidence the dashboard Power button
-produces. `install_persistent_journal()` in `scripts/update_infra.sh` fixes that
-on install and on both update paths — see
+**Explanation, part 2 — the journal.** Raspberry Pi OS ships
+`/usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf` setting
+`Storage=volatile`, which keeps the journal on tmpfs (`/run/log/journal`): the
+log written on the way down is gone, and that is exactly the evidence the
+dashboard Power button produces. `install_persistent_journal()` in
+`scripts/update_infra.sh` fixes it on install and on both update paths — note
+that `Storage=persistent` alone is not enough, since journald only opens
+`/var/log/journal` after a flush; the function asks for one explicitly. See
 [Update System](update-system.md#the-journal-across-reboots).
 
 **Check it:**
 
 ```bash
 journalctl --list-boots                       # more than one = persistent
-journalctl --header | grep '^File:'           # /var/log/journal/... = persistent
+journalctl --header | grep '^File path:'      # /var/log/journal/... = persistent
+systemd-analyze cat-config systemd/journald.conf | grep -E 'Storage|MaxUse'
 sudo journalctl -b -o short-iso | head -3     # first lines of this boot
-timedatectl | grep -i synchron
+timedatectl | grep -i synchron                # yes once NTP has answered
+timedatectl timesync-status                   # which server, and when it last answered
 ```
 
 **Solutions:**
@@ -1093,6 +1104,13 @@ timedatectl | grep -i synchron
   the log before you power the Pi off.
 - **If a timestamp looks impossible**, check `uptime -s` for when the machine
   actually booted; that comes from the monotonic clock and is not affected.
+- **If a pull fails with a certificate error** (`certificate is not yet valid`,
+  `server certificate verification failed`), suspect the clock before the
+  network. Both update paths settle it before pulling: they wait up to 20 s for
+  NTP and, if UDP 123 is blocked on the school network, fall back to a web
+  server's `Date:` header — which needs no certificate and so works while the
+  clock is wrong. Run `bash ~/edu-pi/update.sh` once (or Update Now in the
+  dashboard) and it corrects itself.
 
 ### Service won't start
 

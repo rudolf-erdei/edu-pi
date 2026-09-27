@@ -334,6 +334,13 @@ pull_latest() {
     update_status "pull" "in_progress"
     log_info "Pulling latest changes from git..."
 
+    # First, before anything is moved aside: certificate dates are checked
+    # against the system clock, and a Pi that was off for a long time boots
+    # believing the time it was last switched off. Non-fatal either way -- the
+    # pull below reports its own failure, and ensure_clock_is_set() logs what it
+    # could and could not do.
+    ensure_clock_is_set || true
+
     recover_orphaned_db
     recover_orphaned_media
     # Before the stash, so neither the stash nor the merge can touch them.
@@ -840,6 +847,11 @@ main() {
     # this script IS that service's work.
     install_persistent_journal ||
         log_warning "Journal left volatile; logs will not survive a reboot"
+    # And the clock, for the same reason: a Pi updated only from the dashboard
+    # must not be the one Pi whose early boot log stays stamped with the last
+    # shutdown's time.
+    install_timesync_config ||
+        log_warning "Clock retry left at the default; the first sync may take longer"
     restart_service
 
     echo

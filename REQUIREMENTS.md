@@ -1358,9 +1358,24 @@ _Last updated: 2026-04-13_
 - **Journal across reboots**: the images kept the journal on tmpfs, so a power
   cut erased the record of why a Pi halted — precisely what the dashboard Power
   button produces. `install_persistent_journal()` in `scripts/update_infra.sh`
-  sets `Storage=persistent` with a `SystemMaxUse` cap, runs on install and on
-  both update paths, and reports where journald actually put the log. Added
+  sets `Storage=persistent` with a `SystemMaxUse`/`RuntimeMaxUse` cap, runs on
+  install and on both update paths, and reports where journald actually put the
+  log. Three things are needed, and the first version had only the middle one:
+  the drop-in must out-sort the vendor's `40-rpi-volatile-storage.conf`
+  (`Storage=volatile`), journald only opens `/var/log/journal` after a flush
+  (`journalctl --flush`, which is why the setting alone changed nothing on a
+  running Pi), and log2ram only backs the journal up to disk when its `File path`
+  is under `/var/log`. Verified on the field Pi without a reboot. Added
   2026-09-27.
+- **Clock after a boot**: a Pi 4 has no RTC and the image has no `fake-hwclock`,
+  so until NTP answers the clock is PID1's restored
+  `/var/lib/systemd/timesync/clock` mtime — the moment the Pi last shut down.
+  `install_timesync_config()` retries NTP every 5 s instead of the default 30 s
+  (the field Pi's first sync landed 42 s after boot, the time wifi and DHCP
+  take), and `ensure_clock_is_set()` settles the clock before every update pull,
+  falling back to a web server's `Date:` header for networks that drop UDP 123.
+  Both are non-fatal and honest about the outcome; the app's own start is
+  deliberately not gated on `systemd-time-wait-sync`. Added 2026-09-27.
 - **Developer Guidelines**: `AGENTS.md`
 - **Code Standards**: PEP 8 with 88-character line length
 - **Admin User**: admin / admin123

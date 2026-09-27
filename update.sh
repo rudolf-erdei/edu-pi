@@ -325,6 +325,13 @@ pull_latest() {
 
     cd "$INSTALL_DIR"
 
+    # Before anything is moved aside: certificate dates are checked against the
+    # system clock, and a Pi that was off for a long time boots believing the
+    # time it was last switched off. Non-fatal either way -- the pull below
+    # reports its own failure, and ensure_clock_is_set() logs what it could and
+    # could not do.
+    ensure_clock_is_set || true
+
     # Prevent git from prompting for credentials (hangs in non-interactive scripts)
     export GIT_TERMINAL_PROMPT=0
 
