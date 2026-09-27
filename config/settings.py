@@ -203,11 +203,30 @@ DATABASES = {
 
 
 def set_sqlite_pragmas(sender, connection, **kwargs):
-    """Set SQLite PRAGMAs to reduce SD card writes on Raspberry Pi."""
+    """Set SQLite PRAGMAs to reduce SD card writes on Raspberry Pi.
+
+    ``journal_mode=WAL`` is the one that matters. The default rollback journal
+    (``delete``) writes the journal *and* the database page on every commit and
+    fsyncs both — and ``synchronous=NORMAL`` with a rollback journal is the one
+    combination SQLite's own documentation warns can corrupt the database if
+    power fails at the wrong moment. The noise monitor commits a row every five
+    seconds and this Pi gets its plug pulled, so both halves are a real
+    exposure. In WAL, ``synchronous=NORMAL`` is safe: commits append to the log
+    and the checkpoint does the copying, which is less traffic for the same
+    data, and readers no longer block the writer.
+
+    The mode is a property of the database file, not of the connection, so this
+    costs nothing after the first time.
+    """
     if connection.vendor == "sqlite":
         cursor = connection.cursor()
         cursor.execute("PRAGMA temp_store=MEMORY")
         cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        # Keep the write-ahead log from growing without bound between
+        # checkpoints. 200 pages is about 800KB here, small enough to sit in
+        # RAM and to rewrite cheaply.
+        cursor.execute("PRAGMA wal_autocheckpoint=200")
 
 
 from django.db.backends.signals import connection_created
@@ -365,6 +384,15 @@ LOGS_DIR = BASE_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
 
 # Logging configuration
+#
+# Both file handlers roll over. On a Pi the log files live on the SD card next
+# to the database, and a plain FileHandler never stops growing: the field Pi's
+# logs reached 8.7MB in a few weeks, with the LCD service writing at DEBUG on
+# every panel refresh. A rolling handler reuses the same bytes instead, so the
+# card sees a bounded amount of writing for however long the app runs.
+LOG_MAX_BYTES = 1 * 1024 * 1024
+LOG_BACKUP_COUNT = 2
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -384,14 +412,18 @@ LOGGING = {
             "formatter": "simple",
         },
         "file": {
-            "class": "logging.FileHandler",
+            "class": "logging.handlers.RotatingFileHandler",
             "filename": str(LOGS_DIR / "django.log"),
+            "maxBytes": LOG_MAX_BYTES,
+            "backupCount": LOG_BACKUP_COUNT,
             "formatter": "verbose",
             "delay": True,  # Delay opening file until first log
         },
         "lcd_file": {
-            "class": "logging.FileHandler",
+            "class": "logging.handlers.RotatingFileHandler",
             "filename": str(LOGS_DIR / "lcd_display.log"),
+            "maxBytes": LOG_MAX_BYTES,
+            "backupCount": LOG_BACKUP_COUNT,
             "formatter": "verbose",
             "delay": True,  # Delay opening file until first log
         },
@@ -401,14 +433,18 @@ LOGGING = {
         "level": "INFO",
     },
     "loggers": {
+        # INFO, not DEBUG: the panel is redrawn on every colour change and each
+        # step logs, so DEBUG here is a steady stream of card writes at 10Hz
+        # for information the LCD page already shows. The console handler
+        # catches it when the app is started by hand for debugging.
         "plugins.edupi.lcd_display": {
             "handlers": ["console", "lcd_file"],
-            "level": "DEBUG",
+            "level": "INFO",
             "propagate": False,
         },
         "plugins.edupi.lcd_display.lcd_service": {
             "handlers": ["console", "lcd_file"],
-            "level": "DEBUG",
+            "level": "INFO",
             "propagate": False,
         },
     },

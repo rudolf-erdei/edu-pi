@@ -210,47 +210,80 @@ stop_service() {
 #
 # This runs as root, but `mv` preserves the file's tinko ownership, so the
 # service can still read the database afterwards.
+#
+# The write-ahead log and its shared-memory index (db.sqlite3-wal,
+# db.sqlite3-shm) travel with the database. They belong to it: the WAL holds
+# committed transactions that are not in the main file yet, so one left behind
+# while the database it describes is swapped out is a log of a state that no
+# longer exists -- and SQLite replays what it finds. They are also the files a
+# running app still has open. The three names are listed explicitly rather than
+# globbed with "$DB_NAME"*, because a glob would also match a leftover from an
+# interrupted run (`db.sqlite3.update-tmp-1234.recovered`) and the `%%.update-tmp-*`
+# that derives the original name would then strip it back to db.sqlite3.
 DB_NAME="db.sqlite3"
-DB_SAVED_PATH=""
+DB_SAVED_PATHS=()
+
+# The database and the siblings that must not be separated from it.
+db_files() {
+    local candidate
+    for candidate in "$DB_NAME" "$DB_NAME-wal" "$DB_NAME-shm"; do
+        if [[ -e "$INSTALL_DIR/$candidate" ]]; then
+            printf '%s\n' "$candidate"
+        fi
+    done
+}
 
 # Recover a database left aside by an update that died mid-pull. Never deletes
-# anything — if a live database is present too, both are kept.
+# anything — if a live file is present too, both are kept.
 recover_orphaned_db() {
-    local leftover kept
-    for leftover in "$INSTALL_DIR/$DB_NAME".update-tmp-*; do
+    local leftover live kept
+    # "$DB_NAME"* so the write-ahead log and the index are recovered with the
+    # database they belong to.
+    for leftover in "$INSTALL_DIR/$DB_NAME"*.update-tmp-*; do
         [[ -e "$leftover" ]] || continue
-        if [[ -f "$INSTALL_DIR/$DB_NAME" ]]; then
+        live="${leftover%%.update-tmp-*}"
+        if [[ -e "$live" ]]; then
             kept="${leftover}.recovered"
             mv -f "$leftover" "$kept"
-            log_warning "Orphaned database copy found next to a live one; kept as $(basename "$kept")"
+            log_warning "Orphaned database file found next to a live one; kept as $(basename "$kept")"
         else
-            mv -f "$leftover" "$INSTALL_DIR/$DB_NAME"
-            log_warning "Recovered the database left aside by an interrupted update"
+            mv -f "$leftover" "$live"
+            log_warning "Recovered $(basename "$live") left aside by an interrupted update"
         fi
     done
 }
 
 hide_live_db() {
-    DB_SAVED_PATH=""
-    [[ -f "$INSTALL_DIR/$DB_NAME" ]] || return 0
-    DB_SAVED_PATH="$DB_NAME.update-tmp-$$"
-    if mv "$INSTALL_DIR/$DB_NAME" "$INSTALL_DIR/$DB_SAVED_PATH"; then
-        log_info "Moved the live database aside for the pull"
-    else
-        DB_SAVED_PATH=""
-        log_error "Could not move $DB_NAME aside — the pull may overwrite live data"
+    DB_SAVED_PATHS=()
+    local name saved
+    while IFS= read -r name; do
+        [[ -n "$name" ]] || continue
+        saved="$name.update-tmp-$$"
+        if mv "$INSTALL_DIR/$name" "$INSTALL_DIR/$saved"; then
+            DB_SAVED_PATHS+=("$saved")
+        else
+            log_error "Could not move $name aside — the pull may overwrite live data"
+        fi
+    done < <(db_files)
+
+    if [[ ${#DB_SAVED_PATHS[@]} -gt 0 ]]; then
+        log_info "Moved the live database aside for the pull (${#DB_SAVED_PATHS[@]} file(s))"
     fi
 }
 
 restore_live_db() {
-    [[ -n "$DB_SAVED_PATH" ]] || return 0
-    # Overwrite whatever the merge left behind: the live database wins.
-    if mv -f "$INSTALL_DIR/$DB_SAVED_PATH" "$INSTALL_DIR/$DB_NAME"; then
-        log_success "Live database restored"
-    else
-        log_error "FAILED to restore $DB_NAME — it is still at $DB_SAVED_PATH"
-    fi
-    DB_SAVED_PATH=""
+    [[ ${#DB_SAVED_PATHS[@]} -gt 0 ]] || return 0
+    local saved original
+    for saved in "${DB_SAVED_PATHS[@]}"; do
+        original="${saved%%.update-tmp-*}"
+        # Overwrite whatever the merge left behind: the live database wins.
+        if mv -f "$INSTALL_DIR/$saved" "$INSTALL_DIR/$original"; then
+            log_success "Restored $original"
+        else
+            log_error "FAILED to restore $original — it is still at $saved"
+        fi
+    done
+    DB_SAVED_PATHS=()
 }
 
 # --- Uploaded files protection --------------------------------------------
@@ -852,6 +885,13 @@ main() {
     # shutdown's time.
     install_timesync_config ||
         log_warning "Clock retry left at the default; the first sync may take longer"
+    # And the SD card: a Pi updated only from the dashboard must not be the one
+    # Pi still writing its logs, its swap and its journal to the card. Same
+    # reason as the two above for calling the step directly rather than
+    # setup_update_infrastructure(), which restarts tinko-update.service -- this
+    # script IS that service's work.
+    optimize_for_sd_card ||
+        log_warning "Some SD card writes are still enabled; the steps above say which"
     restart_service
 
     echo

@@ -14,7 +14,11 @@ from plugins.edupi.noise_monitor.models import (
     NoiseMonitorConfig,
     NoiseReading,
 )
-from plugins.edupi.noise_monitor.noise_service import READING_SAVE_INTERVAL_SECONDS
+from plugins.edupi.noise_monitor.noise_service import (
+    PRUNE_INTERVAL_SECONDS,
+    READING_RETENTION_HOURS,
+    READING_SAVE_INTERVAL_SECONDS,
+)
 from plugins.edupi.noise_monitor.views import CHART_WINDOW_MINUTES, chart_reading_count
 
 
@@ -325,6 +329,7 @@ class ReadingHistoryTest(TestCase):
 
         noise_service._persist = persist
         noise_service._last_persist_at = None
+        noise_service._last_prune_at = None
         noise_service._instant_average = 42
         noise_service._session_average = 38
         noise_service._instant_color = "yellow"
@@ -382,6 +387,110 @@ class ReadingHistoryTest(TestCase):
         service._persist_reading(self._stamp(0))
 
         assert NoiseReading.objects.count() == 0
+
+
+class ReadingRetentionTest(TestCase):
+    """History is pruned to a retention window, on a slow interval.
+
+    Monitoring runs continuously, so this table is the app's one steady writer
+    to the SD card: a row every five seconds is 17,280 rows a day. Nothing
+    reads further back than the chart's 20-minute window, so the rows have to
+    stop somewhere — and the delete itself must not become a per-reading cost.
+    """
+
+    def _service(self):
+        from plugins.edupi.noise_monitor.noise_service import noise_service
+
+        noise_service._persist = True
+        noise_service._last_persist_at = None
+        noise_service._last_prune_at = None
+        noise_service._instant_average = 42
+        noise_service._session_average = 38
+        noise_service._instant_color = "yellow"
+        noise_service._session_color = "green"
+        return noise_service
+
+    def setUp(self):
+        self.config = NoiseMonitorConfig.objects.create(
+            name="Default", is_default=True
+        )
+
+    def _stamp(self, seconds):
+        return timezone.now() + timedelta(seconds=seconds)
+
+    def _reading(self, age_hours):
+        return NoiseReading.objects.create(
+            config=self.config,
+            raw_level=40,
+            instant_average=40,
+            session_average=40,
+            instant_color="green",
+            session_color="green",
+            timestamp=timezone.now() - timedelta(hours=age_hours),
+        )
+
+    def test_history_older_than_the_window_is_dropped(self):
+        stale = self._reading(READING_RETENTION_HOURS + 1)
+        fresh = self._reading(1)
+        service = self._service()
+
+        service._prune_history(self._stamp(0))
+
+        assert not NoiseReading.objects.filter(pk=stale.pk).exists()
+        assert NoiseReading.objects.filter(pk=fresh.pk).exists()
+
+    def test_the_newest_reading_is_never_the_one_removed(self):
+        """The chart and the readings table both end at "now"; a prune that
+        took the current row would blank the page it is drawing."""
+        service = self._service()
+
+        service._persist_reading(self._stamp(0))
+        service._prune_history(self._stamp(0))
+
+        assert NoiseReading.objects.count() == 1
+
+    def test_the_prune_runs_on_its_own_slow_interval(self):
+        """One delete an hour, not one per reading — the delete must not become
+        the next thing writing to the card."""
+        service = self._service()
+        service._prune_history(self._stamp(0))
+
+        # A row that *would* be pruned, to prove the second call did nothing.
+        stale = self._reading(READING_RETENTION_HOURS + 2)
+        service._prune_history(self._stamp(60))
+        assert NoiseReading.objects.filter(pk=stale.pk).exists()
+
+        # Past the interval, it prunes again.
+        service._prune_history(self._stamp(PRUNE_INTERVAL_SECONDS + 120))
+        assert not NoiseReading.objects.filter(pk=stale.pk).exists()
+
+    def test_a_failing_prune_does_not_stop_the_monitor(self):
+        """Losing history is a smaller problem than a dead microphone."""
+        service = self._service()
+
+        with mock.patch(
+            "plugins.edupi.noise_monitor.models.NoiseReading.objects.filter",
+            side_effect=RuntimeError("database is locked"),
+        ):
+            service._prune_history(self._stamp(0))
+
+        service._persist_reading(self._stamp(READING_SAVE_INTERVAL_SECONDS + 1))
+        assert NoiseReading.objects.count() == 1
+
+    def test_storing_a_reading_is_what_triggers_the_prune(self):
+        """Nothing else runs the prune: it rides on the sampling thread, so a
+        monitor that is stopped does not keep deleting."""
+        stale = self._reading(READING_RETENTION_HOURS + 1)
+        service = self._service()
+
+        service._persist_reading(self._stamp(0))
+
+        assert not NoiseReading.objects.filter(pk=stale.pk).exists()
+
+    def test_the_window_is_a_day_not_a_month(self):
+        """The number itself is the decision: long enough for every page in the
+        app, short enough that the database stops growing."""
+        assert 1 <= READING_RETENTION_HOURS <= 48
 
 
 class AutoStartSettingTest(TestCase):

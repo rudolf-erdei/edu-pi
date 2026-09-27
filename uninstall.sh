@@ -246,6 +246,123 @@ remove_timesync_config() {
     # without Tinko, and stopping it would leave the Pi with no time source.
 }
 
+# Step 7d: Undo the SD card write reductions (scripts/update_infra.sh)
+#
+# The counterpart of optimize_for_sd_card(). Every step here is the reverse of
+# one there, and each one is checked before it acts rather than assuming Tinko's
+# change is still the only thing in the file.
+#
+# fstab is restored from the copy taken before the first edit, because the edit
+# is inside a line of a table that must stay parseable -- the file we know was
+# good beats a rewritten one. It is only restored if the only thing that has
+# changed since is our commit= option; otherwise the backup is kept beside it and
+# the admin is told, since an unrelated edit made after install would be lost.
+#
+# config.txt is the opposite: the block was appended whole, so the lines are
+# removed by name and the rewrite is only written if exactly those lines were
+# found. The bare [all] header stays -- it clears config.txt's board filter, so
+# it cannot change how anything else in the file is read.
+#
+# log2ram is deliberately left installed: it is a general-purpose package that
+# keeps /var/log in RAM, and removing it while its tmpfs is mounted over
+# /var/log is more risk than the disk space it costs. The summary says so.
+remove_sd_optimizations() {
+    log_info "Undoing the SD card write reductions..."
+
+    local boot_config="/boot/firmware/config.txt"
+
+    # 1. /var/tmp back onto the disk, if Tinko is what put it in RAM.
+    if [ -f /etc/systemd/system/var-tmp.mount ]; then
+        sudo systemctl disable --now var-tmp.mount 2>/dev/null || true
+        remove_file "/etc/systemd/system/var-tmp.mount" "Tinko's /var/tmp RAM mount"
+        sudo systemctl daemon-reload 2>/dev/null || true
+    else
+        SKIPPED_ITEMS+=("Tinko's /var/tmp RAM mount (not found)")
+    fi
+
+    # 2. The writeback sysctl drop-in.
+    if [ -f /etc/sysctl.d/99-tinko-sd.conf ]; then
+        remove_file "/etc/sysctl.d/99-tinko-sd.conf" "Tinko's writeback sysctl drop-in"
+        sudo sysctl --system >/dev/null 2>&1 || true
+    else
+        SKIPPED_ITEMS+=("Tinko's writeback sysctl drop-in (not found)")
+    fi
+
+    # 3. The fstab commit= option, from the copy taken before the first edit.
+    if [ -f /etc/fstab.tinko-bak ]; then
+        if grep -q 'commit=' /etc/fstab && ! grep -q 'commit=' /etc/fstab.tinko-bak; then
+            sudo install -o root -g root -m 0644 /etc/fstab.tinko-bak /etc/fstab
+            REMOVED_ITEMS+=("commit= option in /etc/fstab")
+            if command -v findmnt >/dev/null 2>&1 &&
+                ! sudo findmnt --verify --tab-file /etc/fstab >/dev/null 2>&1; then
+                log_error "/etc/fstab does not pass findmnt --verify; check it before rebooting"
+            fi
+            remove_file "/etc/fstab.tinko-bak" "fstab backup"
+        else
+            log_warning "/etc/fstab has changed since Tinko edited it; leaving both files alone"
+            log_warning "  Tinko's option is in /etc/fstab, the pre-Tinko copy is /etc/fstab.tinko-bak"
+            SKIPPED_ITEMS+=("commit= option in /etc/fstab (edited since; check by hand)")
+        fi
+    else
+        SKIPPED_ITEMS+=("commit= option in /etc/fstab (no backup found)")
+    fi
+
+    # 4. The Bluetooth overlay, by removing the two lines this installed.
+    if [ -f "$boot_config" ] && grep -qE '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$boot_config"; then
+        local removed_lines
+        removed_lines=$(grep -cE '^(# Tinko: Bluetooth off|[[:space:]]*dtoverlay=disable-bt([[:space:]]|$))' "$boot_config")
+        if [ "$removed_lines" -eq 2 ]; then
+            local stripped
+            stripped="$(mktemp)"
+            grep -vE '^(# Tinko: Bluetooth off|[[:space:]]*dtoverlay=disable-bt([[:space:]]|$))' \
+                "$boot_config" > "$stripped"
+            if [ -s "$stripped" ] && sudo install -o root -g root -m 0644 "$stripped" "$boot_config"; then
+                REMOVED_ITEMS+=("Bluetooth overlay in $boot_config")
+            else
+                log_error "Could not rewrite $boot_config; leaving it alone"
+                SKIPPED_ITEMS+=("Bluetooth overlay in $boot_config (rewrite failed)")
+            fi
+            rm -f "$stripped"
+        else
+            log_warning "$boot_config has $removed_lines of Tinko's Bluetooth lines, not 2; leaving it alone"
+            SKIPPED_ITEMS+=("Bluetooth overlay in $boot_config ($removed_lines line(s); check by hand)")
+        fi
+        remove_file "${boot_config}.tinko-bak" "config.txt backup"
+    else
+        SKIPPED_ITEMS+=("Bluetooth overlay in $boot_config (not found)")
+    fi
+
+    # 5. The services and timers, back on.
+    local unit
+    for unit in bluetooth.service hciuart.service apt-daily.timer apt-daily-upgrade.timer; do
+        if systemctl list-unit-files "$unit" >/dev/null 2>&1 &&
+            ! systemctl is-enabled --quiet "$unit" 2>/dev/null; then
+            if sudo systemctl enable --now "$unit" >/dev/null 2>&1; then
+                REMOVED_ITEMS+=("disabled ${unit} (re-enabled)")
+            else
+                SKIPPED_ITEMS+=("could not re-enable ${unit}")
+            fi
+        fi
+    done
+
+    # 6. The zram writeback drop-in, and unmask in case that is what was used.
+    if [ -f /etc/rpi/swap.conf.d/tinko.conf ]; then
+        remove_file "/etc/rpi/swap.conf.d/tinko.conf" "Tinko's zram writeback drop-in"
+        sudo rmdir /etc/rpi/swap.conf.d 2>/dev/null || true
+    else
+        SKIPPED_ITEMS+=("Tinko's zram writeback drop-in (not found)")
+    fi
+    if systemctl is-enabled rpi-zram-writeback.timer 2>/dev/null | grep -qx masked; then
+        sudo systemctl unmask rpi-zram-writeback.timer 2>/dev/null || true
+        REMOVED_ITEMS+=("mask on rpi-zram-writeback.timer")
+    fi
+    sudo systemctl daemon-reload 2>/dev/null || true
+
+    log_warning "log2ram is left installed: it keeps /var/log in RAM and other things benefit too"
+    log_warning "  remove it with: sudo apt-get remove log2ram"
+    log_warning "Bluetooth and the commit= interval take effect at the next reboot"
+}
+
 # Step 8: Remove update run directory
 remove_run_dir() {
     log_info "Removing update run directory..."
@@ -397,6 +514,7 @@ main() {
     remove_sudoers
     remove_journal_config
     remove_timesync_config
+    remove_sd_optimizations
     remove_run_dir
     remove_gpio_groups
     remove_apt_packages

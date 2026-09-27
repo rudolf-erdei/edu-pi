@@ -7,12 +7,16 @@
 # the tinko-update.service daemon that powers web-driven updates
 # (Settings -> Updates), install_power_helper(), which installs the
 # dashboard power-button helper, install_persistent_journal(), which keeps the
-# journal across reboots, and install_timesync_config()/ensure_clock_is_set(),
+# journal across reboots, install_timesync_config()/ensure_clock_is_set(),
 # which sync the clock sooner after boot and make sure nothing trusts a stale
-# one. Requires log_info/log_success/log_warning/log_error to be defined by the
+# one, and optimize_for_sd_card(), which turns off the writes to the SD card
+# that this Pi does not need -- plus install_log2ram(), a step of it that has
+# to run before the journal can be kept in RAM rather than on the card.
+# Requires log_info/log_success/log_warning/log_error to be defined by the
 # sourcing script BEFORE sourcing this file.
 #
-# This file only defines functions; sourcing it has no side effects.
+# This file only defines functions and the handful of path variables the SD
+# section needs; sourcing it has no side effects.
 #
 # Usage: source "$INSTALL_DIR/scripts/update_infra.sh"
 
@@ -331,6 +335,592 @@ ensure_clock_is_set() {
     return 1
 }
 
+# --- SD card write reduction ----------------------------------------------
+#
+# The Pi's only disk is the SD card, and a card has a finite number of writes.
+# What matters here is not the total (the field Pi had written ~23GB in its
+# lifetime, nothing for a card rated in tens of TBW) but the *shape* of the
+# writes: many small ones, spread over time, on a machine whose power is cut at
+# the wall. Every one of them is a chance to lose power mid-write, and the card
+# has no power-loss protection of its own.
+#
+# The two biggest writers the app owns are handled in code instead -- see
+# tests/test_sd_card_writes.py for the rolling log handlers and SQLite's
+# write-ahead log. Everything below is the operating system's share, measured on
+# the field Pi rather than guessed at:
+#
+#   * apt-daily.timer and apt-daily-upgrade.timer fetch and install updates
+#     twice a day, writing the package lists and any unpacked package to the
+#     card. This Pi is updated by Tinko's own update system, and a classroom Pi
+#     is switched off most of the day anyway.
+#   * rpi-zram-writeback.timer copies idle pages out of compressed RAM swap to a
+#     backing file on the card (/dev/loop0 -> /var/swap). Turning it off keeps
+#     swap in RAM; it does not remove swap, and zram0 stays 2GB.
+#   * ext4's commit interval is 5s by default, so a Pi that does almost nothing
+#     still commits its journal twelve times a minute. commit=600 in fstab makes
+#     that once every ten minutes; anything that fsyncs (SQLite does) is written
+#     on the spot regardless.
+#   * the kernel's writeback flusher runs every 5s and writes out anything older
+#     than 30s. A minute of coalescing turns thousands of small writes into a
+#     handful.
+#   * /var/tmp is where throwaway files land (package managers unpack there) and
+#     nothing expects them to survive a reboot.
+#   * Bluetooth: the classroom Pi drives a touch display and has no Bluetooth
+#     devices; the stack writes to the card and holds a serial port.
+#
+# Every step is idempotent, reports what it actually did rather than what it
+# asked for, and is non-fatal. A Pi whose Bluetooth is still on is a working Pi,
+# and a caller that aborted an update because one of these failed would leave it
+# half-updated -- the rule this file already follows for the journal and the
+# clock. Reversing all of it is uninstall.sh's remove_sd_optimizations().
+
+# Overridable so the tests can point them at a throwaway tree instead of /etc.
+# (The one exception to "this file only defines functions": a path variable the
+# tests have to be able to move. Nothing is read or written at source time.)
+FSTAB_FILE="${TINKO_FSTAB_FILE:-/etc/fstab}"
+FSTAB_BACKUP="${FSTAB_FILE}.tinko-bak"
+BOOT_CONFIG="${TINKO_BOOT_CONFIG:-/boot/firmware/config.txt}"
+RPI_SWAP_DROP_IN_DIR="${TINKO_RPI_SWAP_DIR:-/etc/rpi/swap.conf.d}"
+RPI_SWAP_DROP_IN="${RPI_SWAP_DROP_IN_DIR}/tinko.conf"
+SD_SYSCTL_DIR="${TINKO_SYSCTL_DIR:-/etc/sysctl.d}"
+VAR_TMP_MOUNT_UNIT="${TINKO_VAR_TMP_UNIT:-/etc/systemd/system/var-tmp.mount}"
+SD_COMMIT_SECONDS=600
+
+# Marks the block this installs in config.txt, and the line uninstall.sh removes
+# again. Kept as a constant because three files agree on it: this one writes it,
+# uninstall.sh matches it, and the tests read it.
+SD_BT_COMMENT="# Tinko: Bluetooth off (no Bluetooth devices on this Pi; the stack writes to the SD card)."
+
+# Print an fstab with commit=N added to the root mount's options.
+#
+# A filter -- fstab in on stdin, fstab out on stdout -- because that keeps the
+# risky part in one place that can be run and read back: only the line whose
+# second field is exactly "/" is touched, only when it does not already carry a
+# commit= option, so a second run changes nothing and a separate /boot line is
+# left as it was.
+#
+# (The root line is rewritten, which makes awk re-join it with tabs. fstab does
+# not care about the whitespace; the alternative, patching the text in place
+# with sed, is one bad pattern away from an unbootable fstab.)
+sd_fstab_add_commit() {
+    local commit="$1"
+    awk -v commit="$commit" '
+        /^[[:space:]]*#/ { print; next }
+        /^[[:space:]]*$/ { print; next }
+        NF >= 4 && $2 == "/" {
+            if ($4 !~ /(^|,)commit=/) {
+                $4 = $4 ",commit=" commit
+            }
+            line = $1 "\t" $2 "\t" $3 "\t" $4
+            for (i = 5; i <= NF; i++) {
+                line = line "\t" $i
+            }
+            print line
+            next
+        }
+        { print }
+    '
+}
+
+# Does this fstab pass the kernel's own reader?
+#
+# This catches a malformed table -- a parse error, a mountpoint that is not
+# there, an unknown filesystem type -- and NOT a bad option name: `findmnt
+# --verify` accepted `defaults,bogusopt` on the field Pi without a murmur. That
+# is still worth running, because a table systemd cannot parse is what drops a
+# Pi into emergency mode with no network and no keyboard.
+sd_fstab_verify() {
+    local candidate="$1" output parse_errors errors
+
+    if ! command -v findmnt >/dev/null 2>&1; then
+        log_warning "findmnt not found; $candidate checked structurally only"
+        return 0
+    fi
+
+    output=$(sudo findmnt --verify --tab-file "$candidate" 2>&1) || true
+    # "0 parse errors, 0 errors, 2 warnings" is the summary line, and the
+    # warnings are usually just an unreadable superblock. Anything above zero in
+    # either count means systemd will not read this table the way we mean it.
+    parse_errors=$(printf '%s\n' "$output" |
+        sed -n 's/^\([0-9][0-9]*\) parse errors.*/\1/p' | head -n 1)
+    errors=$(printf '%s\n' "$output" |
+        sed -n 's/^[0-9][0-9]* parse errors, \([0-9][0-9]*\) errors.*/\1/p' | head -n 1)
+
+    if [ "$parse_errors" = "0" ] && [ "$errors" = "0" ]; then
+        return 0
+    fi
+
+    log_error "findmnt rejected $candidate:"
+    while IFS= read -r line; do
+        [ -n "$line" ] && log_warning "  $line"
+    done <<< "$output"
+    return 1
+}
+
+# Give the root filesystem a longer commit interval.
+sd_add_root_commit_option() {
+    local candidate backup="${FSTAB_BACKUP}" installed_lines original_lines
+
+    if [ ! -f "$FSTAB_FILE" ]; then
+        log_warning "No $FSTAB_FILE; skipping the commit= option"
+        return 1
+    fi
+
+    if awk '!/^[[:space:]]*#/ && $2 == "/" { print $4 }' "$FSTAB_FILE" | grep -q 'commit='; then
+        log_info "Root mount already carries a commit= option; $FSTAB_FILE left alone"
+        return 0
+    fi
+
+    candidate="$(mktemp)"
+    sd_fstab_add_commit "$SD_COMMIT_SECONDS" < "$FSTAB_FILE" > "$candidate"
+
+    # Structural checks, because these are the ones that decide whether the Pi
+    # boots: the rewritten table must still have a root entry, and must not have
+    # lost or gained a line. (`grep -c ''` counts lines the way a reader does,
+    # including a last line with no trailing newline.)
+    if [ ! -s "$candidate" ] ||
+        ! awk '!/^[[:space:]]*#/ && $2 == "/" { found = 1 } END { exit !found }' "$candidate"; then
+        log_error "Refusing to install a rewritten $FSTAB_FILE with no root entry"
+        rm -f "$candidate"
+        return 1
+    fi
+    installed_lines=$(grep -c '' "$candidate")
+    original_lines=$(grep -c '' "$FSTAB_FILE")
+    if [ "$installed_lines" != "$original_lines" ]; then
+        log_error "Refusing to install a rewritten $FSTAB_FILE: ${original_lines} lines became ${installed_lines}"
+        rm -f "$candidate"
+        return 1
+    fi
+
+    if ! sd_fstab_verify "$candidate"; then
+        log_error "Leaving $FSTAB_FILE as it is"
+        rm -f "$candidate"
+        return 1
+    fi
+
+    # Keep the file as it was before Tinko touched it. Written once: a second
+    # update must not overwrite the pre-Tinko original with a Tinko-edited one.
+    if [ ! -f "$backup" ]; then
+        if ! sudo install -o root -g root -m 0644 "$FSTAB_FILE" "$backup"; then
+            log_warning "Could not back up $FSTAB_FILE to $backup"
+        fi
+    fi
+
+    if ! sudo install -o root -g root -m 0644 "$candidate" "$FSTAB_FILE"; then
+        log_error "Could not install the rewritten $FSTAB_FILE"
+        rm -f "$candidate"
+        return 1
+    fi
+    rm -f "$candidate"
+
+    # Verify what actually landed rather than what we meant to write, and put
+    # the backup back if it does not pass. This is the one change in this file
+    # that can stop the Pi coming back on, so a revert here costs nothing.
+    if ! sd_fstab_verify "$FSTAB_FILE"; then
+        log_error "The installed $FSTAB_FILE failed verification; restoring $backup"
+        if [ -f "$backup" ] && sudo install -o root -g root -m 0644 "$backup" "$FSTAB_FILE"; then
+            log_warning "$FSTAB_FILE restored; the commit= option is not in place"
+        else
+            log_error "COULD NOT RESTORE $FSTAB_FILE -- check it by hand before rebooting"
+        fi
+        return 1
+    fi
+
+    log_success "commit=$SD_COMMIT_SECONDS added to the root mount in $FSTAB_FILE"
+
+    # Apply it to the running mount as well, so the saving starts now instead of
+    # at the next reboot. Not fatal either way: the option is in fstab.
+    if sudo mount -o "remount,commit=$SD_COMMIT_SECONDS" / 2>/dev/null; then
+        log_success "Root remounted with commit=$SD_COMMIT_SECONDS"
+    else
+        log_info "Root mount keeps its old interval until the next reboot"
+    fi
+}
+
+# Put /var/tmp in RAM.
+#
+# A systemd mount unit rather than an fstab line, deliberately: systemd-fstab-
+# generator and systemd-remount-fs read fstab during early boot, and a table
+# they cannot parse drops the Pi into emergency mode -- no network, no keyboard,
+# and a teacher standing next to it. A mount unit that fails is just a failed
+# unit: boot carries on and /var/tmp stays on the card.
+sd_mount_var_tmp_in_ram() {
+    local unit="$VAR_TMP_MOUNT_UNIT" staging unit_file
+
+    if [ -f "$unit" ] && systemctl is-active --quiet var-tmp.mount; then
+        log_info "/var/tmp is already in RAM"
+        return 0
+    fi
+
+    # systemd-analyze verify refuses a unit whose filename does not match its
+    # Where=, so the temporary copy has to carry the real unit name.
+    staging="$(mktemp -d)"
+    unit_file="$staging/var-tmp.mount"
+    cat > "$unit_file" << 'EOF'
+# Written by Tinko (scripts/update_infra.sh). See docs/reference/sd-card.md.
+#
+# /var/tmp is for files that are explicitly allowed not to survive a reboot
+# (package managers unpack here), and on this Pi the only disk is the SD card.
+# 256M is a ceiling, not a reservation: tmpfs holds only what is in it.
+#
+# A mount unit rather than an fstab line on purpose: a mistake in this file is
+# a failed unit, and boot carries on with /var/tmp still on the card.
+[Unit]
+Description=/var/tmp in RAM (Tinko)
+
+[Mount]
+What=tmpfs
+Where=/var/tmp
+Type=tmpfs
+Options=nosuid,nodev,noatime,mode=1777,size=256M
+
+[Install]
+WantedBy=local-fs.target
+EOF
+
+    if command -v systemd-analyze >/dev/null 2>&1 &&
+        ! sudo systemd-analyze verify "$unit_file" 2>/dev/null; then
+        log_error "systemd-analyze rejected the /var/tmp mount unit; not installing it"
+        rm -rf "$staging"
+        return 1
+    fi
+
+    sudo mkdir -p /var/tmp
+    if ! sudo install -o root -g root -m 0644 "$unit_file" "$unit"; then
+        log_error "Could not install $unit"
+        rm -rf "$staging"
+        return 1
+    fi
+    rm -rf "$staging"
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable var-tmp.mount >/dev/null 2>&1 ||
+        log_warning "Could not enable var-tmp.mount; it will not be mounted at boot"
+
+    # Mount it now if it is not up. The old contents of /var/tmp are hidden
+    # rather than deleted by the mount, and they reappear when the unit is
+    # removed -- which is what uninstall.sh relies on.
+    if systemctl is-active --quiet var-tmp.mount; then
+        log_success "/var/tmp is in RAM"
+    elif sudo systemctl start var-tmp.mount; then
+        log_success "/var/tmp is in RAM ($(df -h /var/tmp 2>/dev/null | tail -1 | awk '{print $2}'))"
+    else
+        log_warning "Could not start var-tmp.mount; /var/tmp stays on the SD card for now"
+        return 1
+    fi
+}
+
+# Let the kernel batch its own writeback instead of waking every five seconds.
+sd_set_writeback_sysctl() {
+    local file="$SD_SYSCTL_DIR/99-tinko-sd.conf" candidate current
+
+    candidate="$(mktemp)"
+    cat > "$candidate" << 'EOF'
+# Written by Tinko (scripts/update_infra.sh). See docs/reference/sd-card.md.
+#
+# The kernel wakes its writeback flusher every vm.dirty_writeback_centisecs and
+# writes out anything older than vm.dirty_expire_centisecs. The defaults (500
+# and 3000, i.e. 5s and 30s) mean a Pi that does nothing at all still touches
+# the SD card thousands of times a day, and each touch is a chance to lose power
+# mid-write. A minute of coalescing turns that into a handful.
+#
+# This is safe only because everything that must be durable fsyncs explicitly --
+# SQLite does, and so does anything else that needs the write on the card. What
+# is delayed here is the kernel's own periodic flush of data that nothing is
+# waiting on.
+#
+# 99- sorts after the vendor's 98-rpi.conf: sysctl.d is read in filename order
+# and the last value set for a key is the one that takes effect.
+vm.dirty_writeback_centisecs = 6000
+vm.dirty_expire_centisecs = 6000
+EOF
+
+    if ! sudo mkdir -p "$SD_SYSCTL_DIR" ||
+        ! sudo install -o root -g root -m 0644 "$candidate" "$file"; then
+        log_error "Could not install $file"
+        rm -f "$candidate"
+        return 1
+    fi
+    rm -f "$candidate"
+
+    sudo sysctl --system >/dev/null 2>&1 ||
+        sudo sysctl -p "$file" >/dev/null 2>&1 ||
+        log_warning "Could not apply $file now; it applies from the next boot"
+
+    # Report the value in force, not the file's contents.
+    current=$(sysctl -n vm.dirty_writeback_centisecs 2>/dev/null) || current="?"
+    log_success "Kernel writeback interval is ${current} centisecs (default is 500)"
+}
+
+# Stop the two apt timers.
+#
+# They fetch the package lists twice a day and install any upgrades: several MB
+# written to the card per run, on a Pi that is switched off most of the day and
+# is updated by Tinko's own update system. The trade is real and deliberate --
+# with these off, OS packages only move when someone runs apt by hand.
+sd_disable_apt_timers() {
+    local unit
+
+    for unit in apt-daily.timer apt-daily-upgrade.timer; do
+        if ! systemctl list-unit-files "$unit" >/dev/null 2>&1; then
+            continue
+        fi
+        if ! systemctl is-enabled --quiet "$unit" 2>/dev/null; then
+            log_info "$unit is already disabled"
+            continue
+        fi
+        if sudo systemctl disable --now "$unit"; then
+            log_success "Disabled $unit"
+        else
+            log_warning "Could not disable $unit"
+        fi
+    done
+
+    return 0
+}
+
+# Keep compressed swap in RAM instead of spilling it to the card.
+#
+# rpi-swap gives zram a backing device -- a loop device over /var/swap, on the
+# SD card -- and a timer that periodically copies idle pages out to it, to free
+# RAM. On this Pi the RAM is not the scarce resource (3.7GB, about 400MB in
+# use); the card is. So the timer goes, via the documented configuration rather
+# than by editing the vendor's file: `man 5 swap.conf` names
+# /etc/rpi/swap.conf.d/*.conf as the recommended place for local overrides, and
+# WritebackTrigger=manual is what makes the generator stop creating the timer at
+# all. A drop-in is one file, removed to reverse.
+#
+# Swap itself is untouched: zram0 stays 2GB and stays in use.
+sd_disable_zram_writeback() {
+    local unit="rpi-zram-writeback.timer" candidate
+
+    if ! systemctl list-unit-files "$unit" >/dev/null 2>&1 &&
+        [ ! -e "$RPI_SWAP_DROP_IN" ]; then
+        log_info "$unit is not present on this system; nothing to disable"
+        return 0
+    fi
+
+    if [ ! -f "$RPI_SWAP_DROP_IN" ]; then
+        candidate="$(mktemp)"
+        cat > "$candidate" << 'EOF'
+# Written by Tinko (scripts/update_infra.sh). See docs/reference/sd-card.md.
+#
+# rpi-swap gives zram a backing device on the SD card (a loop device over
+# /var/swap) and a timer that copies idle pages out to it to free RAM. This Pi
+# has RAM to spare and a card to spare nowhere, so the writeback is left to be
+# triggered by hand instead: with `manual`, rpi-swap-generator does not create
+# rpi-zram-writeback.timer at all. Swap itself is unchanged -- zram0 stays
+# 2GB, and `echo idle > /sys/block/zram0/writeback` still writes back on
+# request.
+#
+# A drop-in, not an edit of /etc/rpi/swap.conf: swap.conf(5) names this
+# directory as the recommended place for local configuration, and removing this
+# one file restores the default.
+[Zram]
+WritebackTrigger=manual
+EOF
+        if ! sudo mkdir -p "$RPI_SWAP_DROP_IN_DIR" ||
+            ! sudo install -o root -g root -m 0644 "$candidate" "$RPI_SWAP_DROP_IN"; then
+            log_error "Could not install $RPI_SWAP_DROP_IN"
+            rm -f "$candidate"
+            return 1
+        fi
+        rm -f "$candidate"
+    fi
+
+    # Stop it before the reload: on a running system the generator's unit
+    # vanishes under the timer, and systemd logs that as a failed unit.
+    sudo systemctl stop "$unit" 2>/dev/null || true
+    sudo systemctl daemon-reload
+
+    if ! systemctl is-active --quiet "$unit" 2>/dev/null &&
+        [ ! -e "/run/systemd/generator/$unit" ]; then
+        log_success "zram writeback timer removed ($RPI_SWAP_DROP_IN)"
+        return 0
+    fi
+
+    # The drop-in is the documented way in; if this image's generator does not
+    # honour it, a mask is the blunt way that works regardless.
+    log_warning "$unit is still active; masking it instead"
+    if sudo systemctl mask "$unit"; then
+        log_success "Masked $unit"
+        return 0
+    fi
+    log_warning "Could not turn off $unit; zram may still spill to the SD card"
+    return 1
+}
+
+# Print config.txt with the Bluetooth overlay turned off.
+#
+# A filter, like the fstab one, so the appended block can be run and read back.
+# Idempotent: if the overlay is already there, the file comes back unchanged.
+#
+# `[all]` because config.txt sections filter by board, and the header is
+# repeated at the end of the file -- which config.txt allows: [all] clears the
+# filter, so the lines after it apply whatever the firmware detected.
+sd_boot_config_with_bt_off() {
+    local comment="$1"
+    awk -v comment="$comment" '
+        { line[NR] = $0 }
+        /^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)/ { found = 1 }
+        END {
+            for (i = 1; i <= NR; i++) {
+                print line[i]
+            }
+            if (found) {
+                exit
+            }
+            # Always a blank line first: awk cannot tell whether the last record
+            # ended with a newline, and a file that did not would otherwise run
+            # this comment into its last line. A blank line costs nothing here.
+            print ""
+            print comment
+            print "[all]"
+            print "dtoverlay=disable-bt"
+        }
+    '
+}
+
+# Turn Bluetooth off.
+#
+# Two halves, and both are needed. The overlay stops the firmware loading the
+# Bluetooth stack and frees the UART it held; the service is what would
+# otherwise sit there logging that it cannot find a controller. The overlay only
+# takes effect at the next boot, and the function says so rather than implying
+# it is already done.
+sd_disable_bluetooth() {
+    local candidate backup="${BOOT_CONFIG}.tinko-bak" overlay_present=0
+
+    if [ ! -f "$BOOT_CONFIG" ]; then
+        log_warning "No $BOOT_CONFIG; skipping Bluetooth"
+        return 1
+    fi
+
+    if grep -qE '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$BOOT_CONFIG"; then
+        overlay_present=1
+        log_info "Bluetooth is already disabled in $BOOT_CONFIG"
+    else
+        candidate="$(mktemp)"
+        sd_boot_config_with_bt_off "$SD_BT_COMMENT" < "$BOOT_CONFIG" > "$candidate"
+
+        if [ ! -s "$candidate" ] ||
+            ! grep -qE '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$candidate"; then
+            log_error "Refusing to install a rewritten $BOOT_CONFIG with no Bluetooth overlay"
+            rm -f "$candidate"
+            return 1
+        fi
+
+        if [ ! -f "$backup" ]; then
+            sudo install -o root -g root -m 0644 "$BOOT_CONFIG" "$backup" ||
+                log_warning "Could not back up $BOOT_CONFIG to $backup"
+        fi
+
+        if ! sudo install -o root -g root -m 0644 "$candidate" "$BOOT_CONFIG"; then
+            log_error "Could not install the rewritten $BOOT_CONFIG"
+            rm -f "$candidate"
+            return 1
+        fi
+        rm -f "$candidate"
+        log_success "Bluetooth disabled in $BOOT_CONFIG (takes effect at the next reboot)"
+    fi
+
+    # The overlay only removes the controller; this is the stack that manages it,
+    # and it would log a failure to find one for the rest of the Pi's life.
+    # hciuart is not on every image, and is enabled by default only where the
+    # Bluetooth UART exists, so both are checked rather than assumed.
+    local unit
+    for unit in bluetooth.service hciuart.service; do
+        if ! systemctl list-unit-files "$unit" >/dev/null 2>&1; then
+            continue
+        fi
+        if ! systemctl is-enabled --quiet "$unit" 2>/dev/null; then
+            log_info "$unit is already disabled"
+            continue
+        fi
+        if sudo systemctl disable --now "$unit"; then
+            log_success "Disabled $unit"
+        else
+            log_warning "Could not disable $unit"
+        fi
+    done
+
+    return 0
+}
+
+# Keep /var/log in RAM instead of on the card.
+#
+# This is what the journal work depends on: /var/log is a tmpfs, the journal
+# goes to /var/log/journal on it, and log2ram's daily timer copies it to
+# /var/hdd.log on the card. Without log2ram every log line from the app, dnsmasq
+# and the captive portal is a card write.
+#
+# Nothing used to install it -- the docs assumed it and the field Pi had it
+# because it was added by hand. It is in Debian's own repository (trixie/main),
+# so a fresh install gets it for real now. Non-fatal when there is no network:
+# the package is only reachable if apt can reach a mirror.
+install_log2ram() {
+    local version
+
+    if dpkg-query -W -f='${Status}' log2ram 2>/dev/null | grep -q "install ok installed"; then
+        version=$(dpkg-query -W -f='${Version}' log2ram 2>/dev/null)
+        log_info "log2ram is already installed (${version:-unknown version})"
+    elif ! command -v apt-get >/dev/null 2>&1; then
+        log_warning "apt-get not found; log2ram not installed and /var/log stays on the SD card"
+        return 1
+    else
+        log_info "Installing log2ram (keeps /var/log in RAM)..."
+        if ! sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y log2ram; then
+            log_warning "Could not install log2ram; /var/log stays on the SD card"
+            return 1
+        fi
+        log_success "log2ram installed"
+    fi
+
+    sudo systemctl enable log2ram.service log2ram-daily.timer >/dev/null 2>&1 ||
+        log_warning "Could not enable log2ram.service/log2ram-daily.timer"
+
+    # The package starts it, but a Pi that has had it disabled would otherwise
+    # only pick it up at the next boot.
+    if systemctl is-active --quiet log2ram.service; then
+        log_info "log2ram is active; /var/log is in RAM"
+    elif sudo systemctl start log2ram.service; then
+        log_success "log2ram started; /var/log is in RAM"
+    else
+        log_warning "log2ram installed but not started; /var/log moves to RAM at the next boot"
+        return 1
+    fi
+}
+
+# Turn off the SD card writes this Pi does not need.
+#
+# Called from setup_update_infrastructure() -- so the installer and the CLI
+# update both get it -- and directly from update-web.sh, which deliberately does
+# not call that function (it would restart the update daemon that is running it).
+#
+# Returns non-zero if any step could not be applied, so the caller can say so.
+# Every step has already explained itself by then; this is the summary line.
+optimize_for_sd_card() {
+    local failures=0
+
+    log_info "Reducing SD card writes..."
+
+    sd_disable_apt_timers || failures=$((failures + 1))
+    sd_disable_zram_writeback || failures=$((failures + 1))
+    sd_disable_bluetooth || failures=$((failures + 1))
+    sd_mount_var_tmp_in_ram || failures=$((failures + 1))
+    sd_set_writeback_sysctl || failures=$((failures + 1))
+    sd_add_root_commit_option || failures=$((failures + 1))
+    install_log2ram || failures=$((failures + 1))
+
+    if [ "$failures" -eq 0 ]; then
+        log_success "SD card write reduction applied (see docs/reference/sd-card.md)"
+        return 0
+    fi
+
+    log_warning "$failures SD card step(s) could not be applied; each one above says why"
+    return 1
+}
+
 # Setup update infrastructure for web updates
 setup_update_infrastructure() {
     log_info "Setting up update infrastructure for web updates..."
@@ -418,6 +1008,14 @@ EOF
     # see install_timesync_config().
     install_timesync_config ||
         log_warning "Clock retry left at the default; the first sync may take longer"
+
+    # 7. Cut the SD card writes this Pi does not need. It lives here because
+    # this is the one function both the installer and the CLI update call --
+    # update-web.sh calls the other steps individually, since it IS the update
+    # daemon this function would otherwise restart, and calls this one directly.
+    # Non-fatal: see optimize_for_sd_card().
+    optimize_for_sd_card ||
+        log_warning "Some SD card writes are still enabled; the steps above say which"
 
     log_success "Update infrastructure set up successfully"
 }

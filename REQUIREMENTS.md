@@ -1393,6 +1393,35 @@ _Last updated: 2026-04-13_
   with `timezone.localtime()` first, because `strftime` on an aware datetime
   prints its own offset. `tzdata` added so the lookup works on Windows too.
   Added 2026-09-27.
+- **Live clock in the navbar**: the header shows the Pi's current time next to
+  the menu, ticking once a second, so a teacher can check the wall clock without
+  leaving the page. It renders the server's time on first paint and updates it
+  from the browser's own clock, so it stays right while the page is open.
+  Added 2026-09-27.
+- **The SD card is not the thing that fails**: the card is the Pi's only disk and
+  the machine's power is cut at the wall, so the target is fewer, larger, less
+  frequent writes. The app's own share is in code — `logs/django.log` and
+  `logs/lcd_display.log` rotate at 1 MB keeping 2 backups, the LCD logger is off
+  `DEBUG` (it was logging every panel refresh: 8.7 MB in weeks), SQLite runs
+  `journal_mode=WAL` with `synchronous=NORMAL` and a 200-page autocheckpoint, and
+  noise readings older than 24 h are deleted hourly (26,369 rows accumulated in a
+  day and a half). `optimize_for_sd_card()` in `scripts/update_infra.sh` handles
+  the operating system's share: `apt-daily`/`apt-daily-upgrade` timers off (so
+  OS packages only move by hand), zram writeback off via the supported
+  `/etc/rpi/swap.conf.d` drop-in (`disable` alone does not work — the unit is
+  generated at every boot), `commit=600` on the root mount, kernel writeback
+  intervals of 60 s, `/var/tmp` on tmpfs via a mount unit rather than an fstab
+  line, Bluetooth off, and `log2ram` installed by the project rather than
+  assumed. Every step is idempotent, non-fatal, and reversed by `uninstall.sh`;
+  what each one costs is documented in `docs/reference/sd-card.md`. Added
+  2026-09-27.
+- **The write-ahead log belongs to the database**: the update scripts moved
+  `db.sqlite3` aside around the pull but left `db.sqlite3-wal` and
+  `db.sqlite3-shm` in the tree, and a WAL whose database has gone describes a
+  state that no longer exists — SQLite replays what it finds.
+  `hide_live_db()`/`restore_live_db()` now carry all three, and
+  `recover_orphaned_db()` recovers an interrupted run with its siblings intact
+  rather than renaming a WAL over its database. Added 2026-09-27.
 - **Developer Guidelines**: `AGENTS.md`
 - **Code Standards**: PEP 8 with 88-character line length
 - **Admin User**: admin / admin123

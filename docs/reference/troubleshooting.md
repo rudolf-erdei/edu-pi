@@ -1166,6 +1166,32 @@ sudo journalctl --vacuum-time=7d
 sudo apt-get clean
 ```
 
+`/var/log` and `/var/tmp` are in RAM, so they are not what fills the card: the
+space is used by the database, `media/` and the two log files. See
+[SD Card and Long-Term Wear](sd-card.md) for what is on the card and what is
+not.
+
+### The SD card keeps failing
+
+**Problem:** the Pi stops booting, or the card stops being writable, more than
+once.
+
+**Solutions:** card failure is usually the *shape* of the writes rather than
+their total — many small writes, on a machine whose power is cut at the wall.
+Tinko already turns off the ones this Pi does not need; check that they are in
+place:
+
+```bash
+findmnt -no OPTIONS /                      # expect commit=600
+findmnt /var/tmp                           # expect tmpfs
+systemctl is-active rpi-zram-writeback.timer   # expect not-found
+systemctl is-enabled apt-daily.timer           # expect disabled
+```
+
+If they are in place and a card still fails, the fix is an SSD rather than more
+tuning — see [SD Card and Long-Term Wear](sd-card.md), which lists what each
+setting costs and how to undo it.
+
 ## Debug Mode
 
 ### Enable Debug Mode

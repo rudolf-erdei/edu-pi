@@ -80,7 +80,7 @@ def test_both_update_scripts_hide_and_restore(script):
     """Both entry points guard the database, not just the CLI one."""
     block = extract_block(script)
 
-    assert "DB_SAVED_PATH" in block
+    assert "DB_SAVED_PATHS" in block
     assert "mv" in block, "the guard must move the file, not copy it"
     # The restore must be a call site in pull_latest, not only a definition.
     text = (REPO_ROOT / script).read_text(encoding="utf-8")
@@ -144,11 +144,60 @@ def test_hide_and_restore_are_no_ops_without_a_database(tmp_path):
         tmp_path,
         'hide_live_db\n'
         'restore_live_db\n'
-        'echo "saved=[$DB_SAVED_PATH]"\n',
+        'echo "saved=[${DB_SAVED_PATHS[*]}]"\n',
     )
 
     assert "saved=[]" in out
     assert "ERROR" not in out, "a missing database is not an error"
+
+
+def test_the_write_ahead_log_goes_with_the_database(tmp_path):
+    """SQLite's WAL is the database, half-written.
+
+    A db.sqlite3-wal left in the tree while its database is moved aside
+    describes a state that no longer exists, and SQLite replays what it finds —
+    so the log and the index have to travel with the file they belong to.
+    """
+    (tmp_path / "db.sqlite3").write_text("LIVEDB")
+    (tmp_path / "db.sqlite3-wal").write_text("WAL")
+    (tmp_path / "db.sqlite3-shm").write_text("SHM")
+    out = run_scenario(
+        tmp_path,
+        'hide_live_db\n'
+        'for f in db.sqlite3 db.sqlite3-wal db.sqlite3-shm; do\n'
+        '    [[ -e "$INSTALL_DIR/$f" ]] && echo "PRESENT $f" || echo "HIDDEN $f"\n'
+        'done\n'
+        'restore_live_db\n'
+        'for f in db.sqlite3 db.sqlite3-wal db.sqlite3-shm; do\n'
+        '    [[ -e "$INSTALL_DIR/$f" ]] && echo "BACK $f" || echo "MISSING $f"\n'
+        'done\n',
+    )
+
+    for name in ("db.sqlite3", "db.sqlite3-wal", "db.sqlite3-shm"):
+        assert f"HIDDEN {name}" in out, f"{name} must leave the tree with the database"
+        assert f"BACK {name}" in out, f"{name} must come back"
+
+    # And they came back as themselves — not renamed onto one another.
+    assert (tmp_path / "db.sqlite3").read_text() == "LIVEDB"
+    assert (tmp_path / "db.sqlite3-wal").read_text() == "WAL"
+    assert (tmp_path / "db.sqlite3-shm").read_text() == "SHM"
+    assert not list(tmp_path.glob("*.update-tmp-*")), "no leftovers after a restore"
+
+
+def test_an_orphaned_write_ahead_log_is_recovered_with_its_database(tmp_path):
+    """Interrupted mid-pull, the log must not be lost — nor renamed onto the
+    database, which is what a `"$DB_NAME".update-tmp-*` glob would do."""
+    (tmp_path / "db.sqlite3.update-tmp-9999").write_text("ORPHANDB")
+    (tmp_path / "db.sqlite3-wal.update-tmp-9999").write_text("ORPHANWAL")
+    out = run_scenario(
+        tmp_path,
+        'recover_orphaned_db\n'
+        'cat "$INSTALL_DIR/db.sqlite3"\n'
+        'cat "$INSTALL_DIR/db.sqlite3-wal"\n',
+    )
+
+    assert "ORPHANDB" in out, "the database must come back"
+    assert "ORPHANWAL" in out, "the log must come back as a log, not as the database"
 
 
 def test_orphaned_database_is_recovered_not_lost(tmp_path):

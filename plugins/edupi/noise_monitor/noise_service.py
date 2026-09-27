@@ -101,6 +101,16 @@ MIC_CEILING_DBFS = 0.0
 # How often a reading is written to the history table while monitoring.
 READING_SAVE_INTERVAL_SECONDS = 5.0
 
+# How much history is kept, and how often the table is pruned to that.
+#
+# Monitoring runs continuously, so at one row every five seconds this table
+# gains 17,280 rows a day forever: the field Pi had 26,369 rows after a day and
+# a half. The chart draws a 20-minute window and the readings page a few hours,
+# so everything older than a day is dead weight that keeps the database (and
+# the SD card's writes) growing without improving anything a teacher can see.
+READING_RETENTION_HOURS = 24
+PRUNE_INTERVAL_SECONDS = 3600.0
+
 # The face shown for each colour, keyed by the same colour names the LEDs use.
 # Values are Mood values from the display plugin (lcd_display/mood.py), matched
 # by name so this module does not have to import it.
@@ -203,6 +213,7 @@ class NoiseMonitorService:
         # so readings are written on an interval rather than on every sample.
         self._persist: bool = False
         self._last_persist_at: Optional[datetime] = None
+        self._last_prune_at: Optional[datetime] = None
 
         # Audio device settings. _device_index/_device_name are what the
         # teacher configured; _resolved_index/_resolved_name are what the
@@ -804,11 +815,42 @@ class NoiseMonitorService:
                 session_color=self._session_color,
             )
             self._last_persist_at = timestamp
+            self._prune_history(timestamp)
         except Exception as e:
             # The meter keeps working whether or not the row goes in; losing
             # history is not worth stopping the LEDs and the face for.
             logger.error(f"Error saving noise reading: {e}")
             self._last_persist_at = timestamp
+
+    def _prune_history(self, timestamp: datetime) -> None:
+        """Drop history older than the retention window, once an hour.
+
+        The table is only ever read for a 20-minute chart and a few hours of
+        readings, so keeping more than a day costs SD writes and database
+        growth and gains nothing. Pruning runs on the same thread as the
+        sampling loop but at its own slow interval, so a delete every five
+        seconds cannot become the next thing writing to the card.
+
+        A failed prune is logged and ignored: history that grows is a smaller
+        problem than a monitor that stops.
+        """
+        if self._last_prune_at is not None:
+            elapsed = (timestamp - self._last_prune_at).total_seconds()
+            if elapsed < PRUNE_INTERVAL_SECONDS:
+                return
+        # Set before the delete, so a delete that keeps failing is retried on
+        # the next interval rather than on every reading.
+        self._last_prune_at = timestamp
+
+        try:
+            from .models import NoiseReading
+
+            cutoff = timestamp - timedelta(hours=READING_RETENTION_HOURS)
+            deleted, _ = NoiseReading.objects.filter(timestamp__lt=cutoff).delete()
+            if deleted:
+                logger.debug(f"Pruned {deleted} noise readings older than {cutoff}")
+        except Exception as e:
+            logger.error(f"Error pruning noise readings: {e}")
 
     @staticmethod
     def _lcd():

@@ -20,10 +20,16 @@ files, translations compiled, tinko.service restarted.
 
 **The shared piece is `scripts/update_infra.sh`.** It defines
 `setup_update_infrastructure()`, `install_power_helper()`,
-`install_persistent_journal()` and `install_timesync_config()` /
-`ensure_clock_is_set()`, and all three paths `source` it. It is sourced for its
-functions only — sourcing has no side effects, and the caller must have defined
-the `log_*` helpers first.
+`install_persistent_journal()`, `optimize_for_sd_card()` and
+`install_timesync_config()` / `ensure_clock_is_set()`, and all three paths
+`source` it. It is sourced for its functions only — sourcing has no side
+effects, and the caller must have defined the `log_*` helpers first.
+
+`optimize_for_sd_card()` is the one that changes the machine beyond Tinko's own
+service: mount options, kernel writeback intervals, systemd timers and one boot
+config line. Every step is idempotent and non-fatal, and each one is reversed by
+`uninstall.sh`. What they cost is on
+[SD Card and Long-Term Wear](sd-card.md).
 
 `update-web.sh` deliberately does **not** call `setup_update_infrastructure()`: it
 restarts `tinko-update.service`, and that service is what is running the script.
@@ -101,6 +107,11 @@ had only the middle one — it reported success while the journal stayed volatil
    that field. With the vendor's volatile setting the path was `/run/log/journal`,
    so nothing was ever copied to log2ram's disk copy (`/var/hdd.log`) and nothing
    survived the reboot. (1) is what fixes this too.
+
+   log2ram is a *package*, and `install_log2ram()` is what puts it there: the
+   field Pi only had it because someone added it by hand, so a fresh install used
+   to end up with a persistent journal on a tmpfs that was never synced. See
+   [SD Card and Long-Term Wear](sd-card.md).
 
 Preparation and honesty:
 
@@ -200,7 +211,7 @@ a stash behind):
 
 | File | Why it is at risk | Protection |
 |------|-------------------|-----------|
-| `db.sqlite3` | Tracked, but the app writes to it constantly. | `hide_live_db()` / `restore_live_db()` move it out of the tree around the pull, on both paths; `recover_orphaned_db()` handles an interrupted run. |
+| `db.sqlite3`, `db.sqlite3-wal`, `db.sqlite3-shm` | Tracked, but the app writes to it constantly. | `hide_live_db()` / `restore_live_db()` move it out of the tree around the pull, on both paths; `recover_orphaned_db()` handles an interrupted run. The `-wal` and `-shm` siblings travel with the database — a write-ahead log left behind describes a state its database is no longer in, and SQLite replays what it finds. |
 | Files git still tracks under `media/` (the school logo) | An upload is stashed, then the committed copy is checked back out over it. | `hide_media()` / `restore_media()` / `recover_orphaned_media()`, driven by `git ls-files media`, so the guard retires itself once `media/` is untracked. |
 | Compiled catalogues (`*.mo`) | Rewrites of `compile_translations.py`, so any translation change left the tree dirty and produced one stash per update. | Untracked, `*.mo` in `.gitignore`, and the stash check now uses `--untracked-files=no`. The `.mo` files are rebuilt by the update itself. |
 
