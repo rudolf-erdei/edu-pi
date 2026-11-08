@@ -230,12 +230,24 @@ a stash behind):
 3. The script writes only `stage.json`; the daemon is the **sole writer** of
    `status.json`, streaming the script's output into it.
 4. The WebSocket consumer polls the status file and pushes progress to the
-   browser.
+   browser. If the socket drops (it always does — the update restarts the
+   service), the page polls `/updates/status/` every 2 s instead.
 5. `reconcile_update_records()` runs on later requests: it syncs a terminal
    status file back into the DB row, and abandons rows that are older than two
    minutes with neither a trigger file nor an `in_progress` status — the state
    a reboot leaves behind, which otherwise blocks the next update with
    *"Update already in progress"*.
+
+`/updates/status/` is deliberately **not** behind the Settings PIN. The update
+restarts the service and sessions live in LocMemCache, so the browser waiting
+for the update loses its session exactly when the update finishes. Gating the
+read-only status made the page poll a login redirect forever, stuck on
+"System is restarting. Reconnecting...". The other three update routes stay
+gated: only this one starts nothing and changes nothing.
+
+After a successful update the page shows "Update Complete" and reloads; the
+session was wiped by the restart, so the reload lands on the PIN login. That is
+expected.
 
 The daemon recreates its own runtime state after every reboot, so any
 permission the installer set once on `/run/tinko-update/` is gone at boot. The

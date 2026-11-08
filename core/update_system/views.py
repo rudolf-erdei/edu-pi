@@ -216,9 +216,15 @@ def start_update(request):
 
     return JsonResponse({'update_id': update.id})
 
-@settings_login_required
 def get_update_status(request):
-    """Poll the current status from the status file."""
+    """Poll the current status from the status file.
+
+    Deliberately not behind the Settings PIN. The update restarts the service,
+    and sessions live in LocMemCache, so the browser waiting for the update
+    loses its session exactly when the update finishes. Gating this read-only
+    progress left the page polling a login redirect forever. Nothing here
+    starts, stops or changes anything.
+    """
     reconcile_update_records()
 
     if not STATUS_FILE.exists():

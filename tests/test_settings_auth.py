@@ -264,7 +264,6 @@ PROTECTED_URLS = [
     "/settings/system/vacuum/",
     "/updates/check/",
     "/updates/start/",
-    "/updates/status/",
     "/updates/last-update/",
 ]
 
@@ -418,7 +417,7 @@ def test_a_json_client_gets_401_instead_of_an_html_login_page():
     """The Updates tab polls with Accept: application/json; a 302 that fetch
     follows becomes 200 + HTML, which the JavaScript cannot tell from data."""
     resp = Client().get(
-        "/updates/status/", headers={"accept": "application/json"}
+        "/settings/system/clients/", headers={"accept": "application/json"}
     )
 
     assert resp.status_code == 401
@@ -434,3 +433,19 @@ def test_the_settings_page_offers_a_way_to_lock_it_again():
     body = client.get("/settings/").content.decode()
 
     assert 'action="/settings/logout/"' in body
+
+
+@pytest.mark.django_db
+def test_update_status_stays_readable_without_a_session():
+    """The service restart wipes cache-backed sessions.
+
+    The page that is waiting for the update must still be able to read the
+    status afterwards, or it sits on "reconnecting" until someone refreshes.
+    The status is read-only progress, not settings.
+    """
+    resp = Client().get(
+        "/updates/status/", headers={"accept": "application/json"}
+    )
+
+    assert resp.status_code == 200
+    assert "status" in resp.json()

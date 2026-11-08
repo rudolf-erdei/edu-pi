@@ -13,6 +13,7 @@ connection.
 """
 
 from pathlib import Path
+import re
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ASSET_ROOT = REPO_ROOT / "static" / "vendor" / "fontawesome"
@@ -24,9 +25,18 @@ def test_base_template_loads_the_local_font_awesome_stylesheet():
     assert "vendor/fontawesome/css/all.min.css" in base
 
 
-def test_the_stylesheet_points_at_a_font_that_ships_with_it():
+def test_every_font_the_stylesheet_references_ships_with_it():
+    """WhiteNoise resolves every url() in the CSS at collectstatic time.
+
+    A single missing face — fa-brands is referenced even though no template
+    uses a brand icon — aborts the whole update and leaves the service down.
+    """
     stylesheet = ASSET_ROOT / "css" / "all.min.css"
     css = stylesheet.read_text(encoding="utf-8")
 
-    assert "fa-solid-900.woff2" in css
-    assert (ASSET_ROOT / "webfonts" / "fa-solid-900.woff2").is_file()
+    referenced = set(re.findall(r"\.\./webfonts/([A-Za-z0-9._-]+)", css))
+    assert "fa-solid-900.woff2" in referenced
+    missing = sorted(
+        name for name in referenced if not (ASSET_ROOT / "webfonts" / name).is_file()
+    )
+    assert missing == []
