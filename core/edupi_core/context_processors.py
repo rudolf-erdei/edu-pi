@@ -14,7 +14,11 @@ def site_settings(request):
         Dict with site settings for use in templates.
     """
     return {
-        "ROBOT_NAME": SiteSettings.get("tinko.global.robot_name", "Tinko"),
+        # `or` rather than the get() default: the settings form can save an
+        # empty string, and get() only falls back when the row is missing.
+        # Taken literally, a blank robot name erases the brand from the
+        # navbar and the dashboard hero.
+        "ROBOT_NAME": SiteSettings.get("tinko.global.robot_name") or "Tinko",
         "SCHOOL_NAME": SiteSettings.get("tinko.global.school_name", ""),
         "SCHOOL_LOGO": SiteSettings.get("tinko.global.logo_path", ""),
         "MEDIA_URL": django_settings.MEDIA_URL,

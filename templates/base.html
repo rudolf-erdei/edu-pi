@@ -14,6 +14,19 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Brand palette: Hunter Green. daisyUI 4 consumes its theme as bare
+           oklch components, so these are the oklch form of #2c5f34 (primary)
+           and #1e4425 (secondary) — not hex. Overriding rather than defining
+           a whole custom theme keeps daisyUI's light neutrals intact.
+           White on Hunter Green is 7.5:1, so --pc can stay near-white. */
+        :root,
+        [data-theme="light"] {
+            --p: 43.82% 0.0888 147.24;  /* #2c5f34 Hunter Green */
+            --pc: 98.2% 0.0051 145.54;  /* #f7faf7 */
+            --s: 34.94% 0.0689 148.02;  /* #1e4425 deep forest */
+            --sc: 100% 0 0;             /* #ffffff */
+        }
+
         body {
             font-family: 'Inter', sans-serif;
         }
