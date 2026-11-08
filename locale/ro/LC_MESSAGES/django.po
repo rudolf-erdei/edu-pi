@@ -58,11 +58,11 @@ msgstr "Bine ați venit la %(robot)s"
 msgid "Welcome to %(robot)s · %(school)s"
 msgstr "Bine ați venit la %(robot)s · %(school)s"
 
-msgid "Bring your everyday lessons to life."
-msgstr "Dă viață lecțiilor tale de zi cu zi."
+msgid "Small ideas become big inventions."
+msgstr "Micile idei devin invenții mari."
 
-msgid "Timers, sound levels, routines and music — ready before the bell."
-msgstr "Timere, nivelul zgomotului, rutine și muzică — gata înainte de clopoțel."
+msgid "Bring your everyday lessons to life."
+msgstr "Dă viață lecțiilor tale."
 
 # Quick Actions
 msgid "Quick Actions"

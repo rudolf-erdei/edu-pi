@@ -42,8 +42,9 @@ def test_hero_leads_with_a_statement_not_the_mascot_greeting(client):
     content = client.get("/").content.decode()
 
     assert "Welcome to Tinko" in content
+    assert "Small ideas become big inventions." in content
     assert "Bring your everyday lessons to life." in content
-    assert "Timers, sound levels, routines and music" in content
+    assert "Timers, sound levels, routines and music" not in content
     assert "Hello, I'm Tinko!" not in content
 
 
@@ -69,7 +70,8 @@ def test_hero_is_translated_into_romanian(client):
     content = client.get("/", HTTP_ACCEPT_LANGUAGE="ro").content.decode()
 
     assert "Bine ați venit la Tinko" in content
-    assert "Timere, nivelul zgomotului, rutine și muzică" in content
+    assert "Micile idei devin invenții mari." in content
+    assert "Dă viață lecțiilor tale." in content
 
 
 @pytest.mark.django_db
