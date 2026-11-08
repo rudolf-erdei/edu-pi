@@ -58,3 +58,8 @@ site/
 .claude/settings.local.json
 ISSUES.md
 CLAUDE.md
+
+# collectstatic output (WhiteNoise serves it, and every service start rewrites
+# it via ExecStartPre). Build output of the same class as site/ and *.mo:
+# generated from static/, never edited, and dirty after every change.
+staticfiles/
