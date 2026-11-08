@@ -7,62 +7,19 @@ Debian 13, Django 4.2.29). Each entry says what the machine can actually answer.
 Two of these are limited by the hardware rather than by the app, and one turned
 up a gap that is not an idea at all — see [A login, first](#a-login-first).
 
-Four were built the same day, as the Settings → System tab — see
-[below](#built-2026-09-27--the-system-tab). What is left is the risky half of the
-backup, two things the hardware cannot answer, and the login.
-
 | Idea | Verdict | Size |
 |------|---------|------|
-| Used and free space | ✅ built — the Storage card | — |
-| Clean the database | ✅ built — retention windows, not a space saver | — |
-| Data backup (download) | ✅ built — `VACUUM INTO` snapshot in a zip | — |
-| Clients connected | ✅ built — browsers seen in the last 2 minutes | — |
 | Restore from a backup (upload) | doable; this is the risky half | medium — needs a root helper |
 | SD card health | **proxies only** — there is no wear figure to read | medium |
 | Energy consumption | **not measurable on a Pi 4** | estimate only |
 | A login on the dashboard | **absent today** | medium |
 
-### Built 2026-09-27 — the System tab
+### Restore from a backup — the download half shipped, this is the other half
 
-The four `small` ideas shipped as a **System** tab on `/settings/`:
-`core/edupi_core/system/` (`storage.py`, `history.py`, `clients.py`,
-`backup.py`, `views.py`), `templates/settings/system_tab.html`,
-`static/js/system.js`, and three test files. What the analysis got right, and
-what it changed once it met the code:
-
-- **Free space is `shutil.disk_usage`, and the interesting rows are the RAM
-  ones.** The field Pi reports 15 GB total, 7.9 GB used, 5.6 GB free; `/var/log`
-  is log2ram's 128 MB tmpfs. **When that fills, logging stops** — which is why
-  the warning above 80% names the consequence rather than the number. Both RAM
-  rows are shown only when `os.path.ismount` says they are mounts, so the tab
-  degrades to a single row off-Pi instead of lying.
-- **"Clean the database" is a retention control, not a space saver**, and the
-  measurement above still holds: the noise history is already pruned to 24 h, so
-  the button frees kilobytes. Deleting does not shrink the file — the pages are
-  reused — so **compact** is a separate, rare action with its own warning.
-  `VACUUM` needs `PRAGMA busy_timeout=30000` here, because the noise monitor
-  commits every five seconds and the default timeout would fail those commits
-  mid-rewrite.
-- **The scope was wider than "history tables".** A running `TimerSession` is
-  held in memory by `timer_service` and saved again on every change, so deleting
-  its row would have Django re-`INSERT` it; and an `in_progress` update row is
-  what blocks a second concurrent update. Both are excluded, and both have
-  tests. `PluginEventLog` is left alone entirely — never written, admin-only.
-- **Clients = browsers seen in the last two minutes**, counted in process memory
-  because sessions already live in `LocMemCache`: a count costs no database row
-  and no SD-card write. `X-Forwarded-For` is not trusted (nothing proxies
-  daphne), and what is stored is Django's *resolved route*, never the raw path —
-  so no client-supplied string is ever stored or echoed. The original note said
-  this needed the login to mean anything; it does not, but the honest label is
-  "browsers", not "users", and the panel says so.
-- **The download half of the backup is built**: `VACUUM INTO` a snapshot (never
-  copy `db.sqlite3` — WAL), `PRAGMA integrity_check` it, zip it with `media/`
-  and a `manifest.json` carrying per-table row counts and the site settings
-  (minus credential-looking keys). Built under the temp directory, which is
-  tmpfs, so a backup writes no card at all — at the price of refusing a database
-  too large to fit in RAM.
-
-### Restore from a backup — the other half, not built
+**Download** shipped 2026-09-27 (Settings → System): a `VACUUM INTO` snapshot of
+the live database, zipped with `media/` and a manifest, built in tmpfs so it
+writes no card. **Restore is the upload half, and it does not exist** — the tab
+says so where the button is.
 
 The **upload** half is where the care goes, and the pattern already exists in
 the repo: `update.sh` swaps the live database safely (`hide_live_db` /
@@ -83,10 +40,13 @@ logo is exactly the kind of file the update merge has wiped before, so restore
 should be verified the same way an update is.
 
 Worth noting: **"Database backups" is already a requirement** (`REQUIREMENTS.md`
-→ General). The download half now exists (see above); this is the half that does
-not, and the System tab's button says so where a teacher will read it.
+→ General), and the download half of it is now built. This entry is the half that
+does not exist.
 
 ### SD card health — proxies only, and no percentage exists to show
+
+Free space and the `/var/log` fill warning already ship on the System tab, so
+what is left of this idea is the part nothing shows yet: the flags below.
 
 What the machine exposes, all readable:
 
@@ -147,8 +107,7 @@ labelled as one. Real measurement means an INA219/INA260 shunt on the input plus
 
 ### A login, first
 
-This started as a note under "clients connected" and is not an idea, it is a
-gap. **Nothing asks for a login.** Django is 4.2.29 — `LoginRequiredMiddleware`
+Not an idea, a gap. **Nothing asks for a login.** Django is 4.2.29 — `LoginRequiredMiddleware`
 is 5.1+, so it is not available — there is no `@login_required` anywhere under
 `core/` or `plugins/`, and `AuthenticationMiddleware` only attaches
 `request.user`; it enforces nothing.
@@ -162,9 +121,10 @@ Consequences on the field Pi:
 - only `/admin/` is gated, and that is Django's own admin, not Tinko's.
 
 PIN-based authentication for teacher settings is already a requirement
-(`REQUIREMENTS.md` → Security). Building the client counter before the login
-means counting strangers, and building the restore button before it means anyone
-on the network can replace the database.
+(`REQUIREMENTS.md` → Security). The System tab shipped on 2026-09-27 without it:
+its client counter counts strangers, its two buttons delete and rewrite, and one
+of its routes hands the whole database to any `GET`. Building the restore button
+before the login would mean anyone on the network can replace the database.
 
 ## On the screen
 

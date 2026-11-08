@@ -55,15 +55,8 @@ msgstr "Administrare"
 msgid "Hello, I'm Tinko!"
 msgstr "Salut, sunt Tinko!"
 
-msgid ""
-"I used to live inside a very quiet, very serious pocket calculator. All day "
-"long, I just added boring numbers together. But I had a secret dream: I "
-"wanted to make music, flash bright colors, and build amazing gadgets!"
-msgstr ""
-"Înainte, locuiam înăuntrul unui calculator de buzunar foarte tăcut și foarte"
-" serios. Toată ziua doar adunam și scădeam numere plictisitoare. Dar eu "
-"aveam un vis secret: voiam să compun muzică, să aprind lumini colorate și să"
-" construiesc invenții uimitoare!"
+msgid "Bring your everyday lessons to life."
+msgstr "Dă viață lecțiilor tale de zi cu zi."
 
 # Quick Actions
 msgid "Quick Actions"
