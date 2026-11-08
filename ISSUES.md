@@ -3,7 +3,8 @@
 Open items only.
 
 Re-checked against the field Pi 2026-09-26. Every open item says why it is still
-open and what would close it.
+open and what would close it. PIN login shipped 2026-11-08; see
+`docs/teacher/settings.md` → Settings PIN.
 
 ## Open — captive portal offline/setup branch has never run on hardware
 
@@ -43,68 +44,6 @@ Already proven by the zero-risk `dummy0` test (method: see the
 `captive-portal-test-method` memory): wildcard DNS answers, all six
 captive-detection routes return `302 -> http://10.42.0.1/`, the form serves,
 and the SSID/password validators reject bad input.
-
-## Open — per-plugin settings tabs never render
-
-`SettingsRegistry` is filled only when a `PluginSettings` instance is
-constructed (`core/plugin_system/settings.py:118`), and no plugin instantiates
-one: nothing imports `plugins/*/plugin_settings.py`. `views.py:262-274` therefore
-builds no plugin tabs, so the Settings page shows Global and Updates only and the
-`PluginSettingsForm` classes written for the plugins are unreachable. Found
-2026-09-26 by an audit of what the manual claims against what the code does.
-
-Closing it means picking a registration path — e.g. instantiate each plugin's
-settings class during `register()` — and deciding whether the tabs are per-plugin
-(section per form) or one section per plugin inside Global.
-
-## Open — nothing asks for a login, and the settings area now deletes and hands over data
-
-Every page and endpoint outside `/admin/` is unauthenticated: there is no
-`@login_required` under `core/` or `plugins/`, no login route, and
-`LoginRequiredMiddleware` (which would let this be fixed with one setting) only
-arrived in Django 5.1 while the project is on 4.2. `settings_view` accepts a
-POST that changes the school name and logo with no check at all.
-
-The System tab added 2026-09-27 sharpened this rather than creating it. It
-brought four endpoints, all open, and two of them act:
-
-- `GET /settings/system/backup/` **returns the entire database** to any client
-  that asks. A URL that starts a download is also a URL a browser follows from a
-  link preview or a crawler, so this is not only about a person typing it.
-- `POST /settings/system/clean/` deletes rows permanently, with no undo.
-- `POST /settings/system/vacuum/` rewrites the database file.
-- `GET /settings/system/clients/` discloses the addresses of other clients on
-  the network and the page each is on.
-
-The mitigation in place is real but partial: the two destructive endpoints are
-POST-only and require Django's CSRF token, so a *third-party page* cannot
-trigger them — the token cannot be read cross-origin. It does not stop a client
-that fetches `/settings/?tab=system` first and takes the token from the form.
-
-**Why it is open.** PIN-based authentication for teacher settings is a stated
-requirement (`REQUIREMENTS.md` → `### Security`) and is not built; building it
-as part of this feature would have meant designing how a teacher signs in, what
-happens when the PIN is forgotten (the Pi has no keyboard most of the time, and
-a lockout is the failure this project must never have), and how the captive
-portal's setup page works before any PIN exists. That is a feature, not a
-hardening pass.
-
-**What closes it.** A login for the settings surface — Global, Updates and
-System — with a recovery path that does not need SSH; then `@login_required` (or
-the middleware, if the Django version has moved) on `settings_view` and the four
-`/settings/system/` routes, exempting the captive portal's own pages. Until
-then the deployment guidance is "school network only, not the open internet",
-which is stated in `docs/teacher/settings.md` and `README.md`.
-
-## Open — housekeeping: `origin/development` is still on GitHub
-
-The local `development` branch is gone and work now happens on `master`
-directly, so no pull request is needed for routine changes. The remote branch
-could not be deleted from this machine — no GitHub credentials (`gh` is not
-installed, and the HTTPS remote rejects password auth): `git push origin
---delete development` fails with *"Invalid username or token"*. Delete it in
-the GitHub branches page, then `git fetch --prune` locally to drop the stale
-`remotes/origin/development` ref.
 
 ## Known-inherent — single-radio wildcard DNS
 

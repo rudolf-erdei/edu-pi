@@ -659,3 +659,54 @@ msgid_plural "%(count)s old records were deleted."
 msgstr[0] "%(count)s înregistrare veche a fost ștearsă."
 msgstr[1] "%(count)s înregistrări vechi au fost șterse."
 msgstr[2] "%(count)s de înregistrări vechi au fost șterse."
+
+msgid "Settings PIN set."
+msgstr "PIN-ul pentru setări a fost setat."
+
+msgid "Too many incorrect PINs. Try again in a few minutes."
+msgstr "Prea multe PIN-uri incorecte. Încercați din nou în câteva minute."
+
+msgid "Incorrect PIN."
+msgstr "PIN incorect."
+
+msgid "Signed out of Settings."
+msgstr "Deconectat din Setări."
+
+msgid "PIN"
+msgstr "PIN"
+
+msgid "4–8 digits."
+msgstr "4–8 cifre."
+
+msgid "The PIN must be digits only."
+msgstr "PIN-ul trebuie să conțină doar cifre."
+
+msgid "Confirm PIN"
+msgstr "Confirmați PIN-ul"
+
+msgid "The two PINs do not match."
+msgstr "Cele două PIN-uri nu coincid."
+
+msgid "Settings are locked"
+msgstr "Setările sunt blocate"
+
+msgid "Enter your PIN to open Settings."
+msgstr "Introduceți PIN-ul pentru a deschide Setările."
+
+msgid "Forgot it? Sign in to the Django admin as a superuser, or run reset_settings_pin on the Pi."
+msgstr "Ați uitat PIN-ul? Autentificați-vă în administrarea Django ca superutilizator sau rulați reset_settings_pin pe Raspberry Pi."
+
+msgid "Unlock"
+msgstr "Deblochează"
+
+msgid "Set a settings PIN"
+msgstr "Setați un PIN pentru setări"
+
+msgid "No settings PIN exists on this device yet. Choose 4–8 digits. You can reset it later with the admin login or the reset_settings_pin command."
+msgstr "Pe acest dispozitiv nu există încă un PIN pentru setări. Alegeți 4–8 cifre. Îl puteți reseta mai târziu cu autentificarea de administrator sau cu comanda reset_settings_pin."
+
+msgid "Save PIN"
+msgstr "Salvați PIN-ul"
+
+msgid "Sign out of Settings"
+msgstr "Deconectați-vă din Setări"

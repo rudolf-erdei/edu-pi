@@ -130,10 +130,24 @@ function updateProgressUI(data) {
     }
 }
 
+// The gate answers a JSON client with 401 instead of a 302, because a browser
+// follows a redirect transparently and hands back the login page at 200 — this
+// code would read it as an empty result and leave "Updating…" on screen.
+function needsLogin(res) {
+    if (res.status !== 401) return false;
+    const here = window.location.pathname + window.location.search;
+    window.location.assign(`/settings/login/?next=${encodeURIComponent(here)}`);
+    return true;
+}
+
 async function checkUpdates() {
     showState('checking');
     try {
-        const res = await fetch(`${API_BASE}/check/`);
+        const res = await fetch(`${API_BASE}/check/`, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        });
+        if (needsLogin(res)) return;
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             showCheckResult('error', gettext(err.error) || gettext('Server error'));
@@ -176,9 +190,13 @@ async function startUpdate() {
     try {
         const res = await fetch(`${API_BASE}/start/`, {
             method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken() },
+            headers: {
+                'X-CSRFToken': csrfToken(),
+                Accept: 'application/json',
+            },
             credentials: 'same-origin',
         });
+        if (needsLogin(res)) return;
         const resJson = await res.json().catch(() => ({}));
         if (!res.ok) {
             // A CSRF refusal (and any other non-JSON error page) has no `error`
@@ -233,7 +251,14 @@ function startPolling() {
 
     pollingInterval = setInterval(async () => {
         try {
-            const res = await fetch(`${API_BASE}/status/`);
+            const res = await fetch(`${API_BASE}/status/`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+            if (needsLogin(res)) {
+                stopPolling();
+                return;
+            }
             const data = await res.json();
 
             if (!isCurrentUpdate(data)) return;
@@ -302,7 +327,11 @@ function formatDate(iso) {
 // plus the last successful web update (if any). Non-fatal on failure.
 (async function loadLastUpdateInfo() {
     try {
-        const res = await fetch(`${API_BASE}/last-update/`);
+        const res = await fetch(`${API_BASE}/last-update/`, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        });
+        if (needsLogin(res)) return;
         if (!res.ok) return;
         const data = await res.json();
         let visible = false;

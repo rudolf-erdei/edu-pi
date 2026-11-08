@@ -10,6 +10,8 @@ keeps a value from the server out of the page's markup.
 from pathlib import Path
 
 import pytest
+
+from tests.helpers import login_settings
 from django.conf import settings
 from django.test import Client
 
@@ -36,7 +38,7 @@ def empty_registry():
 
 @pytest.mark.django_db
 def test_a_page_view_registers_a_client():
-    Client().get("/settings/", {"tab": "system"})
+    login_settings(Client()).get("/settings/", {"tab": "system"})
 
     connected = snapshot()
 
@@ -54,7 +56,7 @@ def test_the_page_being_rendered_is_named_in_its_own_list():
     matched it yet. Without that, a teacher opening the tab sees their own
     page as blank until the first poll a minute later.
     """
-    resp = Client().get("/settings/", {"tab": "system"})
+    resp = login_settings(Client()).get("/settings/", {"tab": "system"})
 
     mine = [client for client in resp.context["clients"] if client.ip == "127.0.0.1"]
 
@@ -80,7 +82,7 @@ def test_no_session_row_is_written():
     from django.contrib.sessions.models import Session
 
     for _ in range(3):
-        Client().get("/settings/", {"tab": "system"})
+        login_settings(Client()).get("/settings/", {"tab": "system"})
 
     assert Session.objects.count() == 0
     assert len(snapshot()) == 3
@@ -179,7 +181,7 @@ def test_the_registry_holds_no_client_supplied_string():
 
 @pytest.mark.django_db
 def test_a_hostile_query_string_cannot_reach_the_registry():
-    Client().get("/settings/", {"tab": "<script>alert(1)</script>"})
+    login_settings(Client()).get("/settings/", {"tab": "<script>alert(1)</script>"})
 
     connected = snapshot()
 
@@ -240,7 +242,7 @@ def test_the_poller_polls_the_endpoint_the_view_serves():
 def test_the_page_hands_the_poller_its_interval_and_its_unit():
     """The interval and the translated "seconds" come from the server, so the
     JavaScript needs no translation catalogue of its own."""
-    body = Client().get("/settings/", {"tab": "system"}).content.decode()
+    body = login_settings(Client()).get("/settings/", {"tab": "system"}).content.decode()
 
     assert f'data-poll-seconds="{settings.CLIENT_POLL_SECONDS}"' in body
     assert 'data-idle-suffix="seconds"' in body

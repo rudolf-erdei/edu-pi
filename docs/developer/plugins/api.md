@@ -181,9 +181,35 @@ def uninstall(self):
 
 ## Configuration Methods
 
+### register_settings_tab()
+
+Declare the page that edits this plugin's configuration. The Settings page
+shows one tab per declared page and links to it. The plugin page stays the
+only editor, so there is no second form to keep in sync.
+
+```python
+def register(self):
+    self.register_settings_tab(
+        _("My Plugin"),
+        "/plugins/acme/my_plugin/config/",
+        description=_("Thresholds and timings"),
+        icon="cog",
+    )
+```
+
+**Parameters:**
+- `label`: Tab label
+- `url`: Literal path of the plugin's settings page (a URL name cannot be
+  reversed yet when `register()` runs)
+- `description`: One line shown on the tab's card
+- `icon`: Icon name the Settings template understands
+
 ### register_setting()
 
-Add a configurable setting.
+Records metadata about a setting on the plugin instance (`get_config("settings")`).
+**No page renders this**, and it is not a storage mechanism — keep the real
+configuration in a plugin model and edit it on the plugin's own page, declared
+with `register_settings_tab()` above.
 
 ```python
 def register(self):

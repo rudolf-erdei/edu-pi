@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Set a settings PIN" %}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-md">
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h1 class="card-title text-2xl mb-2">{% trans "Set a settings PIN" %}</h1>
+            <p class="text-base-content/70 mb-6">{% trans "No settings PIN exists on this device yet. Choose 4–8 digits. You can reset it later with the admin login or the reset_settings_pin command." %}</p>
+
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}" />
+                {% for field in form %}
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text font-medium">{{ field.label }}</span>
+                    </label>
+                    {{ field }}
+                    {{ field.errors }}
+                    {% if field.help_text %}
+                    <label class="label">
+                        <span class="label-text-alt">{{ field.help_text }}</span>
+                    </label>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if form.non_field_errors %}
+                <div class="alert alert-error">{{ form.non_field_errors }}</div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary w-full">{% trans "Save PIN" %}</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

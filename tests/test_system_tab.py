@@ -22,6 +22,8 @@ from django.apps import apps
 from django.conf import settings as django_settings
 from django.middleware.csrf import get_token
 from django.test import Client, RequestFactory
+
+from tests.helpers import login_settings
 from django.utils import timezone
 
 from core.edupi_core.system import history, storage
@@ -41,32 +43,37 @@ DESTRUCTIVE_URLS = ("/settings/system/clean/", "/settings/system/vacuum/")
 
 @pytest.mark.django_db
 def test_the_system_tab_is_rendered_on_request():
-    resp = Client().get("/settings/", {"tab": "system"})
+    resp = login_settings(Client()).get("/settings/", {"tab": "system"})
 
     assert resp.status_code == 200
     assert resp.context["is_system"] is True
-    # Not the plugin branch: that one renders nothing at all, because nothing
-    # ever builds a PluginSettings instance.
+    # Not the plugin branch: "system" is a fixed tab, and no plugin declared
+    # that id.
     assert resp.context["is_plugin"] is False
     assert "Storage" in resp.content.decode()
 
 
 @pytest.mark.django_db
 def test_the_system_tab_is_offered_beside_the_others():
-    resp = Client().get("/settings/")
+    resp = login_settings(Client()).get("/settings/")
 
     ids = [tab["id"] for tab in resp.context["tabs"]]
 
-    assert ids == ["global", "updates", "system"]
+    # The fixed tabs keep their order; plugin tabs live between Global and
+    # Updates, each one a link to the page that owns that plugin's settings.
+    assert ids[0] == "global"
+    assert ids[-2:] == ["updates", "system"]
+    assert set(ids) >= {"global", "updates", "system"}
 
 
 @pytest.mark.django_db
-def test_an_unknown_tab_falls_into_the_plugin_branch():
+def test_an_unknown_tab_falls_back_to_global():
     """`?tab=nonsense` must not be mistaken for a real tab."""
-    resp = Client().get("/settings/", {"tab": "nonsense"})
+    resp = login_settings(Client()).get("/settings/", {"tab": "nonsense"})
 
     assert resp.status_code == 200
-    assert resp.context["is_plugin"] is True
+    assert resp.context["is_global"] is True
+    assert resp.context["is_plugin"] is False
     assert resp.context["is_system"] is False
 
 
@@ -77,14 +84,14 @@ def test_storage_is_only_measured_for_the_system_tab(tab):
     with mock.patch(
         "core.edupi_core.views.measure_storage"
     ) as measure:
-        Client().get("/settings/", {"tab": tab})
+        login_settings(Client()).get("/settings/", {"tab": tab})
 
     assert measure.call_count == 0
 
 
 @pytest.mark.django_db
 def test_the_clients_endpoint_answers_json():
-    resp = Client().get("/settings/system/clients/")
+    resp = login_settings(Client()).get("/settings/system/clients/")
 
     assert resp.status_code == 200
     body = resp.json()
@@ -100,7 +107,7 @@ def test_the_clients_endpoint_answers_json():
 
 @pytest.mark.django_db
 def test_the_clients_endpoint_refuses_a_post():
-    assert Client().post("/settings/system/clients/").status_code == 405
+    assert login_settings(Client()).post("/settings/system/clients/").status_code == 405
 
 
 # --- storage ---------------------------------------------------------------
@@ -415,7 +422,7 @@ def test_a_failing_target_does_not_stop_the_others(monkeypatch):
 @pytest.mark.parametrize("url", DESTRUCTIVE_URLS)
 def test_a_get_cannot_delete_anything(url):
     """A GET is followed by browsers, link previews and crawlers."""
-    assert Client().get(url).status_code == 405
+    assert login_settings(Client()).get(url).status_code == 405
 
 
 @pytest.mark.django_db
@@ -430,7 +437,7 @@ def test_a_post_without_a_csrf_token_is_refused(url):
 @pytest.mark.parametrize("url", DESTRUCTIVE_URLS)
 def test_a_post_with_a_token_is_accepted(url):
     token = get_token(RequestFactory().get("/"))
-    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client = login_settings(Client(enforce_csrf_checks=True))
     csrf_client.cookies["csrftoken"] = token
 
     resp = csrf_client.post(url, headers={"x-csrftoken": token})
@@ -450,7 +457,7 @@ def test_cleaning_reports_what_it_deleted():
             created_at=timezone.now() - timedelta(days=40)
         )
     token = get_token(RequestFactory().get("/"))
-    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client = login_settings(Client(enforce_csrf_checks=True))
     csrf_client.cookies["csrftoken"] = token
 
     resp = csrf_client.post(
@@ -466,7 +473,7 @@ def test_cleaning_reports_what_it_deleted():
 @pytest.mark.django_db
 def test_cleaning_says_so_when_there_was_nothing_to_do():
     token = get_token(RequestFactory().get("/"))
-    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client = login_settings(Client(enforce_csrf_checks=True))
     csrf_client.cookies["csrftoken"] = token
 
     resp = csrf_client.post(
@@ -482,7 +489,7 @@ def test_compacting_answers_with_the_size_of_the_database():
     a real one. The answer is either "compacted" or "nothing to reclaim":
     pytest's SQLite test database is in memory, where VACUUM does nothing."""
     token = get_token(RequestFactory().get("/"))
-    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client = login_settings(Client(enforce_csrf_checks=True))
     csrf_client.cookies["csrftoken"] = token
 
     resp = csrf_client.post(
@@ -498,7 +505,7 @@ def test_compacting_answers_with_the_size_of_the_database():
 def test_compacting_never_reports_a_failure_it_did_not_have():
     """The database is fine, so nothing may be logged as an error."""
     token = get_token(RequestFactory().get("/"))
-    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client = login_settings(Client(enforce_csrf_checks=True))
     csrf_client.cookies["csrftoken"] = token
 
     resp = csrf_client.post(

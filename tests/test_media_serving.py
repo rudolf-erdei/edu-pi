@@ -13,6 +13,8 @@ import pytest
 from django.conf import settings
 from django.test import override_settings
 
+from tests.helpers import login_settings
+
 from core.plugin_system.models import SiteSetting
 
 
@@ -112,7 +114,7 @@ def test_settings_page_points_at_a_served_logo(client, media_root):
     )
 
     with override_settings(DEBUG=False, MEDIA_ROOT=media_root):
-        page = client.get("/settings/")
+        page = login_settings(client).get("/settings/")
         assert page.status_code == 200
         # Only the uploaded logo: the site also ships a static logo.svg, which
         # is served by WhiteNoise and is none of this route's business.

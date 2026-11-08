@@ -6,6 +6,9 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.utils import timezone
 from pathlib import Path
+
+from core.edupi_core.settings_auth import settings_login_required
+
 from .models import UpdateStatus
 
 # Configuration
@@ -163,6 +166,7 @@ def check_for_updates():
     except Exception as e:
         return {"error": str(e)}
 
+@settings_login_required
 def check_updates(request):
     """Check for available updates."""
     result = check_for_updates()
@@ -170,6 +174,7 @@ def check_updates(request):
         return JsonResponse({"error": result["error"]}, status=500)
     return JsonResponse(result)
 
+@settings_login_required
 def start_update(request):
     """Trigger the system update process."""
     # 0. Reconcile DB records with the daemon's last result first, so a
@@ -211,6 +216,7 @@ def start_update(request):
 
     return JsonResponse({'update_id': update.id})
 
+@settings_login_required
 def get_update_status(request):
     """Poll the current status from the status file."""
     reconcile_update_records()
@@ -224,6 +230,7 @@ def get_update_status(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@settings_login_required
 def get_last_update_info(request):
     """Return the date of the last commit on the installed code and the last
     successful web update. Cheap: reads only local git HEAD and one DB row

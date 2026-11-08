@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Settings are locked" %}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-md">
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h1 class="card-title text-2xl mb-2">{% trans "Settings are locked" %}</h1>
+            <p class="text-base-content/70 mb-2">{% trans "Enter your PIN to open Settings." %}</p>
+            <p class="text-base-content/60 text-sm mb-6">{% trans "Forgot it? Sign in to the Django admin as a superuser, or run reset_settings_pin on the Pi." %}</p>
+
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}" />
+                {% for field in form %}
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text font-medium">{{ field.label }}</span>
+                    </label>
+                    {{ field }}
+                    {{ field.errors }}
+                    {% if field.help_text %}
+                    <label class="label">
+                        <span class="label-text-alt">{{ field.help_text }}</span>
+                    </label>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if form.non_field_errors %}
+                <div class="alert alert-error">{{ form.non_field_errors }}</div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary w-full">{% trans "Unlock" %}</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

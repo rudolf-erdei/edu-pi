@@ -388,11 +388,14 @@ As a teacher, I want to be able to change the robot's name, so I can adapt it to
 
 **Acceptance Criteria**:
 
-- [x] Each plugin's registration class should expose a number of settings (if it has settings) to the system
-- [x] These settings will be displayed on the application main Settings page.
-- [x] These settings will have custom keys, like `tinko.global.setting_name` for global settings and `developer.plugin_name.setting_name` for plugin settings
-- [x] Settings can be read with a special model defined at the plugin level in the `plugin_settings.py` file
-- [x] Global settings and each plugin settings are separated in different tabs
+- [x] Each plugin can declare where its settings live with
+      `PluginBase.register_settings_tab()`; the main Settings page shows a tab
+      for each declared page
+- [x] Each plugin's settings stay in that plugin's own model and are edited on
+      its own page; the Settings tab links there instead of duplicating the form
+- [x] Global settings use `tinko.global.setting_name`; plugin settings live in
+      each plugin's own table
+- [x] Global settings and each plugin's settings are separated in different tabs
 - [x] School name and logo can be configured in Global Settings
 - [x] The uploaded logo is served in production, not only with `DEBUG` on: it
       is written at runtime, so it cannot go through WhiteNoise (which serves
@@ -438,10 +441,12 @@ As a teacher, I want to be able to change the robot's name, so I can adapt it to
 **Technical Implementation**:
 
 - **SiteSetting Model**: Stores global settings with namespace support (`tinko.global.*`)
-- **PluginSettings System**: OctoberCMS-inspired settings framework
-- **SettingsReader API**: `SiteSettings.get('tinko.global.school_name')` and `get_plugin_settings('edupi.routines')`
-- **Manual Form Classes**: Plugins define `SettingsForm` in `plugin_settings.py` with nested sections
-- **Settings Page**: `/settings/` with DaisyUI tabbed interface
+- **Plugin settings**: each plugin owns its configuration model and page;
+  `PluginBase.register_settings_tab()` declares that page, and the Settings
+  page renders a card linking to it
+- **Site settings accessor**: `SiteSettings.get('tinko.global.school_name')`
+- **Settings Page**: `/settings/` with DaisyUI tabbed interface (Global, one
+  card per plugin settings page, Updates, System)
 - **Image Processing**: Pillow-based resize and crop for school logo
 - **Auto-migration**: System automatically runs migrations on boot
 - **System tab**: `core/edupi_core/system/` — `storage.py` (read-only
@@ -625,13 +630,12 @@ if lcd_service.is_initialized():
 
 ### Security
 
-- PIN-based authentication for teacher settings — **not built**. Nothing outside
-  `/admin/` asks anyone to sign in, so the Settings page (school name, logo,
-  robot name), the Updates tab (installs code) and the System tab (deletes rows,
-  rewrites the database, **hands over the whole database to any `GET`**) are all
-  open to anyone who can reach the port. The destructive pair is POST-only with
-  Django's CSRF check, which stops a third-party page but not a client that
-  fetches the page first. Tracked in `ISSUES.md`
+- PIN-based authentication for teacher settings — **built**. `/settings/`, the
+  four `/settings/system/` routes and the four `/updates/` routes require a
+  4–8 digit PIN, stored only as a hash. Sessions idle out after 15 minutes and
+  five failures lock an IP for five minutes. A Django superuser bypasses the
+  gate and `manage.py reset_settings_pin` (over SSH) returns the device to
+  first-run setup.
 - No external network exposure by default
 - Input validation on all GPIO operations
 - Safe pin numbering validation
@@ -1012,8 +1016,8 @@ data, without needing someone technical to log into it.
 
 **Access URL**: `/settings/?tab=system`
 
-**Known gap**: the endpoints are unauthenticated, like the rest of the site —
-see `ISSUES.md`.
+**Auth**: the endpoints require the Settings PIN session (or a superuser
+session); see the PIN authentication entry under **Security**.
 
 #### Noise Monitor Plugin ✅
 

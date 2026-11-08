@@ -504,3 +504,6 @@ msgstr "Pornește monitorizarea imediat ce modulul este încărcat"
 # plugin.py - the activity another plugin can stop
 msgid "Noise monitoring and LEDs"
 msgstr "Monitorizarea zgomotului și LED-urile"
+
+msgid "Profiles, timing, thresholds and LED brightness"
+msgstr "Profiluri, temporizare, praguri și luminozitate LED"

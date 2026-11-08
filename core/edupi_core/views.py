@@ -10,9 +10,11 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.conf import settings
 
+from core.plugin_system.base import plugin_manager
 from core.plugin_system.models import PluginStatus
 from core.plugin_system.settings import SiteSettings
 from core.plugin_system.settings_forms import GlobalSettingsForm, LogoUploadForm
+from core.edupi_core.settings_auth import settings_login_required
 from core.edupi_core.system.clients import CLIENT_TTL_SECONDS
 from core.edupi_core.system.clients import snapshot as client_snapshot
 from core.edupi_core.system.history import survey_clean
@@ -206,6 +208,7 @@ def serve_media(request: HttpRequest, path: str) -> HttpResponse:
     return static_serve(request, path, document_root=settings.MEDIA_ROOT)
 
 
+@settings_login_required
 def settings_view(request: HttpRequest) -> HttpResponse:
     """
     Main settings page with tabs for global and plugin settings.
@@ -262,18 +265,20 @@ def settings_view(request: HttpRequest) -> HttpResponse:
         }
     ]
 
-    # Add plugin setting tabs
-    from core.plugin_system.settings import SettingsRegistry
-
-    for plugin_name, plugin_settings in SettingsRegistry.get_all_settings().items():
-        if plugin_settings._settings_fields:
+    # Add plugin setting tabs. A plugin declares its own settings page in
+    # register(); the tab links to it. The page itself stays the only editor
+    # for that plugin's configuration.
+    plugin_tabs = {}
+    for plugin in plugin_manager.get_enabled_plugins().values():
+        namespace = plugin.get_namespace().replace(".", "_")
+        for index, declared in enumerate(plugin.get_settings_tabs()):
+            tab_id = namespace if index == 0 else f"{namespace}_{index + 1}"
+            plugin_tabs[tab_id] = declared
             tabs.append(
                 {
-                    "id": plugin_name.replace(".", "_"),
-                    "label": plugin_name.replace("edupi.", "")
-                    .replace("_", " ")
-                    .title(),
-                    "icon": "cog",
+                    "id": tab_id,
+                    "label": declared["label"],
+                    "icon": declared["icon"],
                     "active": False,
                 }
             )
@@ -299,13 +304,16 @@ def settings_view(request: HttpRequest) -> HttpResponse:
     )
 
     tab_id = request.GET.get("tab", "global")
+    # An unknown ?tab= lands on Global rather than on a plugin card with
+    # nothing in it. The fixed tabs are known by name; a plugin tab is known
+    # only because a plugin declared that id.
+    if tab_id not in {tab["id"] for tab in tabs}:
+        tab_id = "global"
     is_global = tab_id == "global"
     is_update = tab_id == "updates"
     is_system = tab_id == "system"
-    # Everything that is not one of the known tabs. The plugin branch renders
-    # nothing today, because nothing ever builds a PluginSettings instance, so
-    # an unknown ?tab= has to land somewhere harmless.
-    is_plugin = not is_global and not is_update and not is_system
+    is_plugin = tab_id in plugin_tabs
+    plugin_tab = plugin_tabs.get(tab_id)
 
     # Set active status for tabs
     for tab in tabs:
@@ -320,6 +328,7 @@ def settings_view(request: HttpRequest) -> HttpResponse:
         "is_update": is_update,
         "is_system": is_system,
         "is_plugin": is_plugin,
+        "plugin_tab": plugin_tab,
         "tabs": tabs,
         "MEDIA_URL": settings.MEDIA_URL,
     }

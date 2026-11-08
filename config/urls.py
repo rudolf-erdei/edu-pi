@@ -20,6 +20,11 @@ from django.contrib import admin
 from django.urls import path, re_path, include
 from django.views.i18n import JavaScriptCatalog
 
+from core.edupi_core.auth_views import (
+    settings_login,
+    settings_logout,
+    settings_setup,
+)
 from core.edupi_core.views import (
     home_view,
     serve_media,
@@ -63,11 +68,16 @@ urlpatterns = [
         disable_plugin_view,
         name="disable_plugin",
     ),
+    # PIN gate for the Settings surface. The three auth routes are exempt from
+    # the gate; everything they protect is decorated individually.
+    path("settings/login/", settings_login, name="settings_login"),
+    path("settings/setup/", settings_setup, name="settings_setup"),
+    path("settings/logout/", settings_logout, name="settings_logout"),
     # Settings page
     path("settings/", settings_view, name="settings"),
     # System tab on the settings page. `clean` and `vacuum` are POST-only;
-    # `backup` is a download and so has to be a GET. None of the four asks for
-    # a login, because nothing on this site does yet — see ISSUES.md.
+    # `backup` is a download and so has to be a GET. All four require the
+    # Settings PIN session (or a superuser session).
     path("settings/system/clients/", system_clients, name="settings_system_clients"),
     path("settings/system/backup/", system_backup, name="settings_system_backup"),
     path("settings/system/clean/", system_clean, name="settings_system_clean"),

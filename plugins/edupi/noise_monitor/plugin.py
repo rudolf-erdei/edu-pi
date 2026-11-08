@@ -92,6 +92,14 @@ class Plugin(PluginBase):
             _("Noise Monitor"), "/plugins/edupi/noise_monitor/", icon="volume-2"
         )
 
+        # The Settings page links here rather than editing the records itself.
+        self.register_settings_tab(
+            _("Noise Monitor"),
+            "/plugins/edupi/noise_monitor/config/",
+            description=_("Profiles, timing, thresholds and LED brightness"),
+            icon="volume-2",
+        )
+
         # Register settings
         self.register_setting(
             "instant_window_seconds",

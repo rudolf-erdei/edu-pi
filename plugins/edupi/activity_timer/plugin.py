@@ -90,6 +90,14 @@ class Plugin(PluginBase):
             _("Activity Timer"), "/plugins/edupi/activity_timer/", icon="clock"
         )
 
+        # The Settings page links here rather than editing these records itself.
+        self.register_settings_tab(
+            _("Activity Timer"),
+            "/plugins/edupi/activity_timer/configs/",
+            description=_("Timer durations, LED colors and sounds"),
+            icon="clock",
+        )
+
         # Register settings
         self.register_setting(
             "default_duration",

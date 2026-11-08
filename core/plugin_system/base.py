@@ -69,6 +69,7 @@ class PluginBase:
         self._events: Dict[str, List[Callable]] = {}
         self._schedules: List[Dict] = []
         self._activities: Dict[str, Dict] = {}
+        self._settings_tabs: List[Dict] = []
 
         logger.info(f"Initialized plugin: {self.name} ({self.plugin_path})")
 
@@ -159,6 +160,44 @@ class PluginBase:
             "type": field_type,
             **kwargs,
         }
+
+    def register_settings_tab(
+        self,
+        label: str,
+        url: str,
+        description: str = "",
+        icon: str = "cog",
+    ) -> None:
+        """Declare the page that holds this plugin's settings.
+
+        The Settings page shows one tab per declared page, linking to it rather
+        than rendering a second editor for the same records. A plugin's own
+        page already owns its forms, validation and the models they write, so
+        the settings system does not need a copy of them — it only needs to
+        know where they are.
+
+        Args:
+            label: Tab label, e.g. "Noise Monitor".
+            url: Path of the plugin's settings page, e.g.
+                ``/plugins/edupi/noise_monitor/config/``. A literal path rather
+                than a URL name, because plugin URLs are registered after this
+                runs and ``reverse()`` cannot resolve them yet.
+            description: One line shown on the tab's card.
+            icon: Icon name the Settings template understands.
+        """
+        self._settings_tabs.append(
+            {
+                "label": label,
+                "url": url,
+                "description": description,
+                "icon": icon,
+            }
+        )
+        logger.info(f"Plugin {self.name} registered settings tab: {label}")
+
+    def get_settings_tabs(self) -> List[Dict]:
+        """Get the settings pages this plugin declared."""
+        return [dict(tab) for tab in self._settings_tabs]
 
     # GPIO methods
 

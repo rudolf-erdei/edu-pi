@@ -179,15 +179,14 @@ ws.onmessage = (event) => {
 The settings page's **System** tab is rendered by the server; these four routes
 are what it calls, plus the ones behind its buttons.
 
-!!! warning "These endpoints require no login"
-    Nothing outside `/admin/` authenticates, so any client that can reach the Pi
-    can call all four. The two destructive ones are POST-only with Django's CSRF
-    check, which stops a *third-party page* from triggering them — the token
-    cannot be read cross-origin — but that is not a substitute for a login: a
-    client that fetches `/settings/?tab=system` first gets a token, and
-    `GET /settings/system/backup/` needs nothing at all and returns the entire
-    database. Treat the port as trusted-network only. See
-    [`ISSUES.md`](https://github.com/rudolf-erdei/edu-pi/blob/master/ISSUES.md).
+!!! info "These endpoints require the Settings PIN"
+    All four require an authenticated Settings session (or a Django superuser
+    session). An unauthenticated request is redirected to
+    `/settings/login/?next=...` before the view runs. The two destructive ones
+    are still POST-only with Django's CSRF check, so a third-party page cannot
+    trigger them even inside a signed-in browser. Treat the port as
+    trusted-network only all the same; see
+    [Settings PIN](../teacher/settings.md#settings-pin).
 
 #### Connected Clients
 
@@ -216,9 +215,10 @@ first. Kept in process memory: no database row, no session row, no file.
 ```
 
 `route` is Django's resolved route pattern, never the raw path, so no
-client-supplied string is stored or returned. `user` is empty until something
-signs in, which today is nobody. The registry is capped at 32 entries and drops
-the least recently seen when it is full.
+client-supplied string is stored or returned. `user` is empty until a Django
+session is signed in; a Settings PIN session is not a Django login, so only a
+superuser visiting `/admin/` fills it. The registry is capped at 32 entries and
+drops the least recently seen when it is full.
 
 #### Download Backup
 

@@ -10,9 +10,17 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
+from django.test import Client
 from django.utils import timezone
 
 from core.update_system.models import UpdateStatus
+from tests.helpers import login_settings
+
+
+@pytest.fixture(autouse=True)
+def _authenticated_settings(client):
+    """These tests exercise update logic, not the PIN gate."""
+    login_settings(client)
 
 
 @pytest.mark.django_db
@@ -186,7 +194,7 @@ def test_start_update_rejects_post_without_csrf_token():
     """
     from django.test import Client
 
-    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client = login_settings(Client(enforce_csrf_checks=True))
     resp = csrf_client.post("/updates/start/")
 
     assert resp.status_code == 403
@@ -203,7 +211,7 @@ def test_start_update_accepts_post_with_valid_csrf_token(tmp_path):
     # collectstatic manifest that only exists on a deployed install).
     token = get_token(RequestFactory().get("/"))
 
-    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client = login_settings(Client(enforce_csrf_checks=True))
     csrf_client.cookies["csrftoken"] = token
 
     with mock.patch("core.update_system.views.STATUS_FILE", tmp_path / "status.json"), mock.patch(

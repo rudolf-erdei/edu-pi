@@ -596,3 +596,6 @@ msgstr "ex., C4"
 # forms.py
 msgid "e.g., Classroom Piano"
 msgstr "ex., Pian de clasă"
+
+msgid "Volume, touch sensitivity and key layout"
+msgstr "Volum, sensibilitate la atingere și aranjarea clapelor"

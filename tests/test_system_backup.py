@@ -25,6 +25,8 @@ import pytest
 from django.apps import apps
 from django.test import Client
 
+from tests.helpers import login_settings
+
 from core.edupi_core.system import backup
 from core.edupi_core.system.backup import (
     BACKUP_PREFIX,
@@ -49,7 +51,7 @@ def backup_home(tmp_path, settings):
 
 def _download(client):
     """Fetch the backup over HTTP and return the archive's bytes."""
-    resp = client.get(BACKUP_URL)
+    resp = login_settings(client).get(BACKUP_URL)
     assert resp.status_code == 200, resp.content
     payload = b"".join(resp.streaming_content)
     resp.close()
@@ -228,7 +230,7 @@ def test_a_database_too_large_for_the_limit_is_refused(backup_home, settings):
     settings.BACKUP_MAX_BYTES = 1024 * 1024
 
     with mock.patch.object(backup, "database_size", return_value=4 * 1024 * 1024):
-        resp = Client().get(BACKUP_URL, follow=True)
+        resp = login_settings(Client()).get(BACKUP_URL, follow=True)
 
     assert "larger than" in resp.content.decode()
     assert list((backup_home / "tmp").glob(f"{BACKUP_PREFIX}*")) == []
@@ -239,7 +241,7 @@ def test_a_full_temp_directory_is_refused_before_anything_is_written(
     backup_home,
 ):
     with mock.patch.object(backup, "free_space", return_value=0):
-        resp = Client().get(BACKUP_URL, follow=True)
+        resp = login_settings(Client()).get(BACKUP_URL, follow=True)
 
     assert "Not enough room" in resp.content.decode()
     assert list((backup_home / "tmp").glob(f"{BACKUP_PREFIX}*")) == []
@@ -268,7 +270,7 @@ def test_an_unusable_temp_directory_is_reported_not_raised(backup_home):
         backup, "backup_root", return_value=backup_home / "file-not-dir"
     ):
         (backup_home / "file-not-dir").write_bytes(b"")
-        resp = Client().get(BACKUP_URL, follow=True)
+        resp = login_settings(Client()).get(BACKUP_URL, follow=True)
 
     assert resp.status_code == 200
     assert "Could not create a working directory" in resp.content.decode()
@@ -276,7 +278,7 @@ def test_an_unusable_temp_directory_is_reported_not_raised(backup_home):
 
 @pytest.mark.django_db
 def test_the_backup_is_a_download_and_not_a_form(backup_home):
-    assert Client().post(BACKUP_URL).status_code == 405
+    assert login_settings(Client()).post(BACKUP_URL).status_code == 405
 
 
 def test_the_refusal_limit_is_a_setting():

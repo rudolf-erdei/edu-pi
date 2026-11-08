@@ -1,12 +1,16 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% load edupi_tags %}
-
 {% block title %}{% trans "Settings" %}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8 max-w-7xl">
-    <h1 class="text-3xl font-bold mb-8">{% trans "Settings" %}</h1>
+    <div class="flex items-center justify-between gap-4 mb-8">
+        <h1 class="text-3xl font-bold">{% trans "Settings" %}</h1>
+        <form method="post" action="/settings/logout/">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-sm">{% trans "Sign out of Settings" %}</button>
+        </form>
+    </div>
 
     <!-- Tabs Navigation -->
     <div class="tabs tabs-boxed mb-8">
@@ -125,71 +129,23 @@
     {% endif %}
 
     <!-- Plugin Settings Tab -->
-    {% if is_plugin %}
+    {% if is_plugin and plugin_tab %}
     <div class="card bg-base-100 shadow-xl">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-6">{{ plugin_name|title }} {% trans "Settings" %}</h2>
+            <h2 class="card-title text-2xl mb-2">{{ plugin_tab.label }}</h2>
+            {% if plugin_tab.description %}
+            <p class="text-base-content/70 mb-6">{{ plugin_tab.description }}</p>
+            {% endif %}
 
-            <form method="post" class="space-y-6">
-                {% csrf_token %}
-
-                {% for section_path, field_names in sections.items %}
-                <div class="border-b border-base-300 pb-6">
-                    <h3 class="text-lg font-semibold mb-4">{{ section_path }}</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {% for field_name in field_names %}
-                        {% with field=form|get_field:field_name %}
-                        <div class="form-control w-full">
-                            <label class="label">
-                                <span class="label-text font-medium">{{ field.label }}</span>
-                            </label>
-                            {{ field.errors }}
-                            {% if field.field.widget.input_type == 'select' %}
-                            <select name="{{ field.name }}" class="select select-bordered w-full">
-                                {% for choice in field.field.choices %}
-                                <option value="{{ choice.0 }}" {% if field.value == choice.0 %}selected{% endif %}>{{ choice.1 }}</option>
-                                {% endfor %}
-                            </select>
-                            {% elif field.field.widget.input_type == 'checkbox' %}
-                            <label class="label cursor-pointer justify-start gap-4">
-                                <input type="checkbox" name="{{ field.name }}" class="checkbox checkbox-primary" {% if field.value %}checked{% endif %} />
-                                <span class="label-text">{{ field.label }}</span>
-                            </label>
-                            {% else %}
-                            <input type="{{ field.field.widget.input_type|default:'text' }}"
-                                   name="{{ field.name }}"
-                                   value="{{ field.value|default:'' }}"
-                                   class="input input-bordered w-full"
-                                   {% if field.field.required %}required{% endif %} />
-                            {% endif %}
-                            {% if field.help_text %}
-                            <label class="label">
-                                <span class="label-text-alt">{{ field.help_text }}</span>
-                            </label>
-                            {% endif %}
-                        </div>
-                        {% endwith %}
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
-
-                <!-- Action Buttons -->
-                <div class="flex gap-4 pt-4">
-                    <button type="submit" class="btn btn-primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                        {% trans "Save Settings" %}
-                    </button>
-                    <button type="submit" name="reset" value="true" class="btn btn-ghost btn-outline" onclick="return confirm('{% trans "Are you sure you want to reset these settings to defaults?" %}')">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        {% trans "Reset to Defaults" %}
-                    </button>
-                </div>
-            </form>
+            <div>
+                <a href="{{ plugin_tab.url }}" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {% trans "Open plugin settings" %}
+                </a>
+            </div>
         </div>
     </div>
     {% endif %}

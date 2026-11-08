@@ -140,18 +140,24 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ## Plugin Settings
 
-Settings are stored with namespaces:
+There is no shared plugin-settings store. Each plugin keeps its configuration
+in its own model and edits it on its own page; the Settings page's plugin tabs
+link to those pages rather than duplicating their forms. A plugin declares the
+page with `PluginBase.register_settings_tab()` in `register()`.
 
-### Global Settings
+School-wide values use the `SiteSetting` table with dotted keys:
 
 - `tinko.global.school_name`
 - `tinko.global.school_logo`
 - `tinko.global.robot_name`
 
-### Plugin Settings
+### Settings PIN
 
-- `{author}.{plugin}.{setting_key}`
-- Example: `edupi.activity_timer.default_duration`
+The Settings PIN is stored in the `SiteSetting` table under
+`tinko.security.settings_pin_hash` as a Django password hash. The plain PIN is
+never stored. A superuser session bypasses the gate; the
+`reset_settings_pin` management command deletes the hash and returns the device
+to first-run setup.
 
 ## Systemd Service
 

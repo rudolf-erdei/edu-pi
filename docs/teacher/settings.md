@@ -10,16 +10,51 @@ Click the **Settings** link in the top navigation bar, or navigate to:
 http://your-pi-ip-address:8000/settings/
 ```
 
+## Settings PIN
+
+Settings are protected by a PIN so a student cannot change the school name,
+delete history or download the database.
+
+### First time
+
+Open Settings. The Pi has no PIN yet, so it asks you to choose one: 4–8 digits,
+entered twice. Anyone who reaches Settings before you do can choose that first
+PIN, so set it during installation.
+
+### Signing in
+
+Enter the PIN when the Settings page asks. The unlock lasts 15 minutes without
+activity; after that, enter it again. The rest of the site — dashboard, plugins,
+lessons — is never locked and keeps working without a PIN.
+
+### Forgot the PIN
+
+Two ways back in:
+
+1. **Django admin.** Open `/admin/` and sign in with the `admin` superuser
+   account. A signed-in superuser opens Settings without the PIN.
+2. **On the Pi (SSH).** Run:
+
+   ```bash
+   cd ~/edu-pi
+   uv run python manage.py reset_settings_pin
+   ```
+
+   The next visit to Settings asks you to choose a new PIN.
+
+Being locked out of Settings does not stop lessons, timers or the noise
+monitor; only the settings pages wait for the PIN.
+
 ## Settings Structure
 
 Settings are organized into tabs:
 
 1. **Global Settings** - System-wide configuration
-2. **Updates** - Check for and apply system updates
-3. **System** - How full the card is, who else is connected, a backup download,
+2. **Plugin Settings** - One tab per plugin that has a configuration page; each
+   tab links to that page
+3. **Updates** - Check for and apply system updates
+4. **System** - How full the card is, who else is connected, a backup download,
    and the two maintenance buttons (see [System](#system) below)
-4. **Plugin Settings** - Individual plugin configurations (these tabs do not
-   render yet — see [Plugin Settings](#plugin-settings))
 
 ## Global Settings
 
@@ -64,29 +99,27 @@ This name appears in:
 
 ## Plugin Settings
 
-!!! warning "Per-plugin tabs are not available in this version"
-    The Settings page currently shows **Global** and **Updates** only. The
-    plugin sections below describe how plugin settings are meant to work and how
-    their values are stored, but the tabs do not render yet — the settings
-    registry they are built from is never populated at startup. It is a known
-    issue, tracked in
-    [`ISSUES.md`](https://github.com/rudolf-erdei/edu-pi/blob/master/ISSUES.md).
+Every plugin that has its own configuration page gets a tab here. The tab is a
+card that opens that page — the Noise Monitor's profile and timing form, the
+Activity Timer's configuration list, the Touch Piano's configuration list —
+rather than a second copy of the same form. Edit and save on the plugin page;
+the Settings page only takes you there, so the two can never disagree.
 
-In the meantime, everything a plugin needs to run is configured on the plugin's
-own page (for example the Noise Monitor's profile picker and the Activity
-Timer's duration presets), and school-wide values live under **Global**.
+Routines and LCD Display have no separate configuration page: their controls
+sit on their own dashboards.
 
 ### Accessing Plugin Settings
 
-1. Click the **Settings** tab for the plugin you want to configure
-2. Modify the settings
-3. Click **Save**
+1. Click the plugin's tab on the Settings page
+2. Click **Open plugin settings**
+3. Modify the settings on the plugin page
+4. Click **Save** there
 
 ### Common Setting Types
 
 | Setting Type | Description | Example |
 |--------------|-------------|---------|
-| Text | Single-line text input | School name |
+| Text | Single-line text input | Configuration name |
 | Number | Numeric value with min/max | LED brightness (10-100) |
 | Select | Dropdown menu | TTS engine selection |
 | Boolean | Checkbox (on/off) | Enable/disable feature |
@@ -94,10 +127,12 @@ Timer's duration presets), and school-wide values live under **Global**.
 
 ### Setting Namespaces
 
-Settings use dot notation for organization:
+School-wide settings use dot notation: `tinko.global.school_name`.
 
-- **Global**: `tinko.global.school_name`
-- **Plugin**: `edupi.activity_timer.default_duration`
+Plugin settings do **not** use dotted keys. Each plugin stores its
+configuration in its own database table (for example a timer configuration
+row), which is what its configuration page reads and writes.
+
 
 ## Updates
 
@@ -202,26 +237,24 @@ The System tab is about the machine the classroom runs on rather than about a
 lesson: how full the card is, who else has the page open, a copy of the school's
 data, and two buttons for trimming history.
 
-!!! warning "The System tab has no login, like the rest of the site"
-    Nothing in this interface asks anyone to sign in, and the parts of the
-    System tab with consequences are no exception. Anyone who can reach the Pi
-    on the school network can open this tab, so:
+!!! info "The System tab is behind the Settings PIN"
+    Everything on this tab — and on Global and Updates — asks for the Settings
+    PIN. Anyone who can reach the Pi on the school network can open the login
+    page, but not the settings themselves:
 
-    - **the backup link hands over the whole database** to anyone who opens it —
-      a URL that starts a full download is a URL a browser will also follow from
-      a link preview or a crawl;
-    - **Delete old history** permanently deletes rows, with no undo and no
-      password;
+    - **the backup link hands over the whole database**, and is reachable only
+      after the PIN is entered;
+    - **Delete old history** permanently deletes rows, with no undo;
     - **Compact the database** rewrites the database file;
     - the Global tab next door changes the school name and logo, and the Updates
       tab installs code.
 
     Tinko is meant to sit on a school's own network, not on the open internet —
     see [Security](https://github.com/rudolf-erdei/edu-pi/blob/master/REQUIREMENTS.md)
-    in `REQUIREMENTS.md`. A login for the settings area is a requirement, not a
-    built feature; it is tracked in
-    [`ISSUES.md`](https://github.com/rudolf-erdei/edu-pi/blob/master/ISSUES.md).
-    Until then, treat the port as trusted-network only.
+    in `REQUIREMENTS.md`. The PIN is a classroom safeguard, not a substitute for
+    keeping the port off the internet. Plugin configuration pages stay open:
+    the tabs here link to them, and the plugin's own page is not gated. See
+    [Settings PIN](#settings-pin) for setup and recovery.
 
 ### Storage
 

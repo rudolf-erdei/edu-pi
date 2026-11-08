@@ -72,6 +72,14 @@ class Plugin(PluginBase):
             _("Touch Piano"), "/plugins/edupi/touch_piano/", icon="music"
         )
 
+        # The Settings page links here rather than editing these records itself.
+        self.register_settings_tab(
+            _("Touch Piano"),
+            "/plugins/edupi/touch_piano/configs/",
+            description=_("Volume, touch sensitivity and key layout"),
+            icon="music",
+        )
+
         # Register settings
         self.register_setting(
             "volume",

@@ -27,6 +27,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
+from core.edupi_core.settings_auth import settings_login_required
 from core.edupi_core.system.backup import BackupRefused, build_backup
 from core.edupi_core.system.clients import snapshot
 from core.edupi_core.system.history import run_clean
@@ -68,6 +69,7 @@ class CleanupFileResponse(FileResponse):
             shutil.rmtree(directory, ignore_errors=True)
 
 
+@settings_login_required
 def system_clients(request):
     """The browsers connected right now, as JSON.
 
@@ -86,6 +88,7 @@ def system_clients(request):
     )
 
 
+@settings_login_required
 def system_backup(request):
     """Build a backup and send it as a download.
 
@@ -118,6 +121,7 @@ def system_backup(request):
     )
 
 
+@settings_login_required
 def system_clean(request):
     """Delete the history that is past its retention window."""
     if request.method != "POST":
@@ -157,6 +161,7 @@ def system_clean(request):
     return redirect(system_tab_url())
 
 
+@settings_login_required
 def system_vacuum(request):
     """Compact the database, returning the space of deleted rows to the file.
 
